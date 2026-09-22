@@ -1,0 +1,23 @@
+# Node dependencies
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.DS_Store
+
+# Python & Virtualenv
+backend/venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Local env & IDE files
+.env
+.env.local
+.vscode/
+.idea/

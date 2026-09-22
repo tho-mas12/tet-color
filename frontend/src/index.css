@@ -1,0 +1,52 @@
+﻿@import "tailwindcss";
+
+@layer base {
+  :root {
+    --teal-primary: #01949a;
+    --teal-dark: #016f74;
+    --mint-accent: #dbe8d8;
+    --mint-light: #f2f7f1;
+    --mint-border: #c4dac0;
+    --text-heading: #0a2d2f;
+    --text-body: #1d4648;
+  }
+
+  body {
+    background-color: #f2f7f1 !important;
+    color: var(--text-body);
+    min-height: 100vh;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6, button, input, select, textarea {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Custom Scrollbars in Teal & Mint Theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #dbe8d8;
+}
+::-webkit-scrollbar-thumb {
+  background: #01949a;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #016f74;
+}
+
+.bg-teal-blue {
+  background-color: #01949a !important;
+}
+.text-teal-blue {
+  color: #01949a !important;
+}
+.border-teal-blue {
+  border-color: #01949a !important;
+}
