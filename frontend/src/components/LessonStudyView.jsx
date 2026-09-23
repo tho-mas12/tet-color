@@ -191,7 +191,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   const testDone = progress?.stage4_test;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#1E3A8A]">
+    <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-7 animate-fade-in text-[#1E3A8A]">
       
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-sky-100 rounded-3xl p-6 shadow-xs">
@@ -231,20 +231,20 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
       {/* ================= 4 STAGES STEPPER CONTROL ================= */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         
-        {/* STAGE 1: PDF */}
+        {/* STAGE 1: BOOK / PDF */}
         <button
           onClick={() => setActiveStage(1)}
-          className={`p-4 rounded-2xl border text-left transition-all relative ${
+          className={`p-4 rounded-2xl border text-left transition-all relative cursor-pointer ${
             activeStage === 1
-              ? "bg-[#0284C7] text-white border-[#0284C7] shadow-xs scale-[1.02]"
+              ? "bg-[#0055ff] text-white border-[#0055ff] shadow-md scale-[1.02]"
               : pdfDone
-              ? "bg-sky-100 text-[#0284C7] border-[#0284C7]/30"
-              : "bg-white text-[#1E3A8A] border-sky-100"
+              ? "bg-blue-50 text-[#0055ff] border-[#0055ff]/40"
+              : "bg-white text-[#093c85] border-slate-200 hover:border-[#0055ff]/40"
           }`}
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase tracking-wider opacity-80">Stage 1</span>
-            {pdfDone ? <CheckCircle2 className="w-5 h-5 text-[#0284C7]" /> : <FileText className="w-5 h-5" />}
+            <span className="text-[10px] font-black uppercase tracking-wider opacity-90">Stage 1 • BOOK</span>
+            {pdfDone ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <FileText className="w-5 h-5" />}
           </div>
           <h4 className="text-sm font-bold truncate">{t.stage1Title}</h4>
           <span className="text-[10px] opacity-80 font-medium block mt-1">{t.stage1Desc}</span>
@@ -254,68 +254,67 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
         <button
           onClick={() => pdfDone && setActiveStage(2)}
           disabled={!pdfDone}
-          className={`p-4 rounded-2xl border text-left transition-all relative ${
+          className={`p-4 rounded-2xl border text-left transition-all relative cursor-pointer ${
             !pdfDone
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 2
-              ? "bg-[#0284C7] text-white border-[#0284C7] shadow-xs scale-[1.02]"
+              ? "bg-[#00a651] text-white border-[#00a651] shadow-md scale-[1.02]"
               : videoDone
-              ? "bg-sky-100 text-[#0284C7] border-[#0284C7]/30"
-              : "bg-white text-[#1E3A8A] border-sky-100"
+              ? "bg-emerald-50 text-[#00a651] border-[#00a651]/40"
+              : "bg-white text-[#093c85] border-slate-200 hover:border-[#00a651]/40"
           }`}
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase tracking-wider opacity-80">Stage 2</span>
-            {!pdfDone ? <Lock className="w-4 h-4 text-slate-400" /> : videoDone ? <CheckCircle2 className="w-5 h-5 text-[#0284C7]" /> : <Video className="w-5 h-5" />}
+            <span className="text-[10px] font-black uppercase tracking-wider opacity-90">Stage 2 • VIDEO</span>
+            {!pdfDone ? <Lock className="w-4 h-4 text-slate-400" /> : videoDone ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <Video className="w-5 h-5" />}
           </div>
           <h4 className="text-sm font-bold truncate">{t.stage2Title}</h4>
           <span className="text-[10px] opacity-80 font-medium block mt-1">{t.stage2Desc}</span>
         </button>
 
-        {/* STAGE 3: 200 AI QUESTIONS */}
+        {/* STAGE 3: QUESTIONS */}
         <button
           onClick={() => videoDone && setActiveStage(3)}
           disabled={!videoDone}
-          className={`p-4 rounded-2xl border text-left transition-all relative ${
+          className={`p-4 rounded-2xl border text-left transition-all relative cursor-pointer ${
             !videoDone
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 3
-              ? "bg-[#0284C7] text-white border-[#0284C7] shadow-xs scale-[1.02]"
+              ? "bg-[#ff7a00] text-white border-[#ff7a00] shadow-md scale-[1.02]"
               : questionsDone
-              ? "bg-sky-100 text-[#0284C7] border-[#0284C7]/30"
-              : "bg-white text-[#1E3A8A] border-sky-100"
+              ? "bg-orange-50 text-[#ff7a00] border-[#ff7a00]/40"
+              : "bg-white text-[#093c85] border-slate-200 hover:border-[#ff7a00]/40"
           }`}
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase tracking-wider opacity-80">Stage 3</span>
-            {!videoDone ? <Lock className="w-4 h-4 text-slate-400" /> : questionsDone ? <CheckCircle2 className="w-5 h-5 text-[#0284C7]" /> : <HelpCircle className="w-5 h-5" />}
+            <span className="text-[10px] font-black uppercase tracking-wider opacity-90">Stage 3 • QUESTIONS</span>
+            {!videoDone ? <Lock className="w-4 h-4 text-slate-400" /> : questionsDone ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <HelpCircle className="w-5 h-5" />}
           </div>
           <h4 className="text-sm font-bold truncate">{t.stage3Title}</h4>
           <span className="text-[10px] opacity-80 font-medium block mt-1">{t.stage3Desc}</span>
         </button>
 
-        {/* STAGE 4: 100 AI TEST */}
+        {/* STAGE 4: QUIZ / TEST */}
         <button
           onClick={() => questionsDone && setActiveStage(4)}
           disabled={!questionsDone}
-          className={`p-4 rounded-2xl border text-left transition-all relative ${
+          className={`p-4 rounded-2xl border text-left transition-all relative cursor-pointer ${
             !questionsDone
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 4
-              ? "bg-[#0284C7] text-white border-[#0284C7] shadow-xs scale-[1.02]"
+              ? "bg-[#8a00e6] text-white border-[#8a00e6] shadow-md scale-[1.02]"
               : testDone
-              ? "bg-sky-100 text-[#0284C7] border-[#0284C7]/30"
-              : "bg-white text-[#1E3A8A] border-sky-100"
+              ? "bg-purple-50 text-[#8a00e6] border-[#8a00e6]/40"
+              : "bg-white text-[#093c85] border-slate-200 hover:border-[#8a00e6]/40"
           }`}
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase tracking-wider opacity-80">Stage 4</span>
-            {!questionsDone ? <Lock className="w-4 h-4 text-slate-400" /> : testDone ? <CheckCircle2 className="w-5 h-5 text-[#0284C7]" /> : <Award className="w-5 h-5" />}
+            <span className="text-[10px] font-black uppercase tracking-wider opacity-90">Stage 4 • QUIZ</span>
+            {!questionsDone ? <Lock className="w-4 h-4 text-slate-400" /> : testDone ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <Award className="w-5 h-5" />}
           </div>
           <h4 className="text-sm font-bold truncate">{t.stage4Title}</h4>
           <span className="text-[10px] opacity-80 font-medium block mt-1">{t.stage4Desc}</span>
         </button>
-
       </div>
 
       {/* ================= ACTIVE STAGE CONTENT VIEWER ================= */}

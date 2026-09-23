@@ -1,52 +1,91 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 @layer base {
   :root {
-    --teal-primary: #01949a;
-    --teal-dark: #016f74;
-    --mint-accent: #dbe8d8;
-    --mint-light: #f2f7f1;
-    --mint-border: #c4dac0;
-    --text-heading: #0a2d2f;
-    --text-body: #1d4648;
+    --navy-header: #093c85;
+    --navy-dark: #062b60;
+    --portal-bg: #f4f6fb;
+    --text-heading: #093c85;
+    --text-body: #1e293b;
+    
+    /* 4 Primary Stage Action Colors */
+    --color-book: #0055ff;
+    --color-video: #00a651;
+    --color-questions: #ff7a00;
+    --color-quiz: #8a00e6;
+  }
+
+  html {
+    font-size: 15px;
   }
 
   body {
-    background-color: #f2f7f1 !important;
+    background-color: var(--portal-bg) !important;
     color: var(--text-body);
     min-height: 100vh;
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', 'Roboto', 'Open Sans', 'Noto Sans Tamil', system-ui, -apple-system, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    font-weight: 400;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    letter-spacing: normal;
   }
 
-  h1, h2, h3, h4, h5, h6, button, input, select, textarea {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', 'Roboto', 'Noto Sans Tamil', system-ui, -apple-system, sans-serif;
+    letter-spacing: normal;
+    font-weight: 600;
+  }
+
+  button, input, select, textarea {
+    font-family: 'Inter', 'Roboto', 'Noto Sans Tamil', system-ui, -apple-system, sans-serif;
+    font-weight: 500;
+    letter-spacing: normal;
   }
 }
 
-/* Custom Scrollbars in Teal & Mint Theme */
+/* Custom Scrollbars in Navy & Blue Portal Theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #dbe8d8;
+  background: #e2e8f0;
 }
 ::-webkit-scrollbar-thumb {
-  background: #01949a;
+  background: #093c85;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #016f74;
+  background: #062b60;
 }
 
-.bg-teal-blue {
-  background-color: #01949a !important;
+.bg-navy-header {
+  background-color: #093c85 !important;
 }
-.text-teal-blue {
-  color: #01949a !important;
+.text-navy-header {
+  color: #093c85 !important;
 }
-.border-teal-blue {
-  border-color: #01949a !important;
+.border-navy-header {
+  border-color: #093c85 !important;
 }
+
+/* 4 Action Stage Button Utility Classes */
+.btn-stage-book {
+  background-color: #0055ff !important;
+  color: #ffffff !important;
+}
+.btn-stage-video {
+  background-color: #00a651 !important;
+  color: #ffffff !important;
+}
+.btn-stage-questions {
+  background-color: #ff7a00 !important;
+  color: #ffffff !important;
+}
+.btn-stage-quiz {
+  background-color: #8a00e6 !important;
+  color: #ffffff !important;
+}
+

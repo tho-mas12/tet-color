@@ -84,6 +84,42 @@ export default function AdminPage({ user, lang = "en" }) {
   const [annPriority, setAnnPriority] = useState("normal");
   const [postingAnn, setPostingAnn] = useState(false);
 
+  // Admin Account Registration State
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [newAdminName, setNewAdminName] = useState("");
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [registeringAdmin, setRegisteringAdmin] = useState(false);
+
+  const handleCreateAdmin = async (e) => {
+    e.preventDefault();
+    if (!newAdminEmail || !newAdminPassword) {
+      showToast("Please provide Admin User ID (email) and Password.", "error");
+      return;
+    }
+    setRegisteringAdmin(true);
+    try {
+      const res = await fetchApi("/admin/create-admin", {
+        method: "POST",
+        body: JSON.stringify({
+          name: newAdminName || "Admin User",
+          email: newAdminEmail,
+          password: newAdminPassword
+        })
+      });
+      showToast(`Admin account registered successfully for ${res.email}!`, "success");
+      setNewAdminName("");
+      setNewAdminEmail("");
+      setNewAdminPassword("");
+      setIsAdminModalOpen(false);
+      loadUsers();
+    } catch (err) {
+      showToast(err.message || "Failed to register admin account.", "error");
+    } finally {
+      setRegisteringAdmin(false);
+    }
+  };
+
   const standardSubjects = [
     "Tamil", "English", "Mathematics", "Science", "Social Science",
     "Physics", "Chemistry", "Botany", "Zoology", "Computer Science",
@@ -358,7 +394,7 @@ export default function AdminPage({ user, lang = "en" }) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#1E3A8A]">
+    <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-7 animate-fade-in text-[#1E3A8A]">
       
       {/* Modern Top Right Dynamic Toast Alert */}
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -1001,38 +1037,173 @@ export default function AdminPage({ user, lang = "en" }) {
         </div>
       )}
 
-      {/* TAB 5: STUDENT RECORDS */}
+      {/* TAB 5: ADMIN ACCESS CONTROL & REGISTRATION */}
       {activeTab === "users" && (
-        <div className="bg-white border border-sky-100 rounded-3xl p-6 shadow-xs space-y-4">
-          <h3 className="text-base font-bold text-[#1E3A8A] flex items-center space-x-2 border-b border-sky-100 pb-3">
-            <Users className="w-5 h-5 text-[#0284C7]" />
-            <span>Registered Student Accounts</span>
-          </h3>
-
-          <div className="space-y-3">
-            {usersList.map((u) => (
-              <div
-                key={u.id}
-                className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between"
-              >
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h4 className="text-xs font-bold text-[#1E3A8A]">{u.name}</h4>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 text-slate-700">
-                      {u.role}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">{u.email}</p>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-800 border border-orange-200 text-xs font-black">
-                    🔥 {u.streak_count} Days Streak
-                  </span>
-                </div>
+        <div className="space-y-6">
+          
+          {/* Header Card with "Add Admin Access" Button */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center space-x-2 text-[#0055ff] mb-1 font-bold text-xs uppercase tracking-wider">
+                <UserCheck className="w-4 h-4" />
+                <span>Administrative Access Control</span>
               </div>
-            ))}
+              <h3 className="text-xl font-black text-[#093c85] tracking-tight">
+                {t.adminRegisterHeader || "Admin Access Control & Management"}
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5 max-w-xl">
+                Manage administrative accounts or grant new admin access permissions with dedicated credentials.
+              </p>
+            </div>
+
+            {/* Prominent "Add Admin Access" Button requested by user */}
+            <button
+              onClick={() => setIsAdminModalOpen(true)}
+              className="flex items-center space-x-2 px-5 py-3 rounded-2xl bg-[#0055ff] hover:bg-blue-700 text-white font-black text-xs shadow-md transition-all hover:scale-105 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t.addAdminAccessBtn || "➕ Add Admin Access"}</span>
+            </button>
           </div>
+
+          {/* Active Admin Accounts Table */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+              <h3 className="text-base font-black text-[#093c85] flex items-center space-x-2">
+                <ShieldCheck className="w-5 h-5 text-amber-500" />
+                <span>{t.activeAdminsTitle}</span>
+              </h3>
+              <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-black">
+                {usersList.filter(u => u.role === "admin").length} Active Admins
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {usersList
+                .filter(u => u.role === "admin")
+                .map((u) => (
+                  <div
+                    key={u.id}
+                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between shadow-xs"
+                  >
+                    <div className="flex items-center space-x-3.5">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#093c85] to-[#0055ff] text-white flex items-center justify-center font-black text-sm shadow-xs">
+                        {u.name ? u.name[0].toUpperCase() : "A"}
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="text-xs font-black text-[#093c85]">{u.name}</h4>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-500 text-white shadow-xs">
+                            ADMIN
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-mono mt-0.5">{u.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <span className="px-3 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black uppercase">
+                        Full Access
+                      </span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* ================= GRANT ADMIN ACCESS MODAL DIALOG ================= */}
+          {isAdminModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#062b60]/60 backdrop-blur-xs animate-fade-in">
+              <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
+                
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2 rounded-xl bg-blue-50 text-[#0055ff] border border-blue-200">
+                      <UserCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-[#093c85]">
+                        {t.addAdminModalHeader || "Grant Admin Access"}
+                      </h3>
+                      <span className="text-[10px] text-slate-500 font-semibold">
+                        Enter Admin User ID & Password to grant full access
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setIsAdminModalOpen(false)}
+                    className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateAdmin} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-extrabold text-[#093c85] mb-1">
+                      {t.adminNameLabel}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Secondary Admin"
+                      value={newAdminName}
+                      onChange={(e) => setNewAdminName(e.target.value)}
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-extrabold text-[#093c85] mb-1">
+                      {t.adminEmailLabel} *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="admin2@tet.com"
+                      value={newAdminEmail}
+                      onChange={(e) => setNewAdminEmail(e.target.value)}
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-extrabold text-[#093c85] mb-1">
+                      {t.adminPasswordLabel} *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={newAdminPassword}
+                      onChange={(e) => setNewAdminPassword(e.target.value)}
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsAdminModalOpen(false)}
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-100 transition cursor-pointer"
+                    >
+                      {t.closeBtn || "Cancel"}
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={registeringAdmin}
+                      className="flex-1 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs font-black shadow-md transition cursor-pointer"
+                    >
+                      {registeringAdmin ? "Granting Access..." : "Grant Access"}
+                    </button>
+                  </div>
+                </form>
+
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 

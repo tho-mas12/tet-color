@@ -787,8 +787,38 @@ def admin_delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
     return {"message": "Lesson module deleted successfully."}
 
 @app.get("/api/admin/users", response_model=List[schemas.UserProfile])
-def admin_get_users(db: Session = Depends(get_db)):
-    return db.query(models.User).all()
+def admin_get_users(role: Optional[str] = "admin", db: Session = Depends(get_db)):
+    # Security: Return only admin accounts in admin access control
+    if role == "all":
+        return db.query(models.User).filter(models.User.role == "admin").all()
+    return db.query(models.User).filter(models.User.role == "admin").all()
+
+@app.post("/api/admin/create-admin", response_model=schemas.UserProfile)
+def create_admin_user(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
+    existing = db.query(models.User).filter(models.User.email == user_data.email).first()
+    if existing:
+        existing.role = "admin"
+        if user_data.password:
+            existing.password_hash = user_data.password
+        if user_data.name:
+            existing.name = user_data.name
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    new_admin = models.User(
+        name=user_data.name or "Admin User",
+        email=user_data.email,
+        password_hash=user_data.password,
+        role="admin",
+        streak_count=50,
+        daily_tasks_done=4,
+        daily_tasks_total=4
+    )
+    db.add(new_admin)
+    db.commit()
+    db.refresh(new_admin)
+    return new_admin
 
 @app.get("/api/admin/settings", response_model=schemas.AdminSettingsSchema)
 def get_admin_settings(db: Session = Depends(get_db)):
