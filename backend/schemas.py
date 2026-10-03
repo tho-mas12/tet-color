@@ -1,4 +1,4 @@
-﻿from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
@@ -87,3 +87,31 @@ class AnnouncementCreate(BaseModel):
     title: str
     content: str
     priority: Optional[str] = "normal"
+
+class TETCardCreate(BaseModel):
+    card_id: str
+    title: str
+    description: str
+    class_range: str
+    paper_type: str
+    start_class: int
+    end_class: int
+    lesson_count_label: Optional[str] = "25 Lessons"
+    button_text: Optional[str] = "OPEN →"
+
+class TETCardOut(BaseModel):
+    id: int
+    card_id: str
+    title: str
+    description: str
+    class_range: str
+    paper_type: str
+    start_class: int
+    end_class: int
+    lesson_count_label: str
+    button_text: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+

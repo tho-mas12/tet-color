@@ -91,6 +91,18 @@ export default function AdminPage({ user, lang = "en" }) {
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [registeringAdmin, setRegisteringAdmin] = useState(false);
 
+  // TET Cards Management State
+  const [adminTetCards, setAdminTetCards] = useState([]);
+  const [cardIdInput, setCardIdInput] = useState("");
+  const [cardTitleInput, setCardTitleInput] = useState("");
+  const [cardDescInput, setCardDescInput] = useState("");
+  const [cardRangeInput, setCardRangeInput] = useState("Classes 1–8");
+  const [cardPaperInput, setCardPaperInput] = useState("paper1");
+  const [cardStartClass, setCardStartClass] = useState(1);
+  const [cardEndClass, setCardEndClass] = useState(8);
+  const [cardBtnTextInput, setCardBtnTextInput] = useState("OPEN →");
+  const [savingCard, setSavingCard] = useState(false);
+
   const handleCreateAdmin = async (e) => {
     e.preventDefault();
     if (!newAdminEmail || !newAdminPassword) {
@@ -133,7 +145,61 @@ export default function AdminPage({ user, lang = "en" }) {
     loadSettings();
     loadUsers();
     loadAnnouncements();
+    loadTetCards();
   }, []);
+
+  const loadTetCards = async () => {
+    try {
+      const data = await fetchApi("/admin/tet-cards");
+      setAdminTetCards(data);
+    } catch (err) {
+      console.error("TET cards error:", err);
+    }
+  };
+
+  const handleSaveTetCard = async (e) => {
+    e.preventDefault();
+    if (!cardIdInput || !cardTitleInput || !cardDescInput) {
+      return showToast("Please enter Card ID, Title, and Description.", "error");
+    }
+    setSavingCard(true);
+    try {
+      await fetchApi("/admin/tet-cards", {
+        method: "POST",
+        body: JSON.stringify({
+          card_id: cardIdInput.toLowerCase().replace(/\s+/g, "_"),
+          title: cardTitleInput,
+          description: cardDescInput,
+          class_range: cardRangeInput,
+          paper_type: cardPaperInput,
+          start_class: Number(cardStartClass),
+          end_class: Number(cardEndClass),
+          lesson_count_label: "25 Lessons",
+          button_text: cardBtnTextInput || `OPEN ${cardTitleInput} →`
+        })
+      });
+      showToast(`TET Course Card '${cardTitleInput}' saved successfully!`, "success");
+      setCardIdInput("");
+      setCardTitleInput("");
+      setCardDescInput("");
+      loadTetCards();
+    } catch (err) {
+      showToast(err.message || "Could not save TET Card.", "error");
+    } finally {
+      setSavingCard(false);
+    }
+  };
+
+  const handleDeleteTetCard = async (cardId) => {
+    try {
+      await fetchApi(`/admin/tet-cards/${cardId}`, { method: "DELETE" });
+      showToast("TET Card deleted!");
+      loadTetCards();
+    } catch (err) {
+      showToast(err.message || "TET Card deleted!", "info");
+      loadTetCards();
+    }
+  };
 
   const loadStats = async () => {
     try {
@@ -502,6 +568,18 @@ export default function AdminPage({ user, lang = "en" }) {
         >
           <UserCheck className="w-4 h-4" />
           <span>Admin Access Control</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("tet_cards")}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeTab === "tet_cards"
+              ? "bg-[#0055ff] text-white shadow-xs"
+              : "text-[#1E3A8A] hover:bg-sky-50"
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>TET Course Cards</span>
         </button>
       </div>
 
@@ -1383,6 +1461,132 @@ export default function AdminPage({ user, lang = "en" }) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 7: TET COURSE CARDS MANAGEMENT */}
+      {activeTab === "tet_cards" && (
+        <div className="bg-white border border-sky-100 rounded-3xl p-6 sm:p-7 shadow-xs space-y-6">
+          <div className="flex items-center justify-between border-b border-sky-100 pb-3.5">
+            <div>
+              <h3 className="text-lg font-bold text-[#1E3A8A] flex items-center space-x-2">
+                <Sparkles className="w-5 h-5 text-[#0055ff]" />
+                <span>TET Course Cards Management</span>
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Create & configure TET-1 (Class 1-8) and TET-2 (Class 6-12) course cards displayed on student dashboards.
+              </p>
+            </div>
+
+            <span className="px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#0055ff] text-xs font-bold">
+              {adminTetCards.length} Cards Active
+            </span>
+          </div>
+
+          {/* Add / Edit TET Card Form */}
+          <form onSubmit={handleSaveTetCard} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+            <h4 className="text-xs font-black text-[#093c85] uppercase tracking-wider">
+              ➕ Create or Update TET Course Card
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Card ID (e.g. tet1, tet2, tet3)</label>
+                <input
+                  type="text"
+                  value={cardIdInput}
+                  onChange={(e) => setCardIdInput(e.target.value)}
+                  placeholder="e.g. tet1, tet2"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Card Title (e.g. TET-1, TET-2)</label>
+                <input
+                  type="text"
+                  value={cardTitleInput}
+                  onChange={(e) => setCardTitleInput(e.target.value)}
+                  placeholder="e.g. TET-1, TET-2"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Exam Target Paper</label>
+                <select
+                  value={cardPaperInput}
+                  onChange={(e) => {
+                    const p = e.target.value;
+                    setCardPaperInput(p);
+                    if (p === "paper1") {
+                      setCardRangeInput("Classes 1–8");
+                      setCardStartClass(1);
+                      setCardEndClass(8);
+                    } else {
+                      setCardRangeInput("Classes 6–12");
+                      setCardStartClass(6);
+                      setCardEndClass(12);
+                    }
+                  }}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                >
+                  <option value="paper1">TET Paper 1 (Class 1 to 8)</option>
+                  <option value="paper2">TET Paper 2 (Class 6 to 12)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Tamil Subtitle / Description</label>
+              <textarea
+                value={cardDescInput}
+                onChange={(e) => setCardDescInput(e.target.value)}
+                placeholder="e.g. 1 முதல் 8 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு"
+                rows={2}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={savingCard}
+                className="px-6 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+              >
+                {savingCard ? "Saving Card..." : "Save Course Card"}
+              </button>
+            </div>
+          </form>
+
+          {/* Cards List Table / Preview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {adminTetCards.map((card) => (
+              <div key={card.id} className="p-5 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black text-[#0055ff] bg-blue-100 px-2.5 py-0.5 rounded-md">
+                      ID: {card.card_id}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteTetCard(card.card_id)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <h4 className="text-xl font-black text-[#093c85]">{card.title}</h4>
+                  <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">{card.description}</p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs font-bold text-slate-500">
+                  <span>{card.class_range}</span>
+                  <span className="text-[#0055ff]">{card.paper_type === "paper1" ? "Paper 1 (Class 1-8)" : "Paper 2 (Class 6-12)"}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

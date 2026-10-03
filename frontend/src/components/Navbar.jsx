@@ -36,16 +36,6 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
           </div>
         </div>
 
-        {/* Middle Search Bar matching portal screenshot */}
-        <div className="hidden lg:flex flex-1 max-w-md mx-4 items-center relative">
-          <input
-            type="text"
-            placeholder={lang === "ta" ? "தேடுங்கள்..." : "Search subjects, materials..."}
-            className="w-full pl-4 pr-10 py-1.5 rounded-full bg-white/15 text-white placeholder-sky-200 text-xs font-normal border border-white/20 focus:outline-none focus:bg-white/25 transition-all"
-          />
-          <Search className="w-4 h-4 text-sky-200 absolute right-3 pointer-events-none" />
-        </div>
-
         {/* Navigation Tabs */}
         {user && (
           <nav className="hidden md:flex items-center space-x-1 bg-black/20 p-1 rounded-xl border border-white/10">

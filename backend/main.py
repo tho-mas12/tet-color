@@ -80,6 +80,34 @@ def seed_initial_data(db: Session):
         db.add(ann)
         db.commit()
 
+    if db.query(models.TETCard).count() == 0:
+        card1 = models.TETCard(
+            card_id="tet1",
+            title="TET-1",
+            description="1 முதல் 8 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு",
+            class_range="Classes 1–8",
+            paper_type="paper1",
+            start_class=1,
+            end_class=8,
+            lesson_count_label="25 Lessons",
+            button_text="OPEN TET-1 →",
+            is_active=True
+        )
+        card2 = models.TETCard(
+            card_id="tet2",
+            title="TET-2",
+            description="6 முதல் 12 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு",
+            class_range="Classes 6–12",
+            paper_type="paper2",
+            start_class=6,
+            end_class=12,
+            lesson_count_label="25 Lessons",
+            button_text="OPEN TET-2 →",
+            is_active=True
+        )
+        db.add_all([card1, card2])
+        db.commit()
+
 @app.on_event("startup")
 def startup_event():
     db = next(get_db())
@@ -890,6 +918,58 @@ def update_user_role(user_id: int, role_data: dict, db: Session = Depends(get_db
     user.role = new_role
     db.commit()
     return {"message": f"User role updated to {new_role} successfully!", "user_id": user.id, "role": user.role}
+
+# --- TET CARDS MANAGEMENT ENDPOINTS ---
+
+@app.get("/api/tet-cards", response_model=List[schemas.TETCardOut])
+def get_tet_cards(db: Session = Depends(get_db)):
+    return db.query(models.TETCard).filter(models.TETCard.is_active == True).all()
+
+@app.get("/api/admin/tet-cards", response_model=List[schemas.TETCardOut])
+def get_admin_tet_cards(db: Session = Depends(get_db)):
+    return db.query(models.TETCard).all()
+
+@app.post("/api/admin/tet-cards", response_model=schemas.TETCardOut)
+def create_or_update_tet_card(card_data: schemas.TETCardCreate, db: Session = Depends(get_db)):
+    existing = db.query(models.TETCard).filter(models.TETCard.card_id == card_data.card_id).first()
+    if existing:
+        existing.title = card_data.title
+        existing.description = card_data.description
+        existing.class_range = card_data.class_range
+        existing.paper_type = card_data.paper_type
+        existing.start_class = card_data.start_class
+        existing.end_class = card_data.end_class
+        existing.lesson_count_label = card_data.lesson_count_label or "25 Lessons"
+        existing.button_text = card_data.button_text or f"OPEN {card_data.title} →"
+        db.commit()
+        db.refresh(existing)
+        return existing
+    
+    new_card = models.TETCard(
+        card_id=card_data.card_id,
+        title=card_data.title,
+        description=card_data.description,
+        class_range=card_data.class_range,
+        paper_type=card_data.paper_type,
+        start_class=card_data.start_class,
+        end_class=card_data.end_class,
+        lesson_count_label=card_data.lesson_count_label or "25 Lessons",
+        button_text=card_data.button_text or f"OPEN {card_data.title} →",
+        is_active=True
+    )
+    db.add(new_card)
+    db.commit()
+    db.refresh(new_card)
+    return new_card
+
+@app.delete("/api/admin/tet-cards/{card_id}")
+def delete_tet_card(card_id: str, db: Session = Depends(get_db)):
+    card = db.query(models.TETCard).filter(models.TETCard.card_id == card_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="Card not found.")
+    db.delete(card)
+    db.commit()
+    return {"message": "TET Card deleted successfully!"}
 
 if __name__ == "__main__":
     import uvicorn

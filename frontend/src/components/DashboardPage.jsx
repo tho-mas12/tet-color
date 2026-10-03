@@ -19,13 +19,26 @@ import { translations } from "../translations";
 
 export default function DashboardPage({ user, onNavigateToLearning, lang = "en" }) {
   const [dashboardData, setDashboardData] = useState(null);
+  const [tetCards, setTetCards] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const t = translations[lang] || translations.en;
 
   useEffect(() => {
     loadDashboard();
+    loadTetCards();
   }, [user]);
+
+  const loadTetCards = async () => {
+    try {
+      const cards = await fetchApi("/tet-cards");
+      if (Array.isArray(cards) && cards.length > 0) {
+        setTetCards(cards);
+      }
+    } catch (err) {
+      console.error("TET Cards error:", err);
+    }
+  };
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -161,85 +174,84 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
         </div>
       </div>
 
-      {/* ================= VIBRANT COLORFUL THEME BOXES (CLASSES 1-12 & SUBJECTS) ================= */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-sm space-y-6">
-        
-        {/* Class 1-12 Color Box Shortcuts */}
-        <div>
-          <div className="flex items-center justify-between mb-3.5">
-            <div>
-              <h3 className="text-base font-black text-[#093c85] tracking-tight">
-                {lang === "ta" ? "வகுப்பு வாரியாக பாடப்புத்தகங்கள் (Class 1 - 12)" : "Grade Curriculum Shortcuts (Class 1 to 12)"}
-              </h3>
-              <span className="text-xs text-slate-500 font-medium block mt-0.5">
-                Quick jump to your target class learning modules
-              </span>
-            </div>
-            <span className="text-[11px] font-extrabold text-[#0055ff] bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-              12 Vibrant Grades
-            </span>
-          </div>
+      {/* ================= TET COURSE CARDS (TET-1 & TET-2) ================= */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {tetCards.length > 0 ? (
+          tetCards.map((card) => (
+            <div
+              key={card.card_id || card.id}
+              className="bg-white border border-slate-200/90 rounded-3xl p-7 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-6"
+            >
+              <div className="space-y-3">
+                <h2 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">
+                  {card.title}
+                </h2>
+                <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed">
+                  {card.description}
+                </p>
+              </div>
 
-          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2.5">
-            {[
-              { c: 1, color: "bg-[#e52b50]" },
-              { c: 2, color: "bg-[#0066ff]" },
-              { c: 3, color: "bg-[#00b027]" },
-              { c: 4, color: "bg-[#7d00e5]" },
-              { c: 5, color: "bg-[#ff7a00]" },
-              { c: 6, color: "bg-[#00a896]" },
-              { c: 7, color: "bg-[#ff0055]" },
-              { c: 8, color: "bg-[#0033cc]" },
-              { c: 9, color: "bg-[#5c00e6]" },
-              { c: 10, color: "bg-[#8d4b00]" },
-              { c: 11, color: "bg-[#0066ff]" },
-              { c: 12, color: "bg-[#ff2a00]" },
-            ].map((item) => (
-              <button
-                key={item.c}
-                onClick={onNavigateToLearning}
-                className={`${item.color} text-white py-3 px-2 rounded-2xl text-center font-bold transition-all duration-200 hover:scale-105 shadow-sm cursor-pointer flex flex-col items-center justify-center`}
-              >
-                <span className="block text-[10px] opacity-90 font-bold uppercase tracking-wider">வகுப்பு</span>
-                <span className="text-base font-black">{item.c}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Subject Shortcut Boxes */}
-        <div className="pt-4 border-t border-slate-100">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-extrabold text-[#093c85] uppercase tracking-wider">
-              {lang === "ta" ? "பாடங்கள் விரைவுத் தேர்வு" : "Key Subject Shortcuts"}
-            </h4>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {[
-              { title: "தமிழ்", bg: "bg-[#e52b50]", icon: "அ" },
-              { title: "English", bg: "bg-[#0055ff]", icon: "A" },
-              { title: "கணக்கு", bg: "bg-[#00b027]", icon: "∑" },
-              { title: "அறிவியல்", bg: "bg-[#7d00e5]", icon: "🧪" },
-              { title: "சமூகஅறிவியல்", bg: "bg-[#ff7a00]", icon: "🌍" },
-            ].map((s) => (
-              <button
-                key={s.title}
-                onClick={onNavigateToLearning}
-                className={`${s.bg} text-white p-3.5 rounded-2xl font-black text-xs flex items-center justify-between shadow-sm transition-transform hover:scale-[1.02] cursor-pointer`}
-              >
-                <div className="flex items-center space-x-2">
-                  <span className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center text-sm font-black">
-                    {s.icon}
-                  </span>
-                  <span>{s.title}</span>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-500 pt-2 border-t border-slate-100">
+                  <span className="text-[#093c85] font-extrabold">{card.class_range}</span>
+                  <span className="text-slate-400 font-semibold">{card.lesson_count_label || "25 Lessons"}</span>
                 </div>
-                <ArrowRight className="w-4 h-4 opacity-80" />
-              </button>
-            ))}
-          </div>
-        </div>
 
+                <button
+                  onClick={() => onNavigateToLearning(card.paper_type, card.start_class)}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-white border border-slate-300 hover:border-[#0055ff] hover:bg-blue-50/40 text-[#093c85] hover:text-[#0055ff] font-extrabold text-sm transition-all duration-200 shadow-xs flex items-center justify-center space-x-2 cursor-pointer"
+                >
+                  <span>{card.button_text || `OPEN ${card.title} →`}</span>
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          /* Default Cards matching attached image */
+          <>
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-7 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-6">
+              <div className="space-y-3">
+                <h2 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">TET-1</h2>
+                <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed">
+                  1 முதல் 8 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு
+                </p>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-500 pt-2 border-t border-slate-100">
+                  <span className="text-[#093c85] font-extrabold">Classes 1–8</span>
+                  <span className="text-slate-400 font-semibold">25 Lessons</span>
+                </div>
+                <button
+                  onClick={() => onNavigateToLearning("paper1", 1)}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-white border border-slate-300 hover:border-[#0055ff] hover:bg-blue-50/40 text-[#093c85] hover:text-[#0055ff] font-extrabold text-sm transition-all duration-200 shadow-xs flex items-center justify-center space-x-2 cursor-pointer"
+                >
+                  <span>OPEN TET-1 →</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-7 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-6">
+              <div className="space-y-3">
+                <h2 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">TET-2</h2>
+                <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed">
+                  6 முதல் 12 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு
+                </p>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-500 pt-2 border-t border-slate-100">
+                  <span className="text-[#093c85] font-extrabold">Classes 6–12</span>
+                  <span className="text-slate-400 font-semibold">25 Lessons</span>
+                </div>
+                <button
+                  onClick={() => onNavigateToLearning("paper2", 6)}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-white border border-slate-300 hover:border-[#0055ff] hover:bg-blue-50/40 text-[#093c85] hover:text-[#0055ff] font-extrabold text-sm transition-all duration-200 shadow-xs flex items-center justify-center space-x-2 cursor-pointer"
+                >
+                  <span>OPEN TET-2 →</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* MOTIVATION QUOTE BOX & STREAK BADGES */}

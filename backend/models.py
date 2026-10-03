@@ -1,4 +1,4 @@
-﻿from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -80,3 +80,20 @@ class AdminSettings(Base):
     test_question_count = Column(Integer, default=100)
     test_time_limit_mins = Column(Integer, default=60)
     pass_percentage = Column(Integer, default=60)
+
+class TETCard(Base):
+    __tablename__ = "tet_cards"
+
+    id = Column(Integer, primary_key=True, index=True)
+    card_id = Column(String, unique=True, index=True)
+    title = Column(String)
+    description = Column(Text)
+    class_range = Column(String)
+    paper_type = Column(String)
+    start_class = Column(Integer, default=1)
+    end_class = Column(Integer, default=8)
+    lesson_count_label = Column(String, default="25 Lessons")
+    button_text = Column(String, default="OPEN →")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

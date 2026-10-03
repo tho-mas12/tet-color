@@ -61,7 +61,15 @@ export default function App() {
             {activeTab === "dashboard" && (
               <DashboardPage
                 user={user}
-                onNavigateToLearning={() => setActiveTab("learning")}
+                onNavigateToLearning={(paperChoice, targetClass) => {
+                  if (paperChoice) {
+                    localStorage.setItem("tet_paper_choice", paperChoice);
+                  }
+                  if (targetClass) {
+                    localStorage.setItem("tet_selected_class", targetClass);
+                  }
+                  setActiveTab("learning");
+                }}
                 lang={lang}
               />
             )}
