@@ -106,9 +106,14 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
     setQuestionsLoading(true);
     try {
       const data = await fetchApi(`/learning/lesson/${lessonId}/questions?count=200`);
-      setQuestionsData(data.questions || []);
+      if (data && Array.isArray(data.questions) && data.questions.length > 0) {
+        setQuestionsData(data.questions);
+      } else {
+        alert("Could not load practice questions. Please check server connection.");
+      }
     } catch (err) {
       console.error("Practice questions error:", err);
+      alert(err.message || "Failed to load practice questions.");
     } finally {
       setQuestionsLoading(false);
     }
@@ -120,14 +125,19 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
       const res = await fetchApi(`/learning/lesson/${lessonId}/generate-test`, {
         method: "POST"
       });
+      if (!res || !Array.isArray(res.questions) || res.questions.length === 0) {
+        throw new Error("Generated test returned no questions. Please try again.");
+      }
       setTestData(res);
-      setTimeLeft(res.time_limit_mins * 60);
+      setTimeLeft((res.time_limit_mins || 60) * 60);
       setTestAnswers({});
       setTestResult(null);
       setShowDetailedReview(false);
       setTestActive(true);
     } catch (err) {
-      alert(err.message || "Could not generate test.");
+      console.error("Test start error:", err);
+      alert(err.message || "Could not generate test. Please try again.");
+      setTestActive(false);
     } finally {
       setTestLoading(false);
     }
@@ -738,6 +748,13 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                   </button>
                 </div>
               </div>
+            ) : testLoading || !testData?.questions ? (
+              <div className="py-20 text-center space-y-4">
+                <div className="w-12 h-12 border-4 border-[#0055ff] border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-sm font-bold text-[#061b36]">
+                  Preparing official TN TET Paper 2 exam questions...
+                </p>
+              </div>
             ) : (
               <div className="space-y-4">
                 {/* Mobile-friendly Sticky Action Bar */}
@@ -748,7 +765,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                       <span>{formatTime(timeLeft)}</span>
                     </div>
                     <span className="text-xs sm:text-sm font-semibold text-slate-600">
-                      {Object.keys(testAnswers).length} / {testData.questions.length} answered
+                      {Object.keys(testAnswers).length} / {testData?.questions?.length || 0} answered
                     </span>
                   </div>
 
@@ -761,11 +778,11 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                 </div>
 
                 <div className="max-h-[620px] overflow-y-auto space-y-4 pr-1 sm:pr-2">
-                  {testData.questions.map((q, idx) => (
+                  {(testData?.questions || []).map((q, idx) => (
                     <div key={q.id} className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3.5 shadow-2xs">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-xs font-black text-[#0055ff] uppercase tracking-wider block">
-                          {t.questionCountLabel} {idx + 1} {t.ofLabel} {testData.questions.length}
+                          {t.questionCountLabel} {idx + 1} {t.ofLabel} {testData?.questions?.length || 0}
                         </span>
                         {q.question_type && (
                           <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-100 text-blue-900 border border-blue-200 shadow-2xs">
@@ -780,7 +797,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
 
                       {/* Options in 2 columns: A & B on line 1, C & D on line 2 */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1">
-                        {q.options.map((opt, optIdx) => {
+                        {(q.options || []).map((opt, optIdx) => {
                           const isSelected = testAnswers[String(q.id)] === optIdx;
                           return (
                             <button

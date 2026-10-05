@@ -11,60 +11,49 @@ def generate_practice_questions(class_num: int, subject: str, term: str, lesson_
     - Clean text with no file names or page numbers.
     """
     if api_key and api_key.strip():
-        try:
-            from google import genai
-            client = genai.Client(api_key=api_key.strip())
-            prompt = f"""
-            Act as a Senior Tamil Nadu TET Paper 2 Exam Specialist and Professor.
-            Generate 12 rigorous, high-level multiple choice questions for TN TET Paper 2:
-            Class: {class_num}, Subject: {subject}, Term: {term}, Lesson: {lesson_title}.
-            
-            Strict Guidelines:
-            1. Include diverse question types:
-               - முக்கிய கொள்குறி வினா (Core MCQ)
-               - உயர் சிந்தனை வினா (HOTS - Higher Order Thinking Skills)
-               - பொருத்துக வகை (Match the Following - List I vs List II)
-               - பல்கூற்று வினா (Multi-statement: i, ii, iii statements)
-               - கூற்று மற்றும் காரணம் (Assertion & Reasoning: கூற்று (A) மற்றும் காரணம் (R))
-               - கால வரிசைப்படுத்துதல் / படிநிலை வரிசைப்படுத்துதல் (Chronological or Procedural Sequencing)
-            2. Language: Pure academic Tamil (or English if Subject is English).
-            3. Answer Distribution: DO NOT make Option B the answer for everything. Rotate answers evenly among index 0 (A), 1 (B), 2 (C), and 3 (D).
-            4. Do NOT include any file names, codes, or page numbers in the question or explanation.
-            5. Provide clear, in-depth pedagogical explanations.
+        clean_key = api_key.strip()
+        prompt = f"""
+        Act as a Senior Tamil Nadu TET Paper 2 Exam Specialist and Professor.
+        Generate 10 rigorous multiple choice questions for TN TET Paper 2:
+        Class: {class_num}, Subject: {subject}, Term: {term}, Lesson: {lesson_title}.
+        
+        Strict Guidelines:
+        1. Include question types:
+           - முக்கிய கொள்குறி வினா (Core MCQ)
+           - உயர் சிந்தனை வினா (HOTS Analysis)
+           - பொருத்துக வகை (Match the Following)
+           - பல்கூற்று வினா (Multi-statement)
+           - கூற்று மற்றும் காரணம் (Assertion & Reasoning)
+        2. Language: Pure academic Tamil (or English if Subject is English).
+        3. Distribute answers across index 0 (A), 1 (B), 2 (C), and 3 (D). Do not make B the answer for everything.
+        4. Return ONLY a valid JSON array of objects with keys: id, question_type, question, options (list of 4 strings), answer_index (0-3), explanation.
+        """
+        candidate_models = ['gemini-flash-latest', 'gemma-4-26b-a4b-it', 'gemini-pro-latest']
+        for model_name in candidate_models:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={clean_key}"
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"response_mime_type": "application/json"}
+                }
+                resp = requests.post(url, json=payload, timeout=8)
+                if resp.status_code == 200:
+                    res_json = resp.json()
+                    candidates = res_json.get("candidates", [])
+                    if candidates:
+                        text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                        data = json.loads(text_content)
+                        if isinstance(data, list) and len(data) > 0:
+                            fallback_pool = _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count)
+                            for idx, q in enumerate(data):
+                                if idx < len(fallback_pool) and "options" in q and len(q["options"]) == 4:
+                                    q["id"] = idx + 1
+                                    fallback_pool[idx] = q
+                            return fallback_pool
+            except Exception as ex:
+                continue
 
-            Return ONLY valid JSON array with objects in this schema:
-            [
-              {{
-                "id": 1,
-                "question_type": "பொருத்துக வகை / கூற்று - காரணம் / உயர் சிந்தனை வினா / கொள்குறி வினா",
-                "question": "Question text here",
-                "options": ["விருப்பம் A", "விருப்பம் B", "விருப்பம் C", "விருப்பம் D"],
-                "answer_index": 0,
-                "explanation": "Detailed rationale highlighting the correct answer and theoretical concept."
-              }}
-            ]
-            """
-            for model_candidate in ['gemini-2.0-flash', 'gemini-1.5-flash']:
-                try:
-                    response = client.models.generate_content(
-                        model=model_candidate,
-                        contents=prompt,
-                        config={'response_mime_type': 'application/json'}
-                    )
-                    data = json.loads(response.text)
-                    if isinstance(data, list) and len(data) > 0:
-                        fallback_pool = _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count)
-                        for idx, q in enumerate(data):
-                            if idx < len(fallback_pool):
-                                q["id"] = idx + 1
-                                fallback_pool[idx] = q
-                        return fallback_pool
-                except Exception:
-                    continue
-        except Exception as e:
-            print(f"[Gemini AI] TN TET Question generation fallback due to error: {e}")
-
-    # Fallback to authentic TN TET Paper 2 curriculum engine
+    # Fast, authentic TN TET Paper 2 curriculum engine fallback
     return _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count)
 
 
