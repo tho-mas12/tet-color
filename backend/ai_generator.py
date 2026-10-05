@@ -28,15 +28,15 @@ def generate_practice_questions(class_num: int, subject: str, term: str, lesson_
         3. Distribute answers across index 0 (A), 1 (B), 2 (C), and 3 (D). Do not make B the answer for everything.
         4. Return ONLY a valid JSON array of objects with keys: id, question_type, question, options (list of 4 strings), answer_index (0-3), explanation.
         """
-        candidate_models = ['gemini-flash-latest', 'gemma-4-26b-a4b-it', 'gemini-pro-latest']
-        for model_name in candidate_models:
+        # Attempt fast AI generation with 2.5s max timeout; if delayed or busy, instant fallback
+        for model_name in ['gemma-4-26b-a4b-it', 'gemini-flash-latest']:
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={clean_key}"
                 payload = {
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"response_mime_type": "application/json"}
                 }
-                resp = requests.post(url, json=payload, timeout=8)
+                resp = requests.post(url, json=payload, timeout=2.5)
                 if resp.status_code == 200:
                     res_json = resp.json()
                     candidates = res_json.get("candidates", [])
@@ -50,10 +50,11 @@ def generate_practice_questions(class_num: int, subject: str, term: str, lesson_
                                     q["id"] = idx + 1
                                     fallback_pool[idx] = q
                             return fallback_pool
-            except Exception as ex:
-                continue
+            except Exception:
+                pass
+            break  # Never wait more than 2.5s total to guarantee ultra-fast response
 
-    # Fast, authentic TN TET Paper 2 curriculum engine fallback
+    # Instant, authentic TN TET Paper 2 curriculum engine fallback
     return _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count)
 
 
