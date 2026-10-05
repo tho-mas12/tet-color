@@ -55,6 +55,8 @@ export default function MaterialsPage({ lang = "en" }) {
   useEffect(() => {
     if (selectedSubject === "Tamil") {
       setSelectedMedium("Tamil Medium");
+    } else if (selectedSubject === "English") {
+      setSelectedMedium("English Medium");
     }
   }, [selectedSubject]);
 
@@ -87,7 +89,7 @@ export default function MaterialsPage({ lang = "en" }) {
   };
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-7 animate-fade-in text-[#093c85]">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#071c38]">
       
       {/* Header Banner */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-xs">
@@ -178,8 +180,8 @@ export default function MaterialsPage({ lang = "en" }) {
               })}
             </div>
 
-            {/* Language Medium Selection */}
-            {selectedSubject !== "Tamil" && (
+            {/* Language Medium Selection - Hidden for Tamil and English */}
+            {selectedSubject !== "Tamil" && selectedSubject !== "English" && (
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                 <div className="flex items-center space-x-1.5 text-xs font-bold text-[#093c85]">
                   <Languages className="w-4 h-4 text-[#0055ff]" />

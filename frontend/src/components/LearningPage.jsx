@@ -36,7 +36,9 @@ export default function LearningPage({ user, lang = "en" }) {
   // Filter classes based on candidate's TET Paper selection
   const classes = tetPaper === "paper1" 
     ? [1, 2, 3, 4, 5, 6, 7, 8]
-    : [6, 7, 8, 9, 10, 11, 12];
+    : tetPaper === "paper2"
+    ? [6, 7, 8, 9, 10, 11, 12]
+    : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   
   const classColorMap = {
     1: { active: "bg-[#e52b50] text-white border-[#e52b50]", inactive: "bg-[#e52b50]/10 text-[#e52b50] border-[#e52b50]/30 hover:bg-[#e52b50]/20" },
@@ -76,6 +78,8 @@ export default function LearningPage({ user, lang = "en" }) {
   useEffect(() => {
     if (selectedSubject === "Tamil") {
       setSelectedMedium("Tamil Medium");
+    } else if (selectedSubject === "English") {
+      setSelectedMedium("English Medium");
     }
   }, [selectedSubject]);
 
@@ -113,15 +117,15 @@ export default function LearningPage({ user, lang = "en" }) {
   }
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-7 animate-fade-in text-[#093c85]">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#071c38]">
       
       {/* Header Banner */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-xs space-y-3">
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-3">
         <div className="flex items-center space-x-2 text-[#0055ff] font-bold text-xs uppercase tracking-wider">
           <GraduationCap className="w-4 h-4" />
           <span>Sequential Study Engine</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-black text-[#061b36] tracking-tight">
           {t.learningTitle}
         </h1>
         <p className="text-xs text-slate-500 max-w-2xl font-medium">
@@ -130,14 +134,12 @@ export default function LearningPage({ user, lang = "en" }) {
       </div>
 
       {/* SELECTORS: CLASS, SUBJECT & MEDIUM */}
-
-      {/* SELECTORS: CLASS, SUBJECT & MEDIUM */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-5">
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-5">
         
         {/* Class Selection */}
         <div>
           <div className="flex items-center justify-between mb-2.5">
-            <label className="text-xs font-extrabold text-[#093c85] uppercase tracking-wider block">
+            <label className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider block">
               {t.matStep1Title} ({tetPaper === "paper1" ? "Classes 1 to 8" : "Classes 6 to 12"})
             </label>
             <span className="text-[11px] font-extrabold text-[#0055ff]">
@@ -174,11 +176,11 @@ export default function LearningPage({ user, lang = "en" }) {
 
         {/* Subject & Medium Selection */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-4 border-t border-slate-100">
-          <div className="md:col-span-8 space-y-2">
-            <label className="text-xs font-extrabold text-[#093c85] uppercase tracking-wider block">
+          <div className={`${selectedSubject !== "Tamil" && selectedSubject !== "English" ? "md:col-span-8" : "md:col-span-12"} space-y-2`}>
+            <label className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider block">
               {t.matStep2Title}
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2">
               {subjects.map((s) => (
                 <button
                   key={s}
@@ -186,7 +188,7 @@ export default function LearningPage({ user, lang = "en" }) {
                   className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border truncate cursor-pointer ${
                     selectedSubject === s
                       ? "bg-[#0055ff] text-white border-[#0055ff] shadow-xs"
-                      : "bg-slate-50 text-[#093c85] border-slate-200 hover:bg-blue-50/60"
+                      : "bg-slate-50 text-[#061b36] border-slate-200 hover:bg-blue-50/60"
                   }`}
                 >
                   {s}
@@ -195,9 +197,9 @@ export default function LearningPage({ user, lang = "en" }) {
             </div>
           </div>
 
-          {selectedSubject !== "Tamil" && (
+          {selectedSubject !== "Tamil" && selectedSubject !== "English" && (
             <div className="md:col-span-4 space-y-2">
-              <label className="text-xs font-extrabold text-[#093c85] uppercase tracking-wider block flex items-center space-x-1">
+              <label className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider block flex items-center space-x-1">
                 <Languages className="w-3.5 h-3.5 text-[#0055ff]" />
                 <span>Medium</span>
               </label>
@@ -206,8 +208,8 @@ export default function LearningPage({ user, lang = "en" }) {
                   onClick={() => setSelectedMedium("Tamil Medium")}
                   className={`py-2 px-3 rounded-xl font-bold text-xs border transition cursor-pointer ${
                     selectedMedium === "Tamil Medium"
-                      ? "bg-[#093c85] text-white border-[#093c85] shadow-xs"
-                      : "bg-slate-50 text-[#093c85] border-slate-200 hover:bg-slate-100"
+                      ? "bg-[#061b36] text-white border-[#061b36] shadow-xs"
+                      : "bg-slate-50 text-[#061b36] border-slate-200 hover:bg-slate-100"
                   }`}
                 >
                   {t.mediumTamil}
@@ -216,8 +218,8 @@ export default function LearningPage({ user, lang = "en" }) {
                   onClick={() => setSelectedMedium("English Medium")}
                   className={`py-2 px-3 rounded-xl font-bold text-xs border transition cursor-pointer ${
                     selectedMedium === "English Medium"
-                      ? "bg-[#093c85] text-white border-[#093c85] shadow-xs"
-                      : "bg-slate-50 text-[#093c85] border-slate-200 hover:bg-slate-100"
+                      ? "bg-[#061b36] text-white border-[#061b36] shadow-xs"
+                      : "bg-slate-50 text-[#061b36] border-slate-200 hover:bg-slate-100"
                   }`}
                 >
                   {t.mediumEnglish}

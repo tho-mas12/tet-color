@@ -11,8 +11,8 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-[#093c85] text-white shadow-md border-b border-[#062b60]">
-      <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 bg-gradient-to-r from-[#061b36] via-[#082852] to-[#061b36] text-white shadow-lg border-b border-[#05152a]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
         {/* Brand Title with Emblem Logo */}
         <div 
@@ -38,10 +38,10 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
 
         {/* Navigation Tabs */}
         {user && (
-          <nav className="hidden md:flex items-center space-x-1 bg-black/20 p-1 rounded-xl border border-white/10">
+          <nav className="hidden md:flex items-center space-x-1 bg-black/25 p-1 rounded-xl border border-white/10 shadow-inner">
             <button
               onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
                 activeTab === "dashboard"
                   ? "bg-[#0055ff] text-white shadow-sm"
                   : "text-sky-100 hover:text-white hover:bg-white/10"
@@ -53,7 +53,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
 
             <button
               onClick={() => setActiveTab("materials")}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
                 activeTab === "materials"
                   ? "bg-[#0055ff] text-white shadow-sm"
                   : "text-sky-100 hover:text-white hover:bg-white/10"
@@ -63,22 +63,10 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
               <span>{t.materials}</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab("learning")}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
-                activeTab === "learning"
-                  ? "bg-[#0055ff] text-white shadow-sm"
-                  : "text-sky-100 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>{t.learning}</span>
-            </button>
-
             {isAdmin && (
               <button
                 onClick={() => setActiveTab("admin")}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
                   activeTab === "admin"
                     ? "bg-amber-500 text-white shadow-sm"
                     : "text-amber-200 hover:text-white hover:bg-white/10"

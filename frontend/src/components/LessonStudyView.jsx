@@ -191,7 +191,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   const testDone = progress?.stage4_test;
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-7 animate-fade-in text-[#1E3A8A]">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#071c38]">
       
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-sky-100 rounded-3xl p-6 shadow-xs">

@@ -98,10 +98,28 @@ export default function AdminPage({ user, lang = "en" }) {
   const [cardDescInput, setCardDescInput] = useState("");
   const [cardRangeInput, setCardRangeInput] = useState("Classes 1–8");
   const [cardPaperInput, setCardPaperInput] = useState("paper1");
+  const [customPaperTarget, setCustomPaperTarget] = useState("");
   const [cardStartClass, setCardStartClass] = useState(1);
   const [cardEndClass, setCardEndClass] = useState(8);
   const [cardBtnTextInput, setCardBtnTextInput] = useState("OPEN →");
   const [savingCard, setSavingCard] = useState(false);
+
+  // Auto-set medium for language subjects
+  useEffect(() => {
+    if (matSubject === "Tamil") {
+      setMatMedium("Tamil Medium");
+    } else if (matSubject === "English") {
+      setMatMedium("English Medium");
+    }
+  }, [matSubject]);
+
+  useEffect(() => {
+    if (lesSubject === "Tamil") {
+      setLesMedium("Tamil Medium");
+    } else if (lesSubject === "English") {
+      setLesMedium("English Medium");
+    }
+  }, [lesSubject]);
 
   const handleCreateAdmin = async (e) => {
     e.preventDefault();
@@ -162,6 +180,9 @@ export default function AdminPage({ user, lang = "en" }) {
     if (!cardIdInput || !cardTitleInput || !cardDescInput) {
       return showToast("Please enter Card ID, Title, and Description.", "error");
     }
+    const finalPaperType = cardPaperInput === "other"
+      ? (customPaperTarget.trim().toLowerCase().replace(/\s+/g, "_") || "custom_paper")
+      : cardPaperInput;
     setSavingCard(true);
     try {
       await fetchApi("/admin/tet-cards", {
@@ -171,7 +192,7 @@ export default function AdminPage({ user, lang = "en" }) {
           title: cardTitleInput,
           description: cardDescInput,
           class_range: cardRangeInput,
-          paper_type: cardPaperInput,
+          paper_type: finalPaperType,
           start_class: Number(cardStartClass),
           end_class: Number(cardEndClass),
           lesson_count_label: "25 Lessons",
@@ -182,6 +203,7 @@ export default function AdminPage({ user, lang = "en" }) {
       setCardIdInput("");
       setCardTitleInput("");
       setCardDescInput("");
+      setCustomPaperTarget("");
       loadTetCards();
     } catch (err) {
       showToast(err.message || "Could not save TET Card.", "error");
@@ -460,7 +482,7 @@ export default function AdminPage({ user, lang = "en" }) {
   };
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-7 animate-fade-in text-[#1E3A8A]">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#1E3A8A]">
       
       {/* Modern Top Right Dynamic Toast Alert */}
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -720,17 +742,24 @@ export default function AdminPage({ user, lang = "en" }) {
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Language Medium</label>
-                <select
-                  value={matMedium}
-                  onChange={(e) => setMatMedium(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
-                >
-                  <option value="Tamil Medium">தமிழ் Medium (Tamil Medium)</option>
-                  <option value="English Medium">English Medium</option>
-                </select>
-              </div>
+              {matSubject !== "Tamil" && matSubject !== "English" ? (
+                <div>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Language Medium</label>
+                  <select
+                    value={matMedium}
+                    onChange={(e) => setMatMedium(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                  >
+                    <option value="Tamil Medium">தமிழ் Medium (Tamil Medium)</option>
+                    <option value="English Medium">English Medium</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold flex items-center justify-between">
+                  <span>Language Medium:</span>
+                  <span className="font-bold text-[#1E3A8A]">{matMedium} (Standard)</span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Material PDF Title</label>
@@ -910,17 +939,24 @@ export default function AdminPage({ user, lang = "en" }) {
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Language Medium</label>
-                <select
-                  value={lesMedium}
-                  onChange={(e) => setLesMedium(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
-                >
-                  <option value="Tamil Medium">தமிழ் Medium (Tamil Medium)</option>
-                  <option value="English Medium">English Medium</option>
-                </select>
-              </div>
+              {lesSubject !== "Tamil" && lesSubject !== "English" ? (
+                <div>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Language Medium</label>
+                  <select
+                    value={lesMedium}
+                    onChange={(e) => setLesMedium(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                  >
+                    <option value="Tamil Medium">தமிழ் Medium (Tamil Medium)</option>
+                    <option value="English Medium">English Medium</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold flex items-center justify-between">
+                  <span>Language Medium:</span>
+                  <span className="font-bold text-[#1E3A8A]">{lesMedium} (Standard)</span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Lesson Module Title</label>
@@ -1524,19 +1560,74 @@ export default function AdminPage({ user, lang = "en" }) {
                       setCardRangeInput("Classes 1–8");
                       setCardStartClass(1);
                       setCardEndClass(8);
-                    } else {
+                    } else if (p === "paper2") {
                       setCardRangeInput("Classes 6–12");
                       setCardStartClass(6);
                       setCardEndClass(12);
+                    } else {
+                      setCardRangeInput(`Classes ${cardStartClass}–${cardEndClass}`);
                     }
                   }}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
                 >
                   <option value="paper1">TET Paper 1 (Class 1 to 8)</option>
                   <option value="paper2">TET Paper 2 (Class 6 to 12)</option>
+                  <option value="other">Other / Custom Target Paper...</option>
                 </select>
               </div>
             </div>
+
+            {cardPaperInput === "other" && (
+              <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200/80 space-y-3">
+                <div className="flex items-center space-x-2 text-xs font-black text-[#0055ff]">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Custom Exam Target Configuration</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Custom Exam Target Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={customPaperTarget}
+                      onChange={(e) => setCustomPaperTarget(e.target.value)}
+                      placeholder="e.g. Special TET, Paper-3, TRB PG"
+                      className="w-full px-3.5 py-2 rounded-xl border border-blue-300 bg-white text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Start Class (1 to 12)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={cardStartClass}
+                      onChange={(e) => {
+                        const sc = Number(e.target.value);
+                        setCardStartClass(sc);
+                        setCardRangeInput(`Classes ${sc}–${cardEndClass}`);
+                      }}
+                      className="w-full px-3.5 py-2 rounded-xl border border-blue-300 bg-white text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">End Class (1 to 12)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={cardEndClass}
+                      onChange={(e) => {
+                        const ec = Number(e.target.value);
+                        setCardEndClass(ec);
+                        setCardRangeInput(`Classes ${cardStartClass}–${ec}`);
+                      }}
+                      className="w-full px-3.5 py-2 rounded-xl border border-blue-300 bg-white text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Tamil Subtitle / Description</label>

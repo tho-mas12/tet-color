@@ -68,14 +68,14 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
   const announcements = dashboardData?.announcements || [];
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-7 animate-fade-in text-[#1E3A8A]">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#071c38]">
       
       {/* PROFILE CARD */}
-      <div className="bg-white border border-slate-200 border-t-4 border-t-[#0055ff] rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
+      <div className="bg-white border border-slate-200/90 border-t-4 border-t-[#0055ff] rounded-3xl p-6 sm:p-7 shadow-sm relative overflow-hidden">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           
           <div className="flex items-center space-x-5">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full p-1 bg-gradient-to-tr from-[#093c85] to-[#0055ff] shadow-md flex items-center justify-center overflow-hidden">
+            <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full p-1 bg-gradient-to-tr from-[#061b36] via-[#092d62] to-[#0055ff] shadow-md flex items-center justify-center overflow-hidden">
               <img
                 src="/logo.jpg"
                 alt="TN Teacher Emblem"
@@ -85,7 +85,7 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
 
             <div>
               <div className="flex items-center space-x-3">
-                <h1 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-black text-[#061b36] tracking-tight">
                   {t.welcomeBack}, {u.name}!
                 </h1>
                 
@@ -99,7 +99,7 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
               </div>
 
               <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                <span className="px-3 py-1 rounded-lg bg-slate-50 text-[#093c85] border border-slate-200 flex items-center space-x-1.5 font-bold">
+                <span className="px-3 py-1 rounded-lg bg-slate-50 text-[#061b36] border border-slate-200 flex items-center space-x-1.5 font-bold">
                   <Calendar className="w-3.5 h-3.5 text-[#0055ff]" />
                   <span>{t.academicYear}</span>
                 </span>
@@ -112,8 +112,8 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
           </div>
 
           <button
-            onClick={onNavigateToLearning}
-            className="flex items-center space-x-2.5 px-6 py-3 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all hover:scale-[1.02] cursor-pointer"
+            onClick={() => onNavigateToLearning("paper1", 1)}
+            className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#061b36] to-[#0055ff] hover:from-[#05152a] hover:to-blue-700 text-white font-bold text-xs shadow-md transition-all hover:scale-[1.02] cursor-pointer"
           >
             <BookOpen className="w-4 h-4" />
             <span>{t.continueLearningBtn}</span>
@@ -123,14 +123,14 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
       </div>
 
       {/* STATUS BAR & DAILY STREAK */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-sm">
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-sm">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6">
           
           <div className="flex-1 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <CheckCircle2 className="w-4.5 h-4.5 text-[#0055ff]" />
-                <span className="text-xs font-extrabold text-[#093c85] uppercase tracking-wider">
+                <CheckCircle2 className="w-4 h-4 text-[#0055ff]" />
+                <span className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider">
                   {t.dailyTaskTitle}
                 </span>
               </div>
@@ -139,24 +139,24 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
               </span>
             </div>
 
-            <div className="w-full h-3.5 bg-slate-100 rounded-full p-0.5 border border-slate-200 overflow-hidden">
+            <div className="w-full h-3 bg-slate-100 rounded-full p-0.5 border border-slate-200 overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-[#093c85] to-[#0055ff] transition-all duration-700"
+                className="h-full rounded-full bg-gradient-to-r from-[#061b36] via-[#092d62] to-[#0055ff] transition-all duration-700"
                 style={{ width: `${Math.min(100, Math.max(5, u.progress_percent || 0))}%` }}
               />
             </div>
-            <p className="text-[11px] text-slate-500 font-medium">
+            <p className="text-xs text-slate-500 font-medium">
               {t.dailyTaskDesc}
             </p>
           </div>
 
-          <div className="md:w-72 bg-blue-50/60 border border-[#0055ff]/30 rounded-2xl p-4.5 flex items-center justify-between shadow-xs">
+          <div className="md:w-72 bg-gradient-to-br from-blue-50/70 to-slate-50 border border-blue-200/60 rounded-2xl p-4 flex items-center justify-between shadow-2xs">
             <div>
               <span className="text-[10px] font-black uppercase tracking-widest text-[#0055ff] block mb-0.5">
                 {t.dailyStreakTitle}
               </span>
               <div className="flex items-baseline space-x-1.5">
-                <span className="text-3xl font-black text-[#093c85]">{u.streak_count || 0}</span>
+                <span className="text-2xl sm:text-3xl font-black text-[#061b36]">{u.streak_count || 0}</span>
                 <span className="text-xs font-bold text-[#0055ff]">{t.streakDays}</span>
               </div>
               <span className="text-[10px] text-slate-600 font-semibold mt-0.5 block">
@@ -164,9 +164,9 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
               </span>
             </div>
 
-            <div className="w-12 h-12 rounded-2xl bg-[#0055ff] p-0.5 shadow-md flex items-center justify-center">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#061b36] to-[#0055ff] p-0.5 shadow-md flex items-center justify-center">
               <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                <Flame className="w-7 h-7 text-orange-500 fill-orange-500 animate-pulse" />
+                <Flame className="w-6 h-6 text-orange-500 fill-orange-500 animate-pulse" />
               </div>
             </div>
           </div>
@@ -174,84 +174,109 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
         </div>
       </div>
 
-      {/* ================= TET COURSE CARDS (TET-1 & TET-2) ================= */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {tetCards.length > 0 ? (
-          tetCards.map((card) => (
-            <div
-              key={card.card_id || card.id}
-              className="bg-white border border-slate-200/90 rounded-3xl p-7 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-6"
-            >
-              <div className="space-y-3">
-                <h2 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">
-                  {card.title}
-                </h2>
-                <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed">
-                  {card.description}
-                </p>
-              </div>
+      {/* ================= TET COURSE CARDS (TET-1 & TET-2 - NORMAL STANDARD CARD SIZE) ================= */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-sm font-black uppercase tracking-wider text-[#061b36] flex items-center space-x-2">
+            <Sparkles className="w-4 h-4 text-[#0055ff]" />
+            <span>TET Course Packages (தேர்வு பாடப்பிரிவுகள்)</span>
+          </h3>
+          <span className="text-xs text-slate-500 font-semibold">Select course to begin sequential learning</span>
+        </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-500 pt-2 border-t border-slate-100">
-                  <span className="text-[#093c85] font-extrabold">{card.class_range}</span>
-                  <span className="text-slate-400 font-semibold">{card.lesson_count_label || "25 Lessons"}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-5xl mx-auto">
+          {tetCards.length > 0 ? (
+            tetCards.map((card) => (
+              <div
+                key={card.card_id || card.id}
+                className="bg-white border border-slate-200/90 hover:border-[#0055ff]/40 rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-5"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-black text-[#061b36] tracking-tight">
+                      {card.title}
+                    </h2>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0055ff] border border-blue-200/70">
+                      {card.class_range}
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+                    {card.description}
+                  </p>
                 </div>
 
-                <button
-                  onClick={() => onNavigateToLearning(card.paper_type, card.start_class)}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-white border border-slate-300 hover:border-[#0055ff] hover:bg-blue-50/40 text-[#093c85] hover:text-[#0055ff] font-extrabold text-sm transition-all duration-200 shadow-xs flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <span>{card.button_text || `OPEN ${card.title} →`}</span>
-                </button>
-              </div>
-            </div>
-          ))
-        ) : (
-          /* Default Cards matching attached image */
-          <>
-            <div className="bg-white border border-slate-200/90 rounded-3xl p-7 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-6">
-              <div className="space-y-3">
-                <h2 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">TET-1</h2>
-                <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed">
-                  1 முதல் 8 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-500 pt-2 border-t border-slate-100">
-                  <span className="text-[#093c85] font-extrabold">Classes 1–8</span>
-                  <span className="text-slate-400 font-semibold">25 Lessons</span>
-                </div>
-                <button
-                  onClick={() => onNavigateToLearning("paper1", 1)}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-white border border-slate-300 hover:border-[#0055ff] hover:bg-blue-50/40 text-[#093c85] hover:text-[#0055ff] font-extrabold text-sm transition-all duration-200 shadow-xs flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <span>OPEN TET-1 →</span>
-                </button>
-              </div>
-            </div>
+                <div className="space-y-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+                    <span className="text-[#061b36] font-bold">{card.class_range}</span>
+                    <span className="text-slate-400">{card.lesson_count_label || "25 Lessons"}</span>
+                  </div>
 
-            <div className="bg-white border border-slate-200/90 rounded-3xl p-7 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-6">
-              <div className="space-y-3">
-                <h2 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">TET-2</h2>
-                <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed">
-                  6 முதல் 12 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-500 pt-2 border-t border-slate-100">
-                  <span className="text-[#093c85] font-extrabold">Classes 6–12</span>
-                  <span className="text-slate-400 font-semibold">25 Lessons</span>
+                  <button
+                    onClick={() => onNavigateToLearning(card.paper_type, card.start_class)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-[#0055ff] text-[#061b36] hover:text-white border border-slate-200/90 hover:border-[#0055ff] font-extrabold text-xs sm:text-sm transition-all duration-200 shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer group"
+                  >
+                    <span>{card.button_text || `OPEN ${card.title} →`}</span>
+                  </button>
                 </div>
-                <button
-                  onClick={() => onNavigateToLearning("paper2", 6)}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-white border border-slate-300 hover:border-[#0055ff] hover:bg-blue-50/40 text-[#093c85] hover:text-[#0055ff] font-extrabold text-sm transition-all duration-200 shadow-xs flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <span>OPEN TET-2 →</span>
-                </button>
               </div>
-            </div>
-          </>
-        )}
+            ))
+          ) : (
+            /* Default Normal Standard Cards */
+            <>
+              <div className="bg-white border border-slate-200/90 hover:border-[#0055ff]/40 rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-5">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-black text-[#061b36] tracking-tight">TET-1</h2>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0055ff] border border-blue-200/70">
+                      Classes 1–8
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+                    1 முதல் 8 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு
+                  </p>
+                </div>
+                <div className="space-y-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+                    <span className="text-[#061b36] font-bold">Classes 1–8</span>
+                    <span className="text-slate-400">25 Lessons</span>
+                  </div>
+                  <button
+                    onClick={() => onNavigateToLearning("paper1", 1)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-[#0055ff] text-[#061b36] hover:text-white border border-slate-200/90 hover:border-[#0055ff] font-extrabold text-xs sm:text-sm transition-all duration-200 shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer group"
+                  >
+                    <span>OPEN TET-1 →</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200/90 hover:border-[#0055ff]/40 rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-5">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-black text-[#061b36] tracking-tight">TET-2</h2>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0055ff] border border-blue-200/70">
+                      Classes 6–12
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+                    6 முதல் 12 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு
+                  </p>
+                </div>
+                <div className="space-y-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+                    <span className="text-[#061b36] font-bold">Classes 6–12</span>
+                    <span className="text-slate-400">25 Lessons</span>
+                  </div>
+                  <button
+                    onClick={() => onNavigateToLearning("paper2", 6)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-[#0055ff] text-[#061b36] hover:text-white border border-slate-200/90 hover:border-[#0055ff] font-extrabold text-xs sm:text-sm transition-all duration-200 shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer group"
+                  >
+                    <span>OPEN TET-2 →</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* MOTIVATION QUOTE BOX & STREAK BADGES */}
