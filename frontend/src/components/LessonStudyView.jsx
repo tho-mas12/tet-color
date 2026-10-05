@@ -36,6 +36,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   const [timeLeft, setTimeLeft] = useState(0);
   const [testActive, setTestActive] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const [showDetailedReview, setShowDetailedReview] = useState(false);
 
   const t = translations[lang] || translations.en;
 
@@ -123,6 +124,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
       setTimeLeft(res.time_limit_mins * 60);
       setTestAnswers({});
       setTestResult(null);
+      setShowDetailedReview(false);
       setTestActive(true);
     } catch (err) {
       alert(err.message || "Could not generate test.");
@@ -457,44 +459,78 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                 </button>
               </div>
             ) : (
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1 sm:pr-2">
-                {questionsData.map((q, idx) => (
-                  <div key={q.id} className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                    <span className="text-xs font-black text-[#ff7a00] uppercase tracking-wider block">
-                      {t.questionCountLabel} {idx + 1} {t.ofLabel} {questionsData.length}
-                    </span>
-                    <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-snug">{q.question}</h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {q.options.map((opt, optIdx) => {
-                        const isSelected = userPracticeAnswers[q.id] === optIdx;
-                        const isCorrect = q.answer_index === optIdx;
-                        let btnClass = "bg-white border-slate-200 text-[#061b36] hover:bg-orange-50/50";
-                        if (userPracticeAnswers[q.id] !== undefined) {
-                          if (isCorrect) btnClass = "bg-emerald-100 border-emerald-500 text-emerald-900 font-bold";
-                          else if (isSelected) btnClass = "bg-red-50 border-red-500 text-red-900 font-bold";
-                        }
-                        return (
-                          <button
-                            key={optIdx}
-                            onClick={() => setUserPracticeAnswers({ ...userPracticeAnswers, [q.id]: optIdx })}
-                            className={`p-3 sm:p-3.5 rounded-xl border text-left text-xs sm:text-sm transition-all cursor-pointer min-h-[44px] flex items-center font-medium ${btnClass}`}
-                          >
-                            <span className="font-black mr-2 px-2 py-0.5 rounded-md text-xs bg-black/5">{String.fromCharCode(65 + optIdx)}</span>
-                            <span className="flex-1 leading-snug">{opt}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {userPracticeAnswers[q.id] !== undefined && (
-                      <div className="p-3.5 rounded-xl bg-blue-50 border border-[#0055ff]/30 text-xs sm:text-sm text-[#061b36] font-medium leading-relaxed">
-                        <span className="font-extrabold text-[#0055ff] block mb-1">{t.explanationTitle}:</span>
-                        {q.explanation}
+              <div className="space-y-4 max-h-[620px] overflow-y-auto pr-1 sm:pr-2">
+                {questionsData.map((q, idx) => {
+                  const hasAnswered = userPracticeAnswers[q.id] !== undefined;
+                  return (
+                    <div key={q.id} className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3.5 shadow-2xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-black text-[#ff7a00] uppercase tracking-wider block">
+                          {t.questionCountLabel} {idx + 1} {t.ofLabel} {questionsData.length}
+                        </span>
+                        {q.question_type && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-orange-100 text-orange-900 border border-orange-200/80 shadow-2xs">
+                            {q.question_type}
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line">
+                        {q.question}
+                      </h4>
+
+                      {/* Options in 2 columns: A & B on line 1, C & D on line 2 */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1">
+                        {q.options.map((opt, optIdx) => {
+                          const isSelected = userPracticeAnswers[q.id] === optIdx;
+                          const isCorrect = q.answer_index === optIdx;
+                          let btnClass = "bg-white border-slate-200 text-[#061b36] hover:bg-orange-50/50 hover:border-orange-300";
+                          let badgeClass = "bg-slate-100 text-slate-700";
+
+                          if (hasAnswered) {
+                            if (isCorrect) {
+                              btnClass = "bg-emerald-50 border-2 border-emerald-500 text-emerald-950 font-black shadow-xs";
+                              badgeClass = "bg-emerald-600 text-white font-black";
+                            } else if (isSelected) {
+                              btnClass = "bg-rose-50 border-2 border-rose-500 text-rose-950 font-semibold";
+                              badgeClass = "bg-rose-600 text-white font-black";
+                            } else {
+                              btnClass = "bg-white/80 border-slate-200 text-slate-500 opacity-60";
+                            }
+                          }
+
+                          return (
+                            <button
+                              key={optIdx}
+                              onClick={() => setUserPracticeAnswers({ ...userPracticeAnswers, [q.id]: optIdx })}
+                              className={`p-3.5 sm:p-4 rounded-xl border text-left text-xs sm:text-base transition-all cursor-pointer min-h-[48px] flex items-center ${btnClass}`}
+                            >
+                              <span className={`font-black mr-2.5 px-2.5 py-1 rounded-md text-xs shrink-0 ${badgeClass}`}>
+                                {String.fromCharCode(65 + optIdx)}
+                              </span>
+                              <span className={`flex-1 leading-snug ${hasAnswered && isCorrect ? "font-black text-emerald-950" : ""}`}>
+                                {opt}
+                              </span>
+                              {hasAnswered && isCorrect && (
+                                <CheckCircle2 className="w-5 h-5 text-emerald-600 ml-2 shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {hasAnswered && (
+                        <div className="p-4 rounded-xl bg-blue-50/90 border border-[#0055ff]/30 text-xs sm:text-sm text-[#061b36] font-medium leading-relaxed mt-2 animate-fade-in">
+                          <div className="flex items-center space-x-1.5 font-black text-[#0055ff] mb-1">
+                            <Sparkles className="w-4 h-4" />
+                            <span>{t.explanationTitle} (விரிவான விளக்கம்):</span>
+                          </div>
+                          <p className="text-slate-800 leading-relaxed font-normal">{q.explanation}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -568,8 +604,16 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
 
                 <div className="pt-4 border-t border-slate-200/80 flex flex-wrap justify-center gap-3">
                   <button
+                    onClick={() => setShowDetailedReview(!showDetailedReview)}
+                    className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    <span>{showDetailedReview ? "Hide Solution Review" : "🔍 View Solutions & Review Questions (விடைகள் & விளக்கங்கள்)"}</span>
+                  </button>
+
+                  <button
                     onClick={handleStartTest}
-                    className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#061b36] text-xs sm:text-sm font-bold border border-slate-300 shadow-xs cursor-pointer"
+                    className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#061b36] text-xs sm:text-sm font-bold border border-slate-300 shadow-xs cursor-pointer min-h-[42px]"
                   >
                     <RotateCcw className="w-4 h-4" />
                     <span>{testResult.passed ? "Retake for Higher Score" : "🔄 Retake Final Quiz"}</span>
@@ -578,7 +622,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                   {!testResult.passed && (
                     <button
                       onClick={() => setActiveStage(1)}
-                      className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] text-xs sm:text-sm font-bold border border-blue-200 shadow-xs cursor-pointer"
+                      className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] text-xs sm:text-sm font-bold border border-blue-200 shadow-xs cursor-pointer min-h-[42px]"
                     >
                       <FileText className="w-4 h-4" />
                       <span>Review Stage 1 Book</span>
@@ -587,12 +631,94 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
 
                   <button
                     onClick={onBack}
-                    className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer"
+                    className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
                   >
                     <span>{t.backToLearningBtn}</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
+
+                {/* DETAILED QUESTION-BY-QUESTION SOLUTION REVIEW */}
+                {showDetailedReview && testResult.detailed_results && (
+                  <div className="space-y-4 pt-6 border-t border-slate-200 text-left animate-slide-up">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
+                      <h4 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
+                        <Sparkles className="w-5 h-5 text-[#0055ff]" />
+                        <span>Question-by-Question Solution Review ({testResult.detailed_results.length} Questions)</span>
+                      </h4>
+                      <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200">
+                        🟢 Green = Correct • 🔴 Red = Selected Wrong
+                      </span>
+                    </div>
+
+                    <div className="space-y-4 max-h-[700px] overflow-y-auto pr-1">
+                      {testResult.detailed_results.map((item, idx) => (
+                        <div
+                          key={item.id || idx}
+                          className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 shadow-2xs ${
+                            item.is_correct ? "bg-emerald-50/40 border-emerald-300" : "bg-rose-50/40 border-rose-300"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className={`text-xs font-black uppercase tracking-wider block ${
+                              item.is_correct ? "text-emerald-800" : "text-rose-800"
+                            }`}>
+                              Question {idx + 1} {item.is_correct ? "• ✅ Correct (+1)" : "• ❌ Incorrect (0)"}
+                            </span>
+                            {item.question_type && (
+                              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-100 text-blue-900 border border-blue-200 shadow-2xs">
+                                {item.question_type}
+                              </span>
+                            )}
+                          </div>
+
+                          <h5 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line">
+                            {item.question}
+                          </h5>
+
+                          {item.options && item.options.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                              {item.options.map((opt, optIdx) => {
+                                const isUserPick = item.user_answer === optIdx;
+                                const isKey = item.correct_answer === optIdx;
+                                let optClass = "bg-white border-slate-200 text-slate-600";
+                                let badgeClass = "bg-slate-100 text-slate-600";
+
+                                if (isKey) {
+                                  optClass = "bg-emerald-100 border-2 border-emerald-600 text-emerald-950 font-black shadow-xs";
+                                  badgeClass = "bg-emerald-600 text-white font-black";
+                                } else if (isUserPick) {
+                                  optClass = "bg-rose-100 border-2 border-rose-500 text-rose-950 font-bold";
+                                  badgeClass = "bg-rose-600 text-white font-black";
+                                }
+
+                                return (
+                                  <div
+                                    key={optIdx}
+                                    className={`p-3 sm:p-3.5 rounded-xl border text-xs sm:text-sm flex items-center min-h-[44px] ${optClass}`}
+                                  >
+                                    <span className={`font-black mr-2 px-2 py-0.5 rounded-md text-xs shrink-0 ${badgeClass}`}>
+                                      {String.fromCharCode(65 + optIdx)}
+                                    </span>
+                                    <span className={`flex-1 leading-snug ${isKey ? "font-black text-emerald-950" : ""}`}>
+                                      {opt}
+                                    </span>
+                                    {isKey && <CheckCircle2 className="w-4 h-4 text-emerald-700 ml-1.5 shrink-0" />}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <div className="p-3.5 sm:p-4 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-[#061b36] leading-relaxed">
+                            <span className="font-extrabold text-[#0055ff] block mb-1">Pedagogical Theory & Solution Rationale:</span>
+                            <p className="text-slate-800 leading-relaxed font-normal">{item.explanation}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : !testActive ? (
               <div className="text-center py-12 sm:py-16 bg-slate-50 rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-4">
@@ -634,29 +760,40 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                   </button>
                 </div>
 
-                <div className="max-h-[600px] overflow-y-auto space-y-4 pr-1 sm:pr-2">
+                <div className="max-h-[620px] overflow-y-auto space-y-4 pr-1 sm:pr-2">
                   {testData.questions.map((q, idx) => (
-                    <div key={q.id} className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                      <span className="text-xs font-black text-[#0055ff] uppercase tracking-wider block">
-                        {t.questionCountLabel} {idx + 1} {t.ofLabel} {testData.questions.length}
-                      </span>
-                      <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-snug">{q.question}</h4>
+                    <div key={q.id} className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3.5 shadow-2xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-black text-[#0055ff] uppercase tracking-wider block">
+                          {t.questionCountLabel} {idx + 1} {t.ofLabel} {testData.questions.length}
+                        </span>
+                        {q.question_type && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-100 text-blue-900 border border-blue-200 shadow-2xs">
+                            {q.question_type}
+                          </span>
+                        )}
+                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line">
+                        {q.question}
+                      </h4>
+
+                      {/* Options in 2 columns: A & B on line 1, C & D on line 2 */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1">
                         {q.options.map((opt, optIdx) => {
                           const isSelected = testAnswers[String(q.id)] === optIdx;
                           return (
                             <button
                               key={optIdx}
                               onClick={() => handleTestAnswerSelect(q.id, optIdx)}
-                              className={`p-3 sm:p-3.5 rounded-xl border text-left text-xs sm:text-sm transition-all cursor-pointer min-h-[44px] flex items-center ${
+                              className={`p-3.5 sm:p-4 rounded-xl border text-left text-xs sm:text-base transition-all cursor-pointer min-h-[48px] flex items-center ${
                                 isSelected
-                                  ? "bg-[#0055ff] border-[#0055ff] text-white font-bold shadow-xs"
-                                  : "bg-white border-slate-200 text-[#061b36] hover:bg-blue-50/60 font-medium"
+                                  ? "bg-[#0055ff] border-[#0055ff] text-white font-black shadow-md scale-[1.005]"
+                                  : "bg-white border-slate-200 text-[#061b36] hover:bg-blue-50/60 font-medium hover:border-blue-300"
                               }`}
                             >
-                              <span className={`font-black mr-2 px-2 py-0.5 rounded-md text-xs ${
-                                isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                              <span className={`font-black mr-2.5 px-2.5 py-1 rounded-md text-xs shrink-0 ${
+                                isSelected ? "bg-white/20 text-white font-black" : "bg-slate-100 text-slate-700"
                               }`}>
                                 {String.fromCharCode(65 + optIdx)}
                               </span>

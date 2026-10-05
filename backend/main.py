@@ -579,6 +579,7 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
     for q in questions:
         test_payload.append({
             "id": q["id"],
+            "question_type": q.get("question_type", "கொள்குறி வினா"),
             "question": q["question"],
             "options": q["options"]
         })
@@ -627,7 +628,9 @@ def submit_test(
         
         detailed_results.append({
             "id": q["id"],
+            "question_type": q.get("question_type", "கொள்குறி வினா"),
             "question": q["question"],
+            "options": q.get("options", []),
             "user_answer": user_ans,
             "correct_answer": q["answer_index"],
             "is_correct": is_correct,
