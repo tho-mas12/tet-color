@@ -142,12 +142,12 @@ export default function LearningPage({ user, lang = "en" }) {
             <label className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider block">
               {t.matStep1Title} ({tetPaper === "paper1" ? "Classes 1 to 8" : "Classes 6 to 12"})
             </label>
-            <span className="text-[11px] font-extrabold text-[#0055ff]">
-              {classes.length} Classes Available for {tetPaper === "paper1" ? "Paper 1" : "Paper 2"}
+            <span className="text-xs font-bold text-[#0055ff] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+              {classes.length} Classes ({tetPaper === "paper1" ? "Paper 1" : "Paper 2"})
             </span>
           </div>
 
-          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2.5">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 sm:gap-2.5">
             {classes.map((c) => {
               const isSelected = selectedClass === c;
               const styleMap = classColorMap[c] || classColorMap[1];
@@ -160,14 +160,14 @@ export default function LearningPage({ user, lang = "en" }) {
                       setSelectedSubject("Physics");
                     }
                   }}
-                  className={`py-3 px-1 rounded-2xl font-black text-xs transition-all duration-200 border cursor-pointer ${
+                  className={`py-2.5 px-1 rounded-2xl font-black text-xs transition-all duration-200 border cursor-pointer min-h-[56px] flex flex-col items-center justify-center card-interactive ${
                     isSelected
                       ? `${styleMap.active} shadow-md scale-105 ring-2 ring-offset-1`
                       : `${styleMap.inactive}`
                   }`}
                 >
-                  <span className="block text-[10px] opacity-90 font-bold uppercase tracking-wider">வகுப்பு</span>
-                  <span className="text-base font-black">{c}</span>
+                  <span className="block text-xs opacity-90 font-bold uppercase tracking-wider leading-none">வகுப்பு</span>
+                  <span className="text-lg font-black leading-tight mt-0.5">{c}</span>
                 </button>
               );
             })}
@@ -314,27 +314,31 @@ export default function LearningPage({ user, lang = "en" }) {
 
                             {isLessonLocked ? (
                               <span className="flex items-center space-x-1 text-xs text-slate-500 font-semibold bg-slate-100 px-2 py-0.5 rounded-md">
-                                <Lock className="w-3 h-3" />
+                                <Lock className="w-3.5 h-3.5" />
                                 <span>{t.lockedBadge}</span>
                               </span>
                             ) : isCompleted ? (
-                              <span className="flex items-center space-x-1 text-xs text-[#0055ff] font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-[#0055ff]/30">
-                                <CheckCircle2 className="w-3 h-3 text-[#0055ff]" />
+                              <span className="flex items-center space-x-1 text-xs text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                 <span>{t.completedBadge} ({les.test_score}%)</span>
                               </span>
+                            ) : les.test_score > 0 && les.test_score < 60 ? (
+                              <span className="flex items-center space-x-1 text-xs text-amber-700 font-bold bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-300">
+                                <span>Quiz: {les.test_score}% (Need ≥60%)</span>
+                              </span>
                             ) : (
-                              <span className="text-xs text-[#0055ff] font-semibold bg-blue-50 px-2 py-0.5 rounded-md">
-                                Unlocked
+                              <span className="text-xs text-[#0055ff] font-bold bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-200">
+                                In Progress
                               </span>
                             )}
                           </div>
 
-                          <h4 className="text-sm font-semibold text-[#093c85] leading-snug">{les.title}</h4>
-                          <p className="text-xs text-slate-500 font-normal mt-0.5 line-clamp-2">{les.description}</p>
+                          <h4 className="text-base font-bold text-[#061b36] leading-snug">{les.title}</h4>
+                          <p className="text-xs sm:text-sm text-slate-600 font-normal mt-0.5 line-clamp-2 leading-relaxed">{les.description}</p>
                         </div>
 
                         {/* 4 Stage Action Status Badges in Blue, Green, Orange, Purple */}
-                        <div className="grid grid-cols-4 gap-1 py-1.5 border-y border-slate-100 text-[10px] font-black text-center">
+                        <div className="grid grid-cols-4 gap-1 py-2 border-y border-slate-100 text-xs font-black text-center">
                           <span className={les.stage1_pdf ? "text-[#0055ff]" : "text-slate-300"}>📘 BOOK</span>
                           <span className={les.stage2_video ? "text-[#00a651]" : "text-slate-300"}>▶️ VIDEO</span>
                           <span className={les.stage3_questions ? "text-[#ff7a00]" : "text-slate-300"}>❓ Qs</span>
@@ -344,17 +348,17 @@ export default function LearningPage({ user, lang = "en" }) {
                         <button
                           onClick={() => !isLessonLocked && setActiveLessonId(les.id)}
                           disabled={isLessonLocked}
-                          className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition cursor-pointer ${
+                          className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition cursor-pointer min-h-[44px] ${
                             isLessonLocked
                               ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
                               : isCompleted
-                              ? "bg-blue-50 hover:bg-blue-100 text-[#0055ff] border border-[#0055ff]/30"
+                              ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300"
                               : "bg-[#0055ff] hover:bg-blue-700 text-white shadow-xs"
                           }`}
                         >
-                          <PlayCircle className="w-3.5 h-3.5" />
-                          <span>{isLessonLocked ? t.lockedBadge : isCompleted ? "Review Stages" : "Continue Lesson"}</span>
-                          {!isLessonLocked && <ChevronRight className="w-3.5 h-3.5" />}
+                          <PlayCircle className="w-4 h-4" />
+                          <span>{isLessonLocked ? t.lockedBadge : isCompleted ? "Review Completed Stages" : "Continue Lesson"}</span>
+                          {!isLessonLocked && <ChevronRight className="w-4 h-4" />}
                         </button>
                       </div>
                     );

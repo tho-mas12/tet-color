@@ -44,7 +44,7 @@ export default function App() {
       />
 
       {/* Main Page View */}
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pb-20 md:pb-10">
         {!user ? (
           /* INITIAL LANDING / LOGIN SCREEN WHEN NOT LOGGED IN */
           <div className="min-h-[80vh] flex items-center justify-center p-4">
@@ -84,7 +84,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6 text-xs text-slate-500 shadow-xs">
+      <footer className="border-t border-slate-200 bg-white py-6 mb-14 md:mb-0 text-xs sm:text-sm text-slate-500 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           
           {/* Left Column: Platform Branding */}
@@ -100,13 +100,13 @@ export default function App() {
             target="_blank" 
             rel="noopener noreferrer"
             title="Visit FrontierWox Tech Private Limited (https://frontierwox.in/)"
-            className="flex items-center space-x-3.5 bg-gradient-to-r from-slate-50 to-blue-50/50 hover:from-blue-50 hover:to-indigo-50/60 border border-slate-200/90 hover:border-[#0055ff]/40 px-4 py-2 rounded-2xl shadow-xs transition-all duration-200 group cursor-pointer"
+            className="flex items-center space-x-3.5 bg-gradient-to-r from-slate-50 to-blue-50/50 hover:from-blue-50 hover:to-indigo-50/60 border border-slate-200/90 hover:border-[#0055ff]/40 px-4 py-2.5 rounded-2xl shadow-xs transition-all duration-200 group cursor-pointer"
           >
             <div className="text-right">
-              <span className="block text-[11px] font-black text-[#061b36] group-hover:text-[#0055ff] transition-colors tracking-tight">
+              <span className="block text-xs sm:text-sm font-black text-[#061b36] group-hover:text-[#0055ff] transition-colors tracking-tight">
                 FrontierWox Tech Private Limited
               </span>
-              <span className="block text-[9px] font-bold text-[#0055ff] uppercase tracking-wider">
+              <span className="block text-xs font-bold text-[#0055ff] uppercase tracking-wider">
                 Empowering Innovation ↗
               </span>
             </div>

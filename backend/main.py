@@ -411,7 +411,8 @@ def get_learning_structure(
             s4 = prog.stage4_test if prog else False
             score = prog.test_score if prog else 0
 
-            is_fully_done = s1 and s2 and s3 and s4
+            # User condition: Lesson is completed only after getting >= 60% mark in final quiz
+            is_fully_done = bool(s1 and s2 and s3 and s4 and score >= 60)
 
             if not is_fully_done:
                 term_all_lessons_completed = False
@@ -644,19 +645,22 @@ def submit_test(
         prog = models.LessonProgress(user_id=user.id, lesson_id=lesson_id)
         db.add(prog)
 
+    pass_mark = settings.pass_percentage if settings and settings.pass_percentage else 60
+    passed = bool(score_percent >= pass_mark)
+
     prog.stage1_pdf = True
     prog.stage2_video = True
     prog.stage3_questions = True
-    prog.stage4_test = True
+    prog.stage4_test = passed
     prog.test_score = score_percent
-    prog.completed_at = datetime.datetime.utcnow()
 
-    today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-    if user.last_completed_date != today_str:
-        user.streak_count += 1
-        user.last_completed_date = today_str
-
-    user.daily_tasks_done = min(user.daily_tasks_total, user.daily_tasks_done + 1)
+    if passed:
+        prog.completed_at = datetime.datetime.utcnow()
+        today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+        if user.last_completed_date != today_str:
+            user.streak_count += 1
+            user.last_completed_date = today_str
+        user.daily_tasks_done = min(user.daily_tasks_total, user.daily_tasks_done + 1)
     
     db.commit()
 

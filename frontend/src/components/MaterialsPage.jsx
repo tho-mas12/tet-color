@@ -118,10 +118,10 @@ export default function MaterialsPage({ lang = "en" }) {
                 <span className="w-5 h-5 rounded-full bg-[#093c85] text-white flex items-center justify-center text-[10px]">1</span>
                 <span>{t.matStep1Title}</span>
               </span>
-              <span className="text-[11px] text-slate-500 font-bold">{t.allClasses}</span>
+              <span className="text-xs text-slate-500 font-bold">{t.allClasses}</span>
             </div>
 
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 sm:gap-2.5">
               {classes.map((c) => {
                 const isSelected = selectedClass === c;
                 const styleMap = classColorMap[c] || classColorMap[1];
@@ -134,14 +134,14 @@ export default function MaterialsPage({ lang = "en" }) {
                         setSelectedSubject("Physics");
                       }
                     }}
-                    className={`py-3 px-2 rounded-2xl border text-center font-bold transition-all duration-200 cursor-pointer ${
+                    className={`py-2.5 px-1.5 rounded-2xl border text-center font-bold transition-all duration-200 cursor-pointer min-h-[56px] flex flex-col items-center justify-center card-interactive ${
                       isSelected
                         ? `${styleMap.active} shadow-md scale-105 ring-2 ring-offset-1`
                         : `${styleMap.inactive}`
                     }`}
                   >
-                    <span className="block text-[10px] opacity-90 font-bold uppercase tracking-wider">வகுப்பு</span>
-                    <span className="text-base font-black">{c}</span>
+                    <span className="block text-xs opacity-90 font-bold uppercase tracking-wider leading-none">வகுப்பு</span>
+                    <span className="text-lg font-black leading-tight mt-0.5">{c}</span>
                   </button>
                 );
               })}
@@ -282,9 +282,9 @@ export default function MaterialsPage({ lang = "en" }) {
               </div>
             ) : materials.length === 0 ? (
               <div className="py-12 text-center border border-dashed border-slate-300 rounded-2xl p-5">
-                <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <h4 className="text-xs font-bold text-[#093c85]">{t.noMaterialsFound}</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2 animate-float" />
+                <h4 className="text-sm font-bold text-[#061b36]">{t.noMaterialsFound}</h4>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                   Class {selectedClass} {selectedSubject} ({selectedMedium}) {selectedTerm} resources.
                 </p>
               </div>
@@ -293,16 +293,16 @@ export default function MaterialsPage({ lang = "en" }) {
                 {materials.map((mat) => (
                   <div
                     key={mat.id}
-                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-[#0055ff]/40 transition-all space-y-3"
+                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-[#0055ff]/40 transition-all space-y-3 card-interactive"
                   >
                     <div className="flex items-start space-x-3">
-                      <div className="p-2 rounded-xl bg-blue-100 text-[#0055ff] border border-[#0055ff]/30 shrink-0">
+                      <div className="p-2.5 rounded-xl bg-blue-100 text-[#0055ff] border border-[#0055ff]/30 shrink-0">
                         <FileText className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold text-[#093c85] leading-snug truncate">{mat.title}</h4>
-                        <p className="text-[11px] text-slate-500 mt-0.5 font-medium line-clamp-2">{mat.description}</p>
-                        <span className="text-[10px] text-slate-400 font-semibold mt-1 block">
+                        <h4 className="text-sm font-bold text-[#061b36] leading-snug truncate">{mat.title}</h4>
+                        <p className="text-xs sm:text-sm text-slate-600 mt-0.5 font-medium line-clamp-2 leading-relaxed">{mat.description}</p>
+                        <span className="text-xs text-slate-500 font-medium mt-1 block">
                           Medium: {mat.medium} • Size: {mat.file_size || "3.8 MB"}
                         </span>
                       </div>
@@ -311,17 +311,17 @@ export default function MaterialsPage({ lang = "en" }) {
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
                       <button
                         onClick={() => setActivePdfModal(mat)}
-                        className="flex items-center justify-center space-x-1.5 py-1.5 px-3 rounded-xl bg-white hover:bg-blue-50 text-[#0055ff] text-xs font-bold border border-[#0055ff]/40 shadow-xs transition cursor-pointer"
+                        className="flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-white hover:bg-blue-50 text-[#0055ff] text-xs sm:text-sm font-bold border border-[#0055ff]/40 shadow-xs transition cursor-pointer min-h-[42px]"
                       >
-                        <Eye className="w-3.5 h-3.5 text-[#0055ff]" />
+                        <Eye className="w-4 h-4 text-[#0055ff]" />
                         <span>{t.viewPdfBtn}</span>
                       </button>
 
                       <button
                         onClick={() => handleDownload(mat)}
-                        className="flex items-center justify-center space-x-1.5 py-1.5 px-3 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                        className="flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs transition cursor-pointer min-h-[42px]"
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        <Download className="w-4 h-4" />
                         <span>{t.downloadPdfBtn}</span>
                       </button>
                     </div>
