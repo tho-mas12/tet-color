@@ -12,14 +12,18 @@ import {
   Bell, 
   Calendar,
   Globe,
-  ExternalLink
+  ExternalLink,
+  Video,
+  Radio,
+  FileText
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
 
-export default function DashboardPage({ user, onNavigateToLearning, lang = "en" }) {
+export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, lang = "en" }) {
   const [dashboardData, setDashboardData] = useState(null);
   const [tetCards, setTetCards] = useState([]);
+  const [liveMeetings, setLiveMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const t = translations[lang] || translations.en;
@@ -27,7 +31,19 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
   useEffect(() => {
     loadDashboard();
     loadTetCards();
+    loadLiveMeetings();
   }, [user]);
+
+  const loadLiveMeetings = async () => {
+    try {
+      const meetings = await fetchApi("/meetings/active");
+      if (Array.isArray(meetings)) {
+        setLiveMeetings(meetings);
+      }
+    } catch (err) {
+      console.error("Live Meetings error:", err);
+    }
+  };
 
   const loadTetCards = async () => {
     try {
@@ -174,17 +190,77 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
         </div>
       </div>
 
-      {/* ================= TET COURSE CARDS (TET-1 & TET-2 - NORMAL STANDARD CARD SIZE) ================= */}
+      {/* ================= LIVE MEETINGS BANNER (IF ACTIVE / LIVE NOW) ================= */}
+      {liveMeetings && liveMeetings.length > 0 && (
+        <div className="space-y-3">
+          {liveMeetings.map((meeting) => (
+            <div
+              key={meeting.id}
+              className={`rounded-3xl p-5 sm:p-6 border transition-all shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+                meeting.is_live
+                  ? "bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white border-rose-500/60 shadow-rose-500/10"
+                  : "bg-white border-slate-200 text-[#061b36]"
+              }`}
+            >
+              <div className="space-y-1.5 flex-1">
+                <div className="flex items-center space-x-2.5">
+                  {meeting.is_live ? (
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-600 text-white flex items-center space-x-1.5 shadow-md">
+                      <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
+                      <span>🔴 LIVE NOW</span>
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#0055ff] border border-blue-200 flex items-center space-x-1.5">
+                      <Radio className="w-3.5 h-3.5 text-[#0055ff]" />
+                      <span>Live Meeting Scheduled</span>
+                    </span>
+                  )}
+                  <span className={`text-xs font-bold ${meeting.is_live ? "text-rose-200" : "text-slate-500"}`}>
+                    {meeting.start_time ? meeting.start_time.replace("T", " ") : ""} {meeting.end_time ? `– ${meeting.end_time.replace("T", " ")}` : ""}
+                  </span>
+                </div>
+
+                <h3 className={`text-base sm:text-lg font-black tracking-tight ${meeting.is_live ? "text-white" : "text-[#061b36]"}`}>
+                  {meeting.title}
+                </h3>
+
+                {meeting.description && (
+                  <p className={`text-xs sm:text-sm font-medium ${meeting.is_live ? "text-rose-100/90" : "text-slate-600"}`}>
+                    {meeting.description}
+                  </p>
+                )}
+              </div>
+
+              <a
+                href={meeting.meeting_link || meeting.meeting_url || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`px-5 py-3 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 shadow-md transition-all hover:scale-105 cursor-pointer shrink-0 ${
+                  meeting.is_live
+                    ? "bg-rose-500 hover:bg-rose-600 text-white"
+                    : "bg-[#0055ff] hover:bg-blue-700 text-white"
+                }`}
+              >
+                <Video className="w-4 h-4" />
+                <span>{meeting.is_live ? "Join Live Meeting Now ↗" : "Open Meeting Link ↗"}</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ================= TET COURSE CARDS & MATERIALS EXPLORER (3-COLUMN RESPONSIVE GRID) ================= */}
       <div className="space-y-3.5">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-[#061b36] flex items-center space-x-2">
             <Sparkles className="w-4 h-4 text-[#0055ff]" />
-            <span>TET Course Packages (தேர்வு பாடப்பிரிவுகள்)</span>
+            <span>TET Course Packages & Learning Materials</span>
           </h3>
           <span className="text-xs sm:text-sm text-slate-500 font-semibold">Select course to begin sequential learning</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-6xl mx-auto">
           {tetCards.length > 0 ? (
             tetCards.map((card) => (
               <div
@@ -221,7 +297,7 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
               </div>
             ))
           ) : (
-            /* Default Normal Standard Cards */
+            /* Default Standard Cards */
             <>
               <div className="bg-white border border-slate-200/90 hover:border-[#0055ff]/40 rounded-2xl p-5 sm:p-6 shadow-xs card-interactive flex flex-col justify-between space-y-4 sm:space-y-5">
                 <div className="space-y-2">
@@ -276,6 +352,36 @@ export default function DashboardPage({ user, onNavigateToLearning, lang = "en" 
               </div>
             </>
           )}
+
+          {/* 3RD CARD: MATERIALS EXPLORER (OFFICIAL TN TEXTBOOKS & NOTES) */}
+          <div className="bg-white border border-slate-200/90 hover:border-[#0055ff]/40 rounded-2xl p-5 sm:p-6 shadow-xs card-interactive flex flex-col justify-between space-y-4 sm:space-y-5">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl sm:text-2xl font-black text-[#061b36] tracking-tight">Materials Explorer</h2>
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Classes 1–12
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+                1 முதல் 12 ஆம் வகுப்பு வரை அனைத்துப் பாடங்களின் அதிகாரப்பூர்வ PDF மற்றும் வீடியோ வழிகாட்டிகள்
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-between text-xs sm:text-sm font-semibold text-slate-500">
+                <span className="text-[#061b36] font-bold">Classes 1–12</span>
+                <span className="text-slate-400">PDFs & Notes</span>
+              </div>
+
+              <button
+                onClick={() => onNavigateToMaterials && onNavigateToMaterials()}
+                className="w-full py-3 px-4 rounded-xl bg-slate-50 hover:bg-[#0055ff] text-[#061b36] hover:text-white border border-slate-200/90 hover:border-[#0055ff] font-extrabold text-xs sm:text-sm transition-all duration-200 shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer group min-h-[44px]"
+              >
+                <BookOpen className="w-4 h-4 mr-1 text-[#0055ff] group-hover:text-white" />
+                <span>OPEN MATERIALS EXPLORER →</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

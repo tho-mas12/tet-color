@@ -148,12 +148,48 @@ export default function MaterialsPage({ lang = "en" }) {
             </div>
           </div>
 
-          {/* GRID 2: CHOOSE SUBJECT & MEDIUM */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
+          {/* GRID 2: SELECT TERM */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
+            <div className="flex items-center justify-between mb-3.5">
               <span className="text-xs font-extrabold text-[#093c85] uppercase tracking-wider flex items-center space-x-2">
                 <span className="w-5 h-5 rounded-full bg-[#093c85] text-white flex items-center justify-center text-[10px]">2</span>
                 <span>{t.matStep2Title}</span>
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {terms.map((termKey, idx) => {
+                const isSelected = selectedTerm === termKey;
+                const displayTerm = lang === "ta" ? termKey.replace("Term-", "பருவம்-") : termKey;
+                
+                // Color mapping matching image 2 (Term 1 = Blue, Term 2 = Light Blue, Term 3 = Green)
+                const termColorClasses = [
+                  isSelected ? "bg-[#0040ff] text-white border-[#0040ff]" : "bg-blue-50 text-[#0040ff] border-blue-200 hover:bg-blue-100",
+                  isSelected ? "bg-[#0070e0] text-white border-[#0070e0]" : "bg-sky-50 text-[#0070e0] border-sky-200 hover:bg-sky-100",
+                  isSelected ? "bg-[#009933] text-white border-[#009933]" : "bg-emerald-50 text-[#009933] border-emerald-200 hover:bg-emerald-100",
+                ];
+
+                return (
+                  <button
+                    key={termKey}
+                    onClick={() => setSelectedTerm(termKey)}
+                    className={`py-3 px-3 rounded-2xl border text-center font-black text-xs transition-all shadow-xs cursor-pointer ${
+                      termColorClasses[idx % 3]
+                    }`}
+                  >
+                    <span>{displayTerm}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* GRID 3: CHOOSE SUBJECT & MEDIUM */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-[#093c85] uppercase tracking-wider flex items-center space-x-2">
+                <span className="w-5 h-5 rounded-full bg-[#093c85] text-white flex items-center justify-center text-[10px]">3</span>
+                <span>{t.matStep3Title}</span>
               </span>
             </div>
 
@@ -213,42 +249,6 @@ export default function MaterialsPage({ lang = "en" }) {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* GRID 3: SELECT TERM */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-3.5">
-              <span className="text-xs font-extrabold text-[#093c85] uppercase tracking-wider flex items-center space-x-2">
-                <span className="w-5 h-5 rounded-full bg-[#093c85] text-white flex items-center justify-center text-[10px]">3</span>
-                <span>{t.matStep3Title}</span>
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              {terms.map((termKey, idx) => {
-                const isSelected = selectedTerm === termKey;
-                const displayTerm = lang === "ta" ? termKey.replace("Term-", "பருவம்-") : termKey;
-                
-                // Color mapping matching image 2 (Term 1 = Blue, Term 2 = Light Blue, Term 3 = Green)
-                const termColorClasses = [
-                  isSelected ? "bg-[#0040ff] text-white border-[#0040ff]" : "bg-blue-50 text-[#0040ff] border-blue-200 hover:bg-blue-100",
-                  isSelected ? "bg-[#0070e0] text-white border-[#0070e0]" : "bg-sky-50 text-[#0070e0] border-sky-200 hover:bg-sky-100",
-                  isSelected ? "bg-[#009933] text-white border-[#009933]" : "bg-emerald-50 text-[#009933] border-emerald-200 hover:bg-emerald-100",
-                ];
-
-                return (
-                  <button
-                    key={termKey}
-                    onClick={() => setSelectedTerm(termKey)}
-                    className={`py-3 px-3 rounded-2xl border text-center font-black text-xs transition-all shadow-xs cursor-pointer ${
-                      termColorClasses[idx % 3]
-                    }`}
-                  >
-                    <span>{displayTerm}</span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
         </div>

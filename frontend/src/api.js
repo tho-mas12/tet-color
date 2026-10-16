@@ -336,8 +336,56 @@ export async function fetchApi(endpoint, options = {}) {
         practice_question_count: 200,
         test_question_count: 100,
         test_time_limit_mins: 60,
-        pass_percentage: 60
+        pass_percentage: 80
       };
+    }
+
+    if (endpoint.startsWith("/meetings") || endpoint.startsWith("/admin/meetings")) {
+      let storedMeetings = JSON.parse(localStorage.getItem("tet_stored_meetings") || "null");
+      if (!storedMeetings || !Array.isArray(storedMeetings)) {
+        storedMeetings = [
+          {
+            id: 1,
+            title: "🔴 TN TET Paper-2 Live Science & Social Science Special Class",
+            meeting_link: "https://meet.google.com/abc-defg-hij",
+            meeting_url: "https://meet.google.com/abc-defg-hij",
+            start_time: new Date(Date.now() - 3600000).toISOString(),
+            end_time: new Date(Date.now() + 86400000 * 2).toISOString(),
+            description: "Direct Live Interaction with TET Faculty & Interactive Q&A Session for Paper 2 Aspirants. (Google Meet)",
+            is_active: true,
+            is_live: true
+          }
+        ];
+        localStorage.setItem("tet_stored_meetings", JSON.stringify(storedMeetings));
+      }
+      if (options.method === "POST") {
+        const body = options.body ? JSON.parse(options.body) : {};
+        const link = body.meeting_link || body.meeting_url || "https://meet.google.com/abc-defg-hij";
+        const newM = {
+          id: Date.now(),
+          title: body.title || "Live Class",
+          meeting_link: link,
+          meeting_url: link,
+          start_time: body.start_time || new Date().toISOString(),
+          end_time: body.end_time || new Date().toISOString(),
+          description: body.description || "",
+          is_active: true,
+          is_live: true
+        };
+        storedMeetings.unshift(newM);
+        localStorage.setItem("tet_stored_meetings", JSON.stringify(storedMeetings));
+        return newM;
+      }
+      if (options.method === "DELETE") {
+        const mMatch = endpoint.match(/\/meetings\/(\d+)/);
+        if (mMatch) {
+          const mId = Number(mMatch[1]);
+          storedMeetings = storedMeetings.filter(m => m.id !== mId);
+          localStorage.setItem("tet_stored_meetings", JSON.stringify(storedMeetings));
+        }
+        return { message: "Meeting deleted successfully" };
+      }
+      return storedMeetings;
     }
 
     return {};
@@ -384,6 +432,9 @@ export function saveUploadedLessonClient(newLes) {
       description: newLes.description || "",
       pdf_url: newLes.pdf_url || "/api/sample-pdf?title=" + encodeURIComponent(newLes.title),
       video_url: newLes.video_url || "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      available_at: newLes.available_at || null,
+      quiz_type1: newLes.quiz_type1 || null,
+      quiz_type2: newLes.quiz_type2 || null,
       stage1_pdf: false,
       stage2_video: false,
       stage3_questions: false,
@@ -398,6 +449,31 @@ export function saveUploadedLessonClient(newLes) {
   } catch (e) {
     console.error("LocalStorage save error:", e);
     return newLes;
+  }
+}
+
+export function updateUploadedLessonClient(lessonId, updatedData) {
+  try {
+    let existing = JSON.parse(localStorage.getItem("tet_stored_lessons") || "[]");
+    existing = existing.map(item => {
+      if (item.id === lessonId) {
+        return { ...item, ...updatedData };
+      }
+      return item;
+    });
+    localStorage.setItem("tet_stored_lessons", JSON.stringify(existing));
+  } catch (e) {
+    console.error("LocalStorage update error:", e);
+  }
+}
+
+export function deleteUploadedLessonClient(lessonId) {
+  try {
+    let existing = JSON.parse(localStorage.getItem("tet_stored_lessons") || "[]");
+    existing = existing.filter(item => item.id !== lessonId);
+    localStorage.setItem("tet_stored_lessons", JSON.stringify(existing));
+  } catch (e) {
+    console.error("LocalStorage delete error:", e);
   }
 }
 

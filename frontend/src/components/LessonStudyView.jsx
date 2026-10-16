@@ -8,15 +8,17 @@ import {
   ArrowLeft, 
   Clock, 
   Sparkles, 
-  Award,
-  ChevronRight,
-  Maximize2,
-  X,
-  RotateCcw
+  Award, 
+  ChevronRight, 
+  Maximize2, 
+  X, 
+  RotateCcw,
+  Download
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { fetchApi, getEmbedYoutubeUrl } from "../api";
 import { translations } from "../translations";
+import { downloadQuizAsPdf } from "../utils/pdfExport";
 
 export default function LessonStudyView({ lessonId, user, onBack, lang = "en" }) {
   const [lessonData, setLessonData] = useState(null);
@@ -28,6 +30,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
 
   const [questionsData, setQuestionsData] = useState([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [quizInfo, setQuizInfo] = useState({ quiz_type: "type1", is_type2: false });
   const [userPracticeAnswers, setUserPracticeAnswers] = useState({});
 
   const [testData, setTestData] = useState(null);
@@ -43,6 +46,12 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   useEffect(() => {
     loadLessonDetails();
   }, [lessonId]);
+
+  useEffect(() => {
+    if (activeStage === 3 && questionsData.length === 0 && !questionsLoading) {
+      handleLoadPracticeQuestions();
+    }
+  }, [activeStage]);
 
   useEffect(() => {
     let timer = null;
@@ -101,22 +110,35 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
     }
   };
 
-  const handleLoadPracticeQuestions = async () => {
-    if (questionsData.length > 0) return;
+  const handleLoadPracticeQuestions = async (forcedQuizType = null) => {
     setQuestionsLoading(true);
     try {
-      const data = await fetchApi(`/learning/lesson/${lessonId}/questions?count=200`);
-      if (data && Array.isArray(data.questions) && data.questions.length > 0) {
+      const email = user ? user.email : "student@tet.com";
+      const typeQuery = forcedQuizType ? `&quiz_type=${forcedQuizType}` : "";
+      const data = await fetchApi(`/learning/lesson/${lessonId}/questions?user_email=${encodeURIComponent(email)}${typeQuery}`);
+      if (data && Array.isArray(data.questions)) {
         setQuestionsData(data.questions);
-      } else {
-        alert("Could not load practice questions. Please check server connection.");
+        setQuizInfo({
+          quiz_type: data.quiz_type || "type1",
+          is_type2: Boolean(data.is_type2)
+        });
       }
     } catch (err) {
       console.error("Practice questions error:", err);
-      alert(err.message || "Failed to load practice questions.");
     } finally {
       setQuestionsLoading(false);
     }
+  };
+
+  const handleDownloadQuiz = () => {
+    if (!questionsData || questionsData.length === 0) return;
+    const isT2 = quizInfo.is_type2;
+    downloadQuizAsPdf({
+      title: lessonData?.title || "Lesson Practice Quiz",
+      lesson: lessonData,
+      quizType: isT2 ? "type2" : "type1",
+      questions: questionsData
+    });
   };
 
   const handleStartTest = async () => {
@@ -163,9 +185,15 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
         method: "POST",
         body: JSON.stringify({ user_answers: testAnswers })
       });
-      const isPassed = res.passed ?? (res.score_percent >= 60);
+      const isPassed = res.passed ?? (res.score_percent >= 80);
       setTestResult(res);
-      const updatedProg = { ...progress, stage4_test: isPassed, test_score: res.score_percent };
+
+      const updatedProg = {
+        ...progress,
+        stage4_test: isPassed,
+        has_failed_test: !isPassed,
+        test_score: res.score_percent
+      };
       setProgress(updatedProg);
 
       if (isPassed) {
@@ -236,7 +264,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
           <Sparkles className="w-4 h-4 text-[#0055ff]" />
           <span className="text-slate-500">Lesson Status:</span>
           <span className={testDone ? "text-emerald-600 font-extrabold" : "text-amber-600 font-extrabold"}>
-            {testDone ? `${t.completedBadge} (Passed ≥60%)` : "IN PROGRESS"}
+            {testDone ? `${t.completedBadge} (Passed ≥80%)` : "IN PROGRESS"}
           </span>
         </div>
       </div>
@@ -322,7 +350,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
           }`}
         >
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 4 • QUIZ (≥60%)</span>
+            <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 4 • QUIZ (≥80%)</span>
             {!questionsDone ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : testDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <Award className="w-5 h-5 shrink-0" />}
           </div>
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage4Title}</h4>
@@ -411,29 +439,40 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
           </div>
         )}
 
-        {/* --- STAGE 3: AI PRACTICE QUESTIONS (200 MCQS) --- */}
+        {/* --- STAGE 3: PRACTICE MCQS (TYPE 1 & TYPE 2) --- */}
         {activeStage === 3 && (
           <div className="space-y-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
-                <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-[#ff7a00]" />
-                  <span>{t.stage3Title}</span>
-                </h3>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
+                    <Sparkles className="w-5 h-5 text-[#ff7a00]" />
+                    <span>{t.stage3Title}</span>
+                  </h3>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${
+                    quizInfo.is_type2
+                      ? "bg-purple-100 text-purple-900 border-purple-200"
+                      : "bg-blue-100 text-blue-900 border-blue-200"
+                  }`}>
+                    {quizInfo.is_type2 ? "Type 2 Quiz (மறுபயிற்சி வினாக்கள்)" : "Type 1 Quiz (முதன்மைப் பயிற்சி வினாக்கள்)"}
+                  </span>
+                </div>
                 <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-                  {t.stage3Desc}
+                  {quizInfo.is_type2
+                    ? "Stage 4 re-attempt mode: Practice these Type 2 alternate questions to master the lesson concepts."
+                    : t.stage3Desc}
                 </p>
               </div>
 
               <div className="flex items-center space-x-2.5">
-                {questionsData.length === 0 && (
+                {questionsData.length > 0 && (
                   <button
-                    onClick={handleLoadPracticeQuestions}
-                    disabled={questionsLoading}
-                    className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-[#ff7a00] hover:bg-orange-600 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
+                    onClick={handleDownloadQuiz}
+                    className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-[#061b36] text-xs sm:text-sm font-bold border border-slate-200 shadow-2xs cursor-pointer min-h-[42px]"
+                    title="Download practice quiz questions for offline reading"
                   >
-                    <Sparkles className="w-4 h-4" />
-                    <span>{questionsLoading ? "Generating Questions..." : t.startPractice}</span>
+                    <Download className="w-4 h-4 text-[#0055ff]" />
+                    <span>{t.downloadQuizBtn || "Download Quiz (PDF)"}</span>
                   </button>
                 )}
 
@@ -451,7 +490,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
               <div className="py-20 text-center space-y-3">
                 <div className="w-10 h-10 border-4 border-[#ff7a00] border-t-transparent rounded-full animate-spin mx-auto" />
                 <p className="text-xs sm:text-sm font-bold text-[#061b36]">
-                  Gemini AI is crafting practice questions for {lessonData.title}...
+                  Loading practice questions for {lessonData.title}...
                 </p>
               </div>
             ) : questionsData.length === 0 ? (
@@ -462,7 +501,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                   {t.stage3Desc}
                 </p>
                 <button
-                  onClick={handleLoadPracticeQuestions}
+                  onClick={() => handleLoadPracticeQuestions()}
                   className="px-6 py-3 rounded-xl bg-[#ff7a00] hover:bg-orange-600 text-white text-sm font-bold shadow-xs cursor-pointer min-h-[44px]"
                 >
                   {t.startPractice}
@@ -546,17 +585,17 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
           </div>
         )}
 
-        {/* --- STAGE 4: AI TIMED TEST (100 MCQS) --- */}
+        {/* --- STAGE 4: TIMED FINAL EXAM (PASS MARK: 80%) --- */}
         {activeStage === 4 && (
           <div className="space-y-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
                   <Award className="w-5 h-5 text-amber-500" />
-                  <span>{t.stage4Title} (Pass Mark: 60%)</span>
+                  <span>{t.stage4Title}</span>
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-                  {t.stage4Desc} • Score at least 60% to complete this lesson.
+                  {t.stage4Desc} • Score at least 80% to complete this lesson and unlock the next lesson.
                 </p>
               </div>
 
@@ -572,35 +611,35 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
               <div className={`rounded-3xl p-6 sm:p-8 text-center space-y-5 animate-slide-up border-2 ${
                 testResult.passed
                   ? "bg-emerald-50/90 border-emerald-400 text-emerald-950"
-                  : "bg-amber-50/90 border-amber-400 text-amber-950"
+                  : "bg-rose-50/90 border-rose-400 text-rose-950"
               }`}>
                 <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center shadow-sm ${
                   testResult.passed
                     ? "bg-emerald-100 border-2 border-emerald-500 text-emerald-700"
-                    : "bg-amber-100 border-2 border-amber-500 text-amber-700"
+                    : "bg-rose-100 border-2 border-rose-500 text-rose-700"
                 }`}>
                   <Award className="w-10 h-10" />
                 </div>
 
                 <div className="space-y-2">
                   <h3 className="text-2xl sm:text-3xl font-black tracking-tight">
-                    {testResult.passed ? "🎉 Lesson Completed Successfully!" : "⚠️ Quiz Score Below 60%"}
+                    {testResult.passed ? "🎉 Lesson Completed Successfully!" : "⚠️ Exam Score Below 80% (Pass Mark Required)"}
                   </h3>
                   
                   <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-white/90 border text-sm font-extrabold shadow-2xs">
                     <span>{t.yourScore}:</span>
-                    <span className={`text-lg font-black ${testResult.passed ? "text-emerald-600" : "text-amber-700"}`}>
+                    <span className={`text-lg font-black ${testResult.passed ? "text-emerald-600" : "text-rose-700"}`}>
                       {testResult.score_percent}%
                     </span>
                     <span className="text-slate-500">
-                      ({testResult.correct_count} / {testResult.total_questions} Correct)
+                      ({testResult.correct_count} / {testResult.total_questions} Correct • Pass Mark: 80%)
                     </span>
                   </div>
 
-                  <p className="text-sm font-medium max-w-md mx-auto leading-relaxed">
+                  <p className="text-sm font-medium max-w-lg mx-auto leading-relaxed">
                     {testResult.passed
-                      ? "Great job! You achieved the required 60% pass mark. This lesson is officially marked as complete and your daily streak is recorded!"
-                      : "To successfully complete this lesson and unlock subsequent modules, you must achieve at least 60%. Please review the lesson notes and retake the quiz."}
+                      ? "Great job! You achieved the required 80% pass mark. This lesson is officially marked as complete and your daily streak is recorded!"
+                      : "To successfully complete this lesson and unlock subsequent modules, you must achieve at least 80%. Please restudy Stage 3 with the alternate Type 2 question set before retaking the exam."}
                   </p>
 
                   {testResult.passed && (
@@ -613,6 +652,20 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                 </div>
 
                 <div className="pt-4 border-t border-slate-200/80 flex flex-wrap justify-center gap-3">
+                  {!testResult.passed && (
+                    <button
+                      onClick={() => {
+                        setActiveStage(3);
+                        setQuestionsData([]);
+                        handleLoadPracticeQuestions("type2");
+                      }}
+                      className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black shadow-md cursor-pointer min-h-[42px] animate-pulse"
+                    >
+                      <Sparkles className="w-4 h-4 text-purple-200" />
+                      <span>🔄 Restudy Stage 3 with Type 2 Questions (வகை 2 மறுபயிற்சி)</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setShowDetailedReview(!showDetailedReview)}
                     className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
@@ -626,18 +679,8 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                     className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#061b36] text-xs sm:text-sm font-bold border border-slate-300 shadow-xs cursor-pointer min-h-[42px]"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    <span>{testResult.passed ? "Retake for Higher Score" : "🔄 Retake Final Quiz"}</span>
+                    <span>{testResult.passed ? "Retake for Higher Score" : "🔄 Retake Final Exam (80% Pass)"}</span>
                   </button>
-
-                  {!testResult.passed && (
-                    <button
-                      onClick={() => setActiveStage(1)}
-                      className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] text-xs sm:text-sm font-bold border border-blue-200 shadow-xs cursor-pointer min-h-[42px]"
-                    >
-                      <FileText className="w-4 h-4" />
-                      <span>Review Stage 1 Book</span>
-                    </button>
-                  )}
 
                   <button
                     onClick={onBack}
@@ -735,7 +778,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                 <Award className="w-14 h-14 text-[#0055ff] mx-auto animate-float" />
                 <h4 className="text-lg sm:text-xl font-black text-[#061b36]">{t.stage4Title}</h4>
                 <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto font-medium leading-relaxed">
-                  {t.stage4Desc} • You must score at least <strong>60%</strong> to complete this lesson and unlock subsequent lessons.
+                  {t.stage4Desc} • You must score at least <strong>80%</strong> to complete this lesson and unlock subsequent lessons.
                 </p>
 
                 <div className="pt-2">

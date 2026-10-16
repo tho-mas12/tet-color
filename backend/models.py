@@ -46,6 +46,9 @@ class Lesson(Base):
     description = Column(Text, nullable=True)
     pdf_url = Column(String)
     video_url = Column(String)
+    available_at = Column(String, nullable=True) # ISO "YYYY-MM-DDTHH:MM" or datetime string
+    quiz_type1 = Column(Text, nullable=True) # JSON string of questions array
+    quiz_type2 = Column(Text, nullable=True) # JSON string of alternate questions array
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class LessonProgress(Base):
@@ -60,6 +63,7 @@ class LessonProgress(Base):
     stage4_test = Column(Boolean, default=False)
     test_score = Column(Integer, default=0)
     test_total = Column(Integer, default=100)
+    has_failed_test = Column(Boolean, default=False)
     completed_at = Column(DateTime, nullable=True)
 
 class Announcement(Base):
@@ -79,7 +83,7 @@ class AdminSettings(Base):
     practice_question_count = Column(Integer, default=200)
     test_question_count = Column(Integer, default=100)
     test_time_limit_mins = Column(Integer, default=60)
-    pass_percentage = Column(Integer, default=60)
+    pass_percentage = Column(Integer, default=80)
 
 class TETCard(Base):
     __tablename__ = "tet_cards"
@@ -94,6 +98,18 @@ class TETCard(Base):
     end_class = Column(Integer, default=8)
     lesson_count_label = Column(String, default="25 Lessons")
     button_text = Column(String, default="OPEN →")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class LiveMeeting(Base):
+    __tablename__ = "live_meetings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    meeting_link = Column(String)
+    start_time = Column(String) # ISO "YYYY-MM-DDTHH:MM" or datetime string
+    end_time = Column(String)   # ISO "YYYY-MM-DDTHH:MM" or datetime string
+    description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

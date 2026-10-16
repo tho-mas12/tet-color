@@ -9,7 +9,8 @@ import {
   Languages,
   Award,
   Info,
-  UserCheck
+  UserCheck,
+  Clock
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
@@ -312,7 +313,12 @@ export default function LearningPage({ user, lang = "en" }) {
                               Lesson {les.lesson_order} • {les.medium}
                             </span>
 
-                            {isLessonLocked ? (
+                            {les.is_disabled_by_schedule ? (
+                              <span className="flex items-center space-x-1 text-xs text-amber-800 font-semibold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Unlocks: {les.available_at ? les.available_at.replace("T", " ") : "Scheduled"}</span>
+                              </span>
+                            ) : isLessonLocked ? (
                               <span className="flex items-center space-x-1 text-xs text-slate-500 font-semibold bg-slate-100 px-2 py-0.5 rounded-md">
                                 <Lock className="w-3.5 h-3.5" />
                                 <span>{t.lockedBadge}</span>
@@ -322,9 +328,9 @@ export default function LearningPage({ user, lang = "en" }) {
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                 <span>{t.completedBadge} ({les.test_score}%)</span>
                               </span>
-                            ) : les.test_score > 0 && les.test_score < 60 ? (
-                              <span className="flex items-center space-x-1 text-xs text-amber-700 font-bold bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-300">
-                                <span>Quiz: {les.test_score}% (Need ≥60%)</span>
+                            ) : les.test_score > 0 && les.test_score < 80 ? (
+                              <span className="flex items-center space-x-1 text-xs text-rose-700 font-bold bg-rose-50 px-2.5 py-0.5 rounded-md border border-rose-300">
+                                <span>Quiz: {les.test_score}% (Need ≥80%)</span>
                               </span>
                             ) : (
                               <span className="text-xs text-[#0055ff] font-bold bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-200">
@@ -346,7 +352,13 @@ export default function LearningPage({ user, lang = "en" }) {
                         </div>
 
                         <button
-                          onClick={() => !isLessonLocked && setActiveLessonId(les.id)}
+                          onClick={() => {
+                            if (les.is_disabled_by_schedule) {
+                              alert(`This lesson is scheduled and will unlock on ${les.available_at ? les.available_at.replace('T', ' ') : 'the set time'}.`);
+                              return;
+                            }
+                            if (!isLessonLocked) setActiveLessonId(les.id);
+                          }}
                           disabled={isLessonLocked}
                           className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition cursor-pointer min-h-[44px] ${
                             isLessonLocked
@@ -357,7 +369,15 @@ export default function LearningPage({ user, lang = "en" }) {
                           }`}
                         >
                           <PlayCircle className="w-4 h-4" />
-                          <span>{isLessonLocked ? t.lockedBadge : isCompleted ? "Review Completed Stages" : "Continue Lesson"}</span>
+                          <span>
+                            {les.is_disabled_by_schedule
+                              ? `Locked until ${les.available_at ? les.available_at.replace('T', ' ') : ''}`
+                              : isLessonLocked
+                              ? t.lockedBadge
+                              : isCompleted
+                              ? "Review Completed Stages"
+                              : "Continue Lesson"}
+                          </span>
                           {!isLessonLocked && <ChevronRight className="w-4 h-4" />}
                         </button>
                       </div>

@@ -1,6 +1,7 @@
 import os
 import shutil
 import datetime
+import json
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -11,13 +12,39 @@ from typing import List, Optional
 from database import engine, get_db, Base
 import models, schemas, ai_generator
 
-# Remove DB on schema update if needed
+# DB file & migration
 db_file = os.path.join(os.path.dirname(__file__), "tet_platform.db")
+
+def run_sqlite_migrations():
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(lessons)")
+        cols = [row[1] for row in cursor.fetchall()]
+        if cols and "available_at" not in cols:
+            cursor.execute("ALTER TABLE lessons ADD COLUMN available_at TEXT")
+        if cols and "quiz_type1" not in cols:
+            cursor.execute("ALTER TABLE lessons ADD COLUMN quiz_type1 TEXT")
+        if cols and "quiz_type2" not in cols:
+            cursor.execute("ALTER TABLE lessons ADD COLUMN quiz_type2 TEXT")
+        
+        cursor.execute("PRAGMA table_info(lesson_progress)")
+        pcols = [row[1] for row in cursor.fetchall()]
+        if pcols and "has_failed_test" not in pcols:
+            cursor.execute("ALTER TABLE lesson_progress ADD COLUMN has_failed_test BOOLEAN DEFAULT 0")
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[Migration Warning] {e}")
+
+run_sqlite_migrations()
 
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="TET Platform API", version="1.2.0")
+app = FastAPI(title="TET Platform API", version="1.3.0")
 
 # CORS setup for Vite React frontend
 app.add_middleware(
@@ -40,9 +67,12 @@ def seed_initial_data(db: Session):
             practice_question_count=200,
             test_question_count=100,
             test_time_limit_mins=60,
-            pass_percentage=60
+            pass_percentage=80
         )
         db.add(settings)
+        db.commit()
+    elif settings.pass_percentage != 80:
+        settings.pass_percentage = 80
         db.commit()
 
     admin = db.query(models.User).filter(models.User.email == "admin@tet.com").first()
@@ -107,6 +137,34 @@ def seed_initial_data(db: Session):
         )
         db.add_all([card1, card2])
         db.commit()
+
+    # Seed Demo Live Meeting so it is immediately active and visible on the dashboard
+    now = datetime.datetime.now()
+    now_iso = now.strftime("%Y-%m-%dT%H:%M")
+    if db.query(models.LiveMeeting).count() == 0:
+        start_iso = (now - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+        end_iso = (now + datetime.timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
+        demo_meeting = models.LiveMeeting(
+            title="🔴 TN TET Paper-2 Live Science & Social Science Special Class",
+            meeting_link="https://meet.google.com/abc-defg-hij",
+            start_time=start_iso,
+            end_time=end_iso,
+            description="Live interactive coaching, question paper blueprint analysis & doubt clearing session. Join with the Google Meet link.",
+            is_active=True
+        )
+        db.add(demo_meeting)
+        db.commit()
+    else:
+        # Ensure at least one active demo meeting for live demonstration
+        active_live = db.query(models.LiveMeeting).filter(models.LiveMeeting.end_time > now_iso, models.LiveMeeting.is_active == True).first()
+        if not active_live:
+            first_m = db.query(models.LiveMeeting).first()
+            if first_m:
+                first_m.start_time = (now - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+                first_m.end_time = (now + datetime.timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
+                first_m.is_active = True
+                db.commit()
+
 
 @app.on_event("startup")
 def startup_event():
@@ -382,6 +440,7 @@ def get_learning_structure(
     result_terms = []
 
     previous_term_completed = True
+    now_iso = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M")
 
     for term_name in terms:
         query = db.query(models.Lesson).filter(
@@ -410,14 +469,17 @@ def get_learning_structure(
             s3 = prog.stage3_questions if prog else False
             s4 = prog.stage4_test if prog else False
             score = prog.test_score if prog else 0
+            has_failed = prog.has_failed_test if prog else False
 
-            # User condition: Lesson is completed only after getting >= 60% mark in final quiz
-            is_fully_done = bool(s1 and s2 and s3 and s4 and score >= 60)
+            # Lesson is completed only after scoring >= 80% in final quiz
+            is_fully_done = bool(s1 and s2 and s3 and s4 and score >= 80)
 
             if not is_fully_done:
                 term_all_lessons_completed = False
 
-            is_locked = not previous_lesson_completed
+            # Check if lesson is locked by date/time
+            is_scheduled_future = bool(les.available_at and les.available_at > now_iso)
+            is_locked = (not previous_lesson_completed) or is_scheduled_future
 
             term_lessons.append({
                 "id": les.id,
@@ -430,13 +492,18 @@ def get_learning_structure(
                 "description": les.description,
                 "pdf_url": les.pdf_url,
                 "video_url": les.video_url,
+                "available_at": les.available_at,
+                "is_disabled_by_schedule": is_scheduled_future,
+                "has_quiz_type1": bool(les.quiz_type1),
+                "has_quiz_type2": bool(les.quiz_type2),
                 "stage1_pdf": s1,
                 "stage2_video": s2,
                 "stage3_questions": s3,
                 "stage4_test": s4,
                 "is_locked": is_locked,
                 "is_completed": is_fully_done,
-                "test_score": score
+                "test_score": score,
+                "has_failed_test": has_failed
             })
 
             previous_lesson_completed = is_fully_done
@@ -479,11 +546,15 @@ def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: S
             stage2_video=False,
             stage3_questions=False,
             stage4_test=False,
-            test_score=0
+            test_score=0,
+            has_failed_test=False
         )
         db.add(prog)
         db.commit()
         db.refresh(prog)
+
+    now_iso = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M")
+    is_scheduled_future = bool(lesson.available_at and lesson.available_at > now_iso)
 
     return {
         "lesson": {
@@ -496,13 +567,18 @@ def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: S
             "description": lesson.description,
             "pdf_url": lesson.pdf_url,
             "video_url": lesson.video_url,
+            "available_at": lesson.available_at,
+            "is_disabled_by_schedule": is_scheduled_future,
+            "has_quiz_type1": bool(lesson.quiz_type1),
+            "has_quiz_type2": bool(lesson.quiz_type2),
         },
         "progress": {
             "stage1_pdf": prog.stage1_pdf,
             "stage2_video": prog.stage2_video,
             "stage3_questions": prog.stage3_questions,
             "stage4_test": prog.stage4_test,
-            "test_score": prog.test_score
+            "test_score": prog.test_score,
+            "has_failed_test": prog.has_failed_test
         }
     }
 
@@ -536,11 +612,53 @@ def complete_stage(lesson_id: int, stage_num: int, user_email: str = "student@te
     return {"message": f"Stage {stage_num} marked as done successfully!"}
 
 @app.get("/api/learning/lesson/{lesson_id}/questions")
-def get_practice_questions(lesson_id: int, count: int = 200, db: Session = Depends(get_db)):
+def get_practice_questions(
+    lesson_id: int,
+    count: int = 200,
+    user_email: str = "student@tet.com",
+    quiz_type: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
 
+    user = db.query(models.User).filter(models.User.email == user_email).first()
+    prog = None
+    if user:
+        prog = db.query(models.LessonProgress).filter(
+            models.LessonProgress.user_id == user.id,
+            models.LessonProgress.lesson_id == lesson_id
+        ).first()
+
+    # Determine which quiz to load:
+    # If explicitly requested, use it; otherwise, if user failed Stage 4 test, use Type 2!
+    use_type2 = False
+    if quiz_type == "type2":
+        use_type2 = True
+    elif quiz_type == "type1":
+        use_type2 = False
+    elif prog and prog.has_failed_test:
+        use_type2 = True
+
+    chosen_json = lesson.quiz_type2 if (use_type2 and lesson.quiz_type2) else lesson.quiz_type1
+    active_type = "type2" if (use_type2 and lesson.quiz_type2) else "type1"
+
+    if chosen_json:
+        try:
+            questions = json.loads(chosen_json)
+            if isinstance(questions, list) and len(questions) > 0:
+                return {
+                    "lesson_title": lesson.title,
+                    "quiz_type": active_type,
+                    "is_type2": (active_type == "type2"),
+                    "total": len(questions),
+                    "questions": questions
+                }
+        except Exception as e:
+            print(f"[Quiz Parse Error] {e}")
+
+    # Fallback to predefined/generated questions if admin has not generated yet
     settings = db.query(models.AdminSettings).first()
     api_key = settings.gemini_api_key if settings else ""
     target_count = settings.practice_question_count if settings else count
@@ -550,10 +668,16 @@ def get_practice_questions(lesson_id: int, count: int = 200, db: Session = Depen
         subject=lesson.subject,
         term=lesson.term,
         lesson_title=lesson.title,
-        count=target_count,
+        count=target_count or 200,
         api_key=api_key
     )
-    return {"lesson_title": lesson.title, "total": len(questions), "questions": questions}
+    return {
+        "lesson_title": lesson.title,
+        "quiz_type": "type1",
+        "is_type2": False,
+        "total": len(questions),
+        "questions": questions
+    }
 
 @app.post("/api/learning/lesson/{lesson_id}/generate-test")
 def generate_test(lesson_id: int, db: Session = Depends(get_db)):
@@ -566,14 +690,27 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
     test_count = settings.test_question_count if settings else 100
     time_limit = settings.test_time_limit_mins if settings else 60
 
-    questions = ai_generator.generate_test_questions(
-        class_num=lesson.class_num,
-        subject=lesson.subject,
-        term=lesson.term,
-        lesson_title=lesson.title,
-        count=test_count,
-        api_key=api_key
-    )
+    # Pick 100 questions from pre-generated 200 quiz pool if available
+    questions = []
+    if lesson.quiz_type1:
+        try:
+            pool = json.loads(lesson.quiz_type1)
+            if isinstance(pool, list) and len(pool) > 0:
+                questions = pool[:test_count]
+                for idx, q in enumerate(questions, 1):
+                    q["id"] = idx
+        except Exception as e:
+            print(f"[Test Pool Error] {e}")
+
+    if not questions:
+        questions = ai_generator.generate_test_questions(
+            class_num=lesson.class_num,
+            subject=lesson.subject,
+            term=lesson.term,
+            lesson_title=lesson.title,
+            count=test_count,
+            api_key=api_key
+        )
 
     test_payload = []
     for q in questions:
@@ -588,6 +725,7 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
         "lesson_id": lesson.id,
         "lesson_title": lesson.title,
         "time_limit_mins": time_limit,
+        "pass_percentage": settings.pass_percentage if settings else 80,
         "total_questions": len(questions),
         "questions": test_payload
     }
@@ -606,15 +744,28 @@ def submit_test(
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     settings = db.query(models.AdminSettings).first()
     test_count = settings.test_question_count if settings else 100
-    
-    ref_questions = ai_generator.generate_test_questions(
-        class_num=lesson.class_num,
-        subject=lesson.subject,
-        term=lesson.term,
-        lesson_title=lesson.title,
-        count=test_count,
-        api_key=settings.gemini_api_key if settings else ""
-    )
+    pass_mark = settings.pass_percentage if settings and settings.pass_percentage else 80
+
+    ref_questions = []
+    if lesson.quiz_type1:
+        try:
+            pool = json.loads(lesson.quiz_type1)
+            if isinstance(pool, list) and len(pool) > 0:
+                ref_questions = pool[:test_count]
+                for idx, q in enumerate(ref_questions, 1):
+                    q["id"] = idx
+        except Exception:
+            pass
+
+    if not ref_questions:
+        ref_questions = ai_generator.generate_test_questions(
+            class_num=lesson.class_num,
+            subject=lesson.subject,
+            term=lesson.term,
+            lesson_title=lesson.title,
+            count=test_count,
+            api_key=settings.gemini_api_key if settings else ""
+        )
 
     correct_count = 0
     detailed_results = []
@@ -638,6 +789,7 @@ def submit_test(
         })
 
     score_percent = int((correct_count / max(1, len(ref_questions))) * 100)
+    passed = bool(score_percent >= pass_mark)
 
     prog = db.query(models.LessonProgress).filter(
         models.LessonProgress.user_id == user.id,
@@ -648,9 +800,6 @@ def submit_test(
         prog = models.LessonProgress(user_id=user.id, lesson_id=lesson_id)
         db.add(prog)
 
-    pass_mark = settings.pass_percentage if settings and settings.pass_percentage else 60
-    passed = bool(score_percent >= pass_mark)
-
     prog.stage1_pdf = True
     prog.stage2_video = True
     prog.stage3_questions = True
@@ -658,20 +807,26 @@ def submit_test(
     prog.test_score = score_percent
 
     if passed:
+        prog.has_failed_test = False
         prog.completed_at = datetime.datetime.utcnow()
         today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
         if user.last_completed_date != today_str:
             user.streak_count += 1
             user.last_completed_date = today_str
         user.daily_tasks_done = min(user.daily_tasks_total, user.daily_tasks_done + 1)
-    
+    else:
+        # Failed Stage 4 test (< 80%) -> require restudying Stage 3 with Type 2 questions
+        prog.has_failed_test = True
+
     db.commit()
 
     return {
         "score_percent": score_percent,
         "correct_count": correct_count,
         "total_questions": len(ref_questions),
-        "passed": score_percent >= (settings.pass_percentage if settings else 60),
+        "passed": passed,
+        "pass_mark": pass_mark,
+        "requires_type2_restudy": not passed,
         "new_streak": user.streak_count,
         "results": detailed_results
     }
@@ -755,12 +910,26 @@ def admin_delete_material(material_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Material deleted successfully."}
 
-# --- DEDICATED UPLOAD 2: LEARNING PORTAL MODULE UPLOADS ---
+# --- DEDICATED UPLOAD 2: LEARNING PORTAL MODULE UPLOADS & SCHEDULING ---
 @app.get("/api/admin/lessons")
 def admin_get_lessons(db: Session = Depends(get_db)):
     lessons = db.query(models.Lesson).order_by(models.Lesson.created_at.desc()).all()
-    return [
-        {
+    res = []
+    for l in lessons:
+        q1_count = 0
+        q2_count = 0
+        if l.quiz_type1:
+            try:
+                q1_count = len(json.loads(l.quiz_type1))
+            except Exception:
+                q1_count = 0
+        if l.quiz_type2:
+            try:
+                q2_count = len(json.loads(l.quiz_type2))
+            except Exception:
+                q2_count = 0
+
+        res.append({
             "id": l.id,
             "class_num": l.class_num,
             "subject": l.subject,
@@ -770,10 +939,15 @@ def admin_get_lessons(db: Session = Depends(get_db)):
             "title": l.title,
             "description": l.description,
             "pdf_url": l.pdf_url,
-            "video_url": l.video_url
-        }
-        for l in lessons
-    ]
+            "video_url": l.video_url,
+            "available_at": l.available_at,
+            "has_quiz_type1": bool(l.quiz_type1),
+            "quiz_type1_count": q1_count,
+            "has_quiz_type2": bool(l.quiz_type2),
+            "quiz_type2_count": q2_count,
+            "created_at": l.created_at.isoformat() if l.created_at else None
+        })
+    return res
 
 @app.post("/api/admin/lessons")
 def admin_upload_lesson(
@@ -785,6 +959,7 @@ def admin_upload_lesson(
     title: str = Form(...),
     description: Optional[str] = Form(""),
     video_url: Optional[str] = Form("https://www.youtube.com/embed/dQw4w9WgXcQ"),
+    available_at: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -805,12 +980,38 @@ def admin_upload_lesson(
         title=title,
         description=description,
         pdf_url=pdf_url,
-        video_url=video_url or "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        video_url=video_url or "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        available_at=available_at if available_at and available_at.strip() else None
     )
     db.add(lesson)
     db.commit()
     db.refresh(lesson)
     return {"message": "Learning Portal Lesson Module published successfully!", "lesson_id": lesson.id}
+
+@app.put("/api/admin/lessons/{lesson_id}")
+def admin_update_lesson(
+    lesson_id: int,
+    lesson_data: schemas.LessonUpdate,
+    db: Session = Depends(get_db)
+):
+    les = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not les:
+        raise HTTPException(status_code=404, detail="Lesson module not found.")
+
+    if lesson_data.class_num is not None: les.class_num = lesson_data.class_num
+    if lesson_data.subject is not None: les.subject = lesson_data.subject
+    if lesson_data.medium is not None: les.medium = lesson_data.medium
+    if lesson_data.term is not None: les.term = lesson_data.term
+    if lesson_data.lesson_order is not None: les.lesson_order = lesson_data.lesson_order
+    if lesson_data.title is not None: les.title = lesson_data.title
+    if lesson_data.description is not None: les.description = lesson_data.description
+    if lesson_data.video_url is not None: les.video_url = lesson_data.video_url
+    if lesson_data.available_at is not None:
+        les.available_at = lesson_data.available_at.strip() if lesson_data.available_at.strip() else None
+
+    db.commit()
+    db.refresh(les)
+    return {"message": "Lesson updated successfully!", "lesson_id": les.id}
 
 @app.delete("/api/admin/lessons/{lesson_id}")
 def admin_delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
@@ -820,6 +1021,195 @@ def admin_delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
     db.delete(les)
     db.commit()
     return {"message": "Lesson module deleted successfully."}
+
+# --- ADMIN QUIZ GENERATION & MANAGEMENT (TYPE 1 & TYPE 2) ---
+@app.post("/api/admin/lessons/{lesson_id}/quiz/{quiz_type}/generate")
+def admin_generate_lesson_quiz(
+    lesson_id: int,
+    quiz_type: str, # "type1" or "type2"
+    count: Optional[int] = 200,
+    db: Session = Depends(get_db)
+):
+    lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found.")
+
+    settings = db.query(models.AdminSettings).first()
+    api_key = settings.gemini_api_key if settings else ""
+
+    # Generate questions via ai_generator (200 questions)
+    questions = ai_generator.generate_practice_questions(
+        class_num=lesson.class_num,
+        subject=lesson.subject,
+        term=lesson.term,
+        lesson_title=lesson.title,
+        count=count or 200,
+        api_key=api_key
+    )
+
+    questions_json = json.dumps(questions, ensure_ascii=False)
+    if quiz_type == "type2":
+        lesson.quiz_type2 = questions_json
+    else:
+        lesson.quiz_type1 = questions_json
+
+    db.commit()
+    return {
+        "message": f"Quiz {quiz_type.upper()} generated successfully with {len(questions)} questions!",
+        "quiz_type": quiz_type,
+        "total": len(questions),
+        "questions": questions
+    }
+
+@app.post("/api/admin/lessons/{lesson_id}/quiz/{quiz_type}/save")
+def admin_save_lesson_quiz(
+    lesson_id: int,
+    quiz_type: str,
+    payload: schemas.QuizSavePayload,
+    db: Session = Depends(get_db)
+):
+    lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found.")
+
+    questions_json = json.dumps(payload.questions, ensure_ascii=False)
+    if quiz_type == "type2":
+        lesson.quiz_type2 = questions_json
+    else:
+        lesson.quiz_type1 = questions_json
+
+    db.commit()
+    return {
+        "message": f"Quiz {quiz_type.upper()} saved successfully with {len(payload.questions)} questions!",
+        "quiz_type": quiz_type,
+        "total": len(payload.questions)
+    }
+
+@app.get("/api/admin/lessons/{lesson_id}/quiz/{quiz_type}")
+def admin_get_lesson_quiz(
+    lesson_id: int,
+    quiz_type: str,
+    db: Session = Depends(get_db)
+):
+    lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found.")
+
+    raw_json = lesson.quiz_type2 if quiz_type == "type2" else lesson.quiz_type1
+    if not raw_json:
+        return {
+            "lesson_id": lesson.id,
+            "lesson_title": lesson.title,
+            "quiz_type": quiz_type,
+            "total": 0,
+            "questions": []
+        }
+
+    try:
+        questions = json.loads(raw_json)
+    except Exception:
+        questions = []
+
+    return {
+        "lesson_id": lesson.id,
+        "lesson_title": lesson.title,
+        "quiz_type": quiz_type,
+        "total": len(questions),
+        "questions": questions
+    }
+
+# --- LIVE MEETINGS ENDPOINTS ---
+@app.get("/api/meetings/active")
+def get_active_meetings(db: Session = Depends(get_db)):
+    meetings = db.query(models.LiveMeeting).filter(models.LiveMeeting.is_active == True).order_by(models.LiveMeeting.start_time.asc()).all()
+    now_iso = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M")
+    active_list = []
+    for m in meetings:
+        # Hide if meeting end time has passed
+        if m.end_time and m.end_time < now_iso:
+            continue
+        is_live = False
+        if m.start_time and m.end_time:
+            is_live = bool(m.start_time <= now_iso <= m.end_time)
+        elif m.start_time:
+            is_live = bool(m.start_time <= now_iso)
+
+        active_list.append({
+            "id": m.id,
+            "title": m.title,
+            "meeting_link": m.meeting_link,
+            "start_time": m.start_time,
+            "end_time": m.end_time,
+            "description": m.description,
+            "is_live": is_live,
+            "meeting_url": m.meeting_link
+        })
+    return active_list
+
+@app.get("/api/admin/meetings")
+def admin_get_meetings(db: Session = Depends(get_db)):
+    meetings = db.query(models.LiveMeeting).order_by(models.LiveMeeting.created_at.desc()).all()
+    now_iso = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M")
+    res = []
+    for m in meetings:
+        is_live = False
+        if m.start_time and m.end_time:
+            is_live = bool(m.start_time <= now_iso <= m.end_time)
+        elif m.start_time:
+            is_live = bool(m.start_time <= now_iso)
+        res.append({
+            "id": m.id,
+            "title": m.title,
+            "meeting_link": m.meeting_link,
+            "meeting_url": m.meeting_link,
+            "start_time": m.start_time,
+            "end_time": m.end_time,
+            "description": m.description,
+            "is_active": m.is_active,
+            "is_live": is_live,
+            "created_at": m.created_at.isoformat() if m.created_at else None
+        })
+    return res
+
+@app.post("/api/admin/meetings")
+def admin_create_meeting(meeting: schemas.LiveMeetingCreate, db: Session = Depends(get_db)):
+    link = meeting.meeting_link or meeting.meeting_url or "https://meet.google.com/abc-defg-hij"
+    new_m = models.LiveMeeting(
+        title=meeting.title,
+        meeting_link=link,
+        start_time=meeting.start_time,
+        end_time=meeting.end_time,
+        description=meeting.description or "",
+        is_active=True
+    )
+    db.add(new_m)
+    db.commit()
+    db.refresh(new_m)
+    return new_m
+
+@app.put("/api/admin/meetings/{meeting_id}")
+def admin_update_meeting(meeting_id: int, meeting: schemas.LiveMeetingCreate, db: Session = Depends(get_db)):
+    m = db.query(models.LiveMeeting).filter(models.LiveMeeting.id == meeting_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Meeting not found.")
+    link = meeting.meeting_link or meeting.meeting_url or m.meeting_link
+    m.title = meeting.title
+    m.meeting_link = link
+    m.start_time = meeting.start_time
+    m.end_time = meeting.end_time
+    m.description = meeting.description or ""
+    db.commit()
+    db.refresh(m)
+    return m
+
+@app.delete("/api/admin/meetings/{meeting_id}")
+def admin_delete_meeting(meeting_id: int, db: Session = Depends(get_db)):
+    m = db.query(models.LiveMeeting).filter(models.LiveMeeting.id == meeting_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Meeting not found.")
+    db.delete(m)
+    db.commit()
+    return {"message": "Live meeting deleted successfully!"}
 
 @app.get("/api/admin/users", response_model=List[schemas.UserProfile])
 def admin_get_users(role: Optional[str] = "admin", db: Session = Depends(get_db)):

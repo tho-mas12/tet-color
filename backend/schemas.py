@@ -115,3 +115,38 @@ class TETCardOut(BaseModel):
     class Config:
         from_attributes = True
 
+class LessonUpdate(BaseModel):
+    class_num: Optional[int] = None
+    subject: Optional[str] = None
+    medium: Optional[str] = None
+    term: Optional[str] = None
+    lesson_order: Optional[int] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    video_url: Optional[str] = None
+    available_at: Optional[str] = None
+
+class QuizSavePayload(BaseModel):
+    questions: List[dict]
+
+class LiveMeetingCreate(BaseModel):
+    title: str
+    meeting_link: Optional[str] = None
+    meeting_url: Optional[str] = None
+    start_time: str
+    end_time: str
+    description: Optional[str] = ""
+
+class LiveMeetingOut(BaseModel):
+    id: int
+    title: str
+    meeting_link: str
+    start_time: str
+    end_time: str
+    description: Optional[str]
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+

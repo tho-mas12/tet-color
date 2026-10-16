@@ -70,6 +70,7 @@ export default function App() {
                   }
                   setActiveTab("learning");
                 }}
+                onNavigateToMaterials={() => setActiveTab("materials")}
                 lang={lang}
               />
             )}
