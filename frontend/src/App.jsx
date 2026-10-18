@@ -7,6 +7,40 @@ import LearningPage from "./components/LearningPage";
 import AdminPage from "./components/AdminPage";
 import { translations } from "./translations";
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 max-w-lg mx-auto my-12 bg-white rounded-3xl border border-red-200 text-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">⚠️</div>
+          <h3 className="text-base font-bold text-slate-800">Something went wrong in this view</h3>
+          <p className="text-xs text-slate-500">{this.state.error?.message || "Please refresh or try again."}</p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false });
+              window.location.reload();
+            }}
+            className="px-5 py-2 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+          >
+            Reload Platform
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -57,7 +91,7 @@ export default function App() {
           </div>
         ) : (
           /* LOGGED IN VIEWS */
-          <>
+          <ErrorBoundary>
             {activeTab === "dashboard" && (
               <DashboardPage
                 user={user}
@@ -80,7 +114,7 @@ export default function App() {
             {activeTab === "learning" && <LearningPage user={user} lang={lang} />}
 
             {activeTab === "admin" && <AdminPage user={user} lang={lang} />}
-          </>
+          </ErrorBoundary>
         )}
       </main>
 

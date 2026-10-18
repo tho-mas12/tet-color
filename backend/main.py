@@ -91,6 +91,20 @@ def seed_initial_data(db: Session):
         db.add(admin)
         db.commit()
 
+    candidate = db.query(models.User).filter(models.User.email == "candidate@tet.com").first()
+    if not candidate:
+        candidate = models.User(
+            name="Teacher Candidate",
+            email="candidate@tet.com",
+            password_hash="candidate123",
+            role="student",
+            streak_count=14,
+            daily_tasks_done=1,
+            daily_tasks_total=4
+        )
+        db.add(candidate)
+        db.commit()
+
     # Purge any dummy student data
     dummy_student = db.query(models.User).filter(models.User.email == "student@tet.com").first()
     if dummy_student:

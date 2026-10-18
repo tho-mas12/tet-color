@@ -79,6 +79,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" 
     }
   };
 
+  const handleDirectLogin = async (directEmail, directPass) => {
+    setError("");
+    setLoading(true);
+    try {
+      const user = await fetchApi("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: directEmail, password: directPass }),
+      });
+      onAuthSuccess(user);
+      if (onClose) onClose();
+    } catch (err) {
+      setError(err.message || "Login failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleForgotPasswordSubmit = (e) => {
     e.preventDefault();
     if (!recoveryEmail) return;
@@ -290,9 +307,51 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" 
               </button>
             </div>
 
-            <div className="relative flex py-2 items-center mb-4">
+            {/* QUICK DEFAULT ACCESS (CANDIDATE & ADMIN) */}
+            <div className="mb-4 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("candidate@tet.com");
+                    setPassword("candidate123");
+                    handleDirectLogin("candidate@tet.com", "candidate123");
+                  }}
+                  className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-blue-50/80 hover:bg-blue-100 text-[#0055ff] border border-blue-200 text-xs font-bold transition shadow-2xs cursor-pointer"
+                >
+                  <div className="flex items-center space-x-1.5 font-black">
+                    <User className="w-3.5 h-3.5" />
+                    <span>Candidate Login</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-medium">candidate@tet.com</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("admin@tet.com");
+                    setPassword("admin123");
+                    handleDirectLogin("admin@tet.com", "admin123");
+                  }}
+                  className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-amber-50/80 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition shadow-2xs cursor-pointer"
+                >
+                  <div className="flex items-center space-x-1.5 font-black">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Admin Portal Login</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-medium">admin@tet.com</span>
+                </button>
+              </div>
+
+              <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
+                <span>Default Admin: <strong>admin@tet.com</strong> / <strong>admin123</strong></span>
+                <span>Candidate: <strong>candidate@tet.com</strong></span>
+              </div>
+            </div>
+
+            <div className="relative flex py-1 items-center mb-4">
               <div className="flex-grow border-t border-slate-200"></div>
-              <span className="flex-shrink mx-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">OR EMAIL & PASSWORD</span>
+              <span className="flex-shrink mx-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">OR ENTER CREDENTIALS</span>
               <div className="flex-grow border-t border-slate-200"></div>
             </div>
 

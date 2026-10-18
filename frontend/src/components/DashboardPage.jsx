@@ -15,7 +15,8 @@ import {
   ExternalLink,
   Video,
   Radio,
-  FileText
+  FileText,
+  Clock
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
