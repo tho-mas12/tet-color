@@ -202,9 +202,10 @@ export default function AdminPage({ user, lang = "en" }) {
   const loadDailyPractices = async () => {
     try {
       const data = await fetchApi("/admin/daily-practice");
-      setDailyPracticeList(data || []);
+      setDailyPracticeList(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Daily practices error:", err);
+      setDailyPracticeList([]);
     }
   };
 
@@ -956,15 +957,15 @@ export default function AdminPage({ user, lang = "en" }) {
   // Nav Tabs configuration for Left Sidebar
   const navTabs = [
     { id: "stats", label: t.tabStats, icon: BarChart3, badge: null },
-    { id: "daily_practice", label: "Daily Practice Tests", icon: Clock, badge: dailyPracticeList.length },
-    { id: "les_upload", label: t.tabLesUpload, icon: BookOpen, badge: lessonsList.length },
+    { id: "daily_practice", label: "Daily Practice Tests", icon: Clock, badge: Array.isArray(dailyPracticeList) ? dailyPracticeList.length : 0 },
+    { id: "les_upload", label: t.tabLesUpload, icon: BookOpen, badge: Array.isArray(lessonsList) ? lessonsList.length : 0 },
     { id: "quiz_manager", label: t.tabQuizManager, icon: HelpCircle, badge: "New" },
-    { id: "meetings", label: t.tabMeetings, icon: Video, badge: meetingsList.filter(m => m.is_live).length > 0 ? "LIVE" : null },
-    { id: "mat_upload", label: t.tabMatUpload, icon: FolderPlus, badge: materialsList.length },
+    { id: "meetings", label: t.tabMeetings, icon: Video, badge: Array.isArray(meetingsList) && meetingsList.filter(m => m.is_live).length > 0 ? "LIVE" : null },
+    { id: "mat_upload", label: t.tabMatUpload, icon: FolderPlus, badge: Array.isArray(materialsList) ? materialsList.length : 0 },
     { id: "settings", label: t.tabSettings, icon: Settings, badge: null },
-    { id: "announcements", label: t.tabAnnouncements, icon: Bell, badge: announcementsList.length },
-    { id: "tet_cards", label: t.tabTetCards, icon: Sparkles, badge: adminTetCards.length },
-    { id: "users", label: t.tabUsers, icon: UserCheck, badge: usersList.filter(u => u.role === "admin").length }
+    { id: "announcements", label: t.tabAnnouncements, icon: Bell, badge: Array.isArray(announcementsList) ? announcementsList.length : 0 },
+    { id: "tet_cards", label: t.tabTetCards, icon: Sparkles, badge: Array.isArray(adminTetCards) ? adminTetCards.length : 0 },
+    { id: "users", label: t.tabUsers, icon: UserCheck, badge: Array.isArray(usersList) ? usersList.filter(u => u.role === "admin").length : 0 }
   ];
 
   return (
@@ -1414,12 +1415,12 @@ export default function AdminPage({ user, lang = "en" }) {
                 <div className="lg:col-span-7 space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-black text-[#1E3A8A]">
-                      Published Daily Practice Tests ({dailyPracticeList.length})
+                      Published Daily Practice Tests ({Array.isArray(dailyPracticeList) ? dailyPracticeList.length : 0})
                     </h4>
                     <span className="text-xs text-slate-500 font-semibold">Live on Student Dashboard</span>
                   </div>
 
-                  {dailyPracticeList.length === 0 ? (
+                  {(!Array.isArray(dailyPracticeList) || dailyPracticeList.length === 0) ? (
                     <div className="bg-white border border-sky-100 rounded-3xl p-8 text-center text-slate-500 space-y-2">
                       <Clock className="w-10 h-10 text-orange-400 mx-auto" />
                       <p className="text-sm font-bold text-slate-700">No Daily Practice tests published yet.</p>
@@ -1427,7 +1428,7 @@ export default function AdminPage({ user, lang = "en" }) {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {dailyPracticeList.map((dp) => (
+                      {(Array.isArray(dailyPracticeList) ? dailyPracticeList : []).map((dp) => (
                         <div
                           key={dp.id}
                           className="bg-white border border-slate-200 hover:border-orange-300 rounded-3xl p-5 shadow-xs transition-all space-y-3"
@@ -1455,7 +1456,7 @@ export default function AdminPage({ user, lang = "en" }) {
                           {/* Stages Badges */}
                           <div className="flex flex-wrap items-center gap-1.5 pt-1">
                             <span className="text-[11px] font-bold text-slate-400 mr-1">Stages:</span>
-                            {(dp.active_stages || [1, 3, 4]).map((stg) => {
+                            {(Array.isArray(dp.active_stages) ? dp.active_stages : (typeof dp.active_stages === "string" ? dp.active_stages.split(",").map(Number).filter(n => !isNaN(n)) : [1, 3, 4])).map((stg) => {
                               const labels = { 1: "Stage 1: Notes", 2: "Stage 2: Video", 3: "Stage 3: Practice", 4: "Stage 4: Quiz (80%)" };
                               return (
                                 <span

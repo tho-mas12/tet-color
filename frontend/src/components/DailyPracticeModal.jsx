@@ -42,7 +42,10 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
     try {
       const res = await fetchApi(`/daily-practice/${practiceId}`);
       setData(res);
-      const stages = res.active_stages || [1, 3, 4];
+      const rawStages = res.active_stages;
+      const stages = Array.isArray(rawStages)
+        ? rawStages
+        : (typeof rawStages === "string" ? rawStages.split(",").map(Number).filter(n => !isNaN(n)) : [1, 3, 4]);
       if (stages.length > 0) {
         setActiveStage(stages[0]);
       }
@@ -134,8 +137,11 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
     return null;
   }
 
-  const activeStages = data.active_stages || [1, 3, 4];
-  const questions = data.questions || [];
+  const rawStages = data.active_stages;
+  const activeStages = Array.isArray(rawStages)
+    ? rawStages
+    : (typeof rawStages === "string" ? rawStages.split(",").map(Number).filter(n => !isNaN(n)) : [1, 3, 4]);
+  const questions = Array.isArray(data.questions) ? data.questions : [];
 
   return (
     <div className="fixed inset-0 z-50 bg-[#f8fafc] flex flex-col w-screen h-screen overflow-hidden animate-fade-in">

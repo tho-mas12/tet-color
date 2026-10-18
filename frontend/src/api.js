@@ -388,6 +388,139 @@ export async function fetchApi(endpoint, options = {}) {
       return storedMeetings;
     }
 
+    // 7. DAILY PRACTICE TEST FALLBACK FOR VERCEL & OFFLINE HOSTING
+    if (endpoint.startsWith("/daily-practice") || endpoint.startsWith("/admin/daily-practice")) {
+      let storedDP = [];
+      try {
+        storedDP = JSON.parse(localStorage.getItem("tet_stored_daily_practices") || "null");
+      } catch (e) {}
+
+      const defaultDailyPractice = {
+        id: 1,
+        title: "TN TET Paper 2 - சமூக அறிவியல் மாதிரிப் பயிற்சித் தேர்வு (பருவம் 1)",
+        description: "வகுப்பு 8 வரலாறு & புவியியல் - அலகு 1 ஐரோப்பியர்களின் வருகை பாடக் குறிப்புகள் & மாதிரித் தேர்வு. (Stages 1, 3, 4)",
+        class_num: 8,
+        subject: "Social Science",
+        term: "Term 1",
+        active_stages: [1, 3, 4],
+        pdf_url: "/static_uploads/sample_class8.pdf",
+        video_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        has_quiz: true,
+        quiz_questions_count: 20,
+        test_questions_count: 20,
+        time_limit_mins: 20,
+        pass_percentage: 80,
+        available_date: new Date().toISOString().split("T")[0],
+        is_active: true
+      };
+
+      if (!Array.isArray(storedDP) || storedDP.length === 0) {
+        storedDP = [defaultDailyPractice];
+        try { localStorage.setItem("tet_stored_daily_practices", JSON.stringify(storedDP)); } catch (e) {}
+      }
+
+      // 7.1 Single Test Detail View: /daily-practice/:id
+      const detailMatch = endpoint.match(/\/daily-practice\/(\d+)$/);
+      if (detailMatch) {
+        const id = Number(detailMatch[1]);
+        const found = storedDP.find(d => d.id === id) || storedDP[0] || defaultDailyPractice;
+        return {
+          ...found,
+          questions: [
+            {
+              id: 1,
+              question: "1498-இல் இந்தியாவுக்கான புதிய கடல்வழியைக் கண்டுபிடித்த போர்ச்சுகீசிய மாலுமி யார்?",
+              options: ["கொலம்பஸ்", "வாஸ்கோடகாமா", "அல்மேடா", "அல்புவர்க்"],
+              answer_index: 1,
+              explanation: "1498 மே 20 அன்று வாஸ்கோடகாமா இந்தியாவின் கள்ளிக்கோட்டை வந்தடைந்தார்."
+            },
+            {
+              id: 2,
+              question: "இந்தியாவில் போர்ச்சுகீசிய ஆதிக்கத்திற்கு உண்மையான அடித்தளத்தை அமைத்தவர் யார்?",
+              options: ["அல்மேடா", "வாஸ்கோடகாமா", "அல்போன்சோ டி அல்புகர்க்", "நினோ டி குன்ஹா"],
+              answer_index: 2,
+              explanation: "அல்போன்சோ டி அல்புகர்க் கோவாவைக் கைப்பற்றி போர்ச்சுகீசிய பேரரசை நிலைநிறுத்தினார்."
+            },
+            {
+              id: 3,
+              question: "டச்சு கிழக்கிந்திய நிறுவனம் எந்த ஆண்டு நிறுவப்பட்டது?",
+              options: ["1600", "1602", "1616", "1664"],
+              answer_index: 1,
+              explanation: "1602-இல் ஐக்கிய டச்சு கிழக்கிந்திய நிறுவனம் உருவாக்கப்பட்டது."
+            },
+            {
+              id: 4,
+              question: "ஆங்கிலேயர் தங்களின் முதல் வணிக மையத்தை இந்தியாவில் எங்கு அமைத்தனர்?",
+              options: ["மசூலிப்பட்டினம்", "சூரத்", "சென்னை", "கொல்கத்தா"],
+              answer_index: 1,
+              explanation: "1612-இல் ஜஹாங்கீரின் அனுமதியுடன் சூரத் நகரில் வணிக மையத்தை நிறுவினர்."
+            },
+            {
+              id: 5,
+              question: "பிரெஞ்சு கிழக்கிந்திய நிறுவனம் யாரால் தோற்றுவிக்கப்பட்டது?",
+              options: ["கால்பர்ட்", "டூப்ளே", "காரன்வாலிஸ்", "ராபர்ட் கிளைவ்"],
+              answer_index: 0,
+              explanation: "1664-ஆம் ஆண்டு பிரான்ஸ் மன்னர் 14-ஆம் லூயியின் அமைச்சர் கால்பர்ட் என்பவரால் உருவாக்கப்பட்டது."
+            }
+          ]
+        };
+      }
+
+      // 7.2 Delete Daily Practice: DELETE /admin/daily-practice/:id
+      if (options.method === "DELETE") {
+        const delMatch = endpoint.match(/\/admin\/daily-practice\/(\d+)/);
+        if (delMatch) {
+          const delId = Number(delMatch[1]);
+          storedDP = storedDP.filter(d => d.id !== delId);
+          try { localStorage.setItem("tet_stored_daily_practices", JSON.stringify(storedDP)); } catch (e) {}
+        }
+        return { message: "Daily practice test deleted successfully." };
+      }
+
+      // 7.3 Generate Quiz fallback: POST /admin/daily-practice/:id/generate-quiz
+      if (endpoint.includes("/generate-quiz")) {
+        return { message: "Successfully generated 20 questions!", questions_count: 20 };
+      }
+
+      // 7.4 Create Daily Practice: POST /admin/daily-practice
+      if (options.method === "POST") {
+        const body = options.body ? JSON.parse(options.body) : {};
+        const stages = typeof body.active_stages === "string"
+          ? body.active_stages.split(",").map(Number)
+          : Array.isArray(body.active_stages) ? body.active_stages : [1, 3, 4];
+
+        const newDP = {
+          id: Date.now(),
+          title: body.title || "Daily Practice Test",
+          description: body.description || "",
+          class_num: Number(body.class_num || 8),
+          subject: body.subject || "Social Science",
+          term: body.term || "Term 1",
+          active_stages: stages,
+          pdf_url: body.pdf_url || "",
+          video_url: body.video_url || "",
+          has_quiz: true,
+          quiz_questions_count: Number(body.test_questions_count || 20),
+          test_questions_count: Number(body.test_questions_count || 20),
+          time_limit_mins: Number(body.time_limit_mins || 20),
+          pass_percentage: Number(body.pass_percentage || 80),
+          available_date: new Date().toISOString().split("T")[0],
+          is_active: true
+        };
+        storedDP.unshift(newDP);
+        try { localStorage.setItem("tet_stored_daily_practices", JSON.stringify(storedDP)); } catch (e) {}
+        return { message: "Daily practice test created successfully!", id: newDP.id };
+      }
+
+      // 7.5 List Daily Practices (for student active or admin list)
+      return storedDP;
+    }
+
+    // Default: If endpoint represents a list, safely return empty array
+    if (endpoint.endsWith("/active") || endpoint.includes("/list") || endpoint.includes("/all") || endpoint.endsWith("s")) {
+      return [];
+    }
+
     return {};
   }
 }

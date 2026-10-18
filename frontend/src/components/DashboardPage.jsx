@@ -311,7 +311,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                       Included Stages:
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {(dp.active_stages || [1, 3, 4]).map((stg) => {
+                      {(Array.isArray(dp.active_stages) ? dp.active_stages : (typeof dp.active_stages === "string" ? dp.active_stages.split(",").map(Number).filter(n => !isNaN(n)) : [1, 3, 4])).map((stg) => {
                         const labels = {
                           1: "Stage 1: Notes",
                           2: "Stage 2: Video",
