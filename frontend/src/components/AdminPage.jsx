@@ -175,6 +175,11 @@ export default function AdminPage({ user, lang = "en" }) {
   const [dpTerm, setDpTerm] = useState("Term-1");
   const [dpActiveStages, setDpActiveStages] = useState([1, 3, 4]); // Stages 1, 3, 4 enabled by default
   const [dpPdfUrl, setDpPdfUrl] = useState("");
+  const [dpPdfFile, setDpPdfFile] = useState(null);
+  const [dpUploadingPdf, setDpUploadingPdf] = useState(false);
+  const [viewingQuizDp, setViewingQuizDp] = useState(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [downloadingQuizId, setDownloadingQuizId] = useState(null);
   const [dpVideoUrl, setDpVideoUrl] = useState("");
   const [dpQuestionsCount, setDpQuestionsCount] = useState(20);
   const [dpTimeLimit, setDpTimeLimit] = useState(20);
@@ -229,6 +234,8 @@ export default function AdminPage({ user, lang = "en" }) {
       showToast("Daily Practice Test created and published to Student Dashboard!", "success");
       setDpTitle("");
       setDpDesc("");
+      setDpPdfUrl("");
+      setDpPdfFile(null);
       loadDailyPractices();
     } catch (err) {
       showToast(err.message || "Failed to create daily practice.", "error");
@@ -260,6 +267,74 @@ export default function AdminPage({ user, lang = "en" }) {
       showToast("Failed to generate quiz: " + err.message, "error");
     } finally {
       setGeneratingDpId(null);
+    }
+  };
+
+  const handleDailyPracticeFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      return showToast("Please select a valid PDF file.", "error");
+    }
+    setDpUploadingPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("http://localhost:8000/api/admin/upload-file", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setDpPdfUrl(data.url);
+      setDpPdfFile({ name: file.name, size: data.size || `${(file.size / (1024 * 1024)).toFixed(1)} MB` });
+      showToast("Study Material PDF uploaded successfully!", "success");
+    } catch (err) {
+      console.error("PDF upload error:", err);
+      showToast("PDF upload failed. You can enter URL manually.", "error");
+    } finally {
+      setDpUploadingPdf(false);
+    }
+  };
+
+  const handleViewDailyPracticeQuiz = async (dp) => {
+    setQuizLoading(true);
+    try {
+      const res = await fetchApi(`/daily-practice/${dp.id}`);
+      setViewingQuizDp({ ...dp, questions: res.questions || [] });
+    } catch (err) {
+      showToast("Failed to load quiz questions.", "error");
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const handleDownloadDailyPracticeQuiz = async (dp) => {
+    setDownloadingQuizId(dp.id);
+    try {
+      const res = await fetchApi(`/daily-practice/${dp.id}`);
+      const qs = res.questions || [];
+      if (qs.length === 0) {
+        return showToast("No quiz questions generated for this test yet. Click 'AI Generate Quiz' first.", "warning");
+      }
+      downloadQuizAsPdf({
+        title: dp.title,
+        subtitle: `தினசரி மாதிரிப் பயிற்சித் தேர்வு • வகுப்பு ${dp.class_num} ${dp.subject} (${dp.term})`,
+        lesson: {
+          subject: dp.subject,
+          class_num: dp.class_num,
+          term: dp.term,
+          title: dp.title
+        },
+        quizType: "daily_practice",
+        questions: qs
+      });
+      showToast("Quiz Question Paper generated! Printable PDF view opened.", "success");
+    } catch (err) {
+      console.error("Download quiz error:", err);
+      showToast("Failed to download quiz.", "error");
+    } finally {
+      setDownloadingQuizId(null);
     }
   };
 
@@ -1192,16 +1267,89 @@ export default function AdminPage({ user, lang = "en" }) {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
-                        Study Material PDF URL (Stage 1)
+                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1.5 flex items-center justify-between">
+                        <span>Study Material PDF (Stage 1) — Upload Document</span>
+                        {dpPdfUrl && (
+                          <span className="text-[11px] text-emerald-700 font-bold flex items-center space-x-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>PDF Attached</span>
+                          </span>
+                        )}
                       </label>
-                      <input
-                        type="url"
-                        placeholder="https://example.com/notes.pdf"
-                        value={dpPdfUrl}
-                        onChange={(e) => setDpPdfUrl(e.target.value)}
-                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-medium focus:outline-none focus:border-[#ff7a00]"
-                      />
+
+                      {dpUploadingPdf ? (
+                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-2">
+                          <RefreshCw className="w-5 h-5 text-amber-600 animate-spin mx-auto" />
+                          <p className="text-xs font-bold text-amber-900">Uploading Study Material PDF...</p>
+                        </div>
+                      ) : dpPdfFile || dpPdfUrl ? (
+                        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                          <div className="flex items-center space-x-3 overflow-hidden">
+                            <div className="w-10 h-10 rounded-xl bg-red-100 border border-red-200 text-red-600 flex items-center justify-center shrink-0">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div className="overflow-hidden">
+                              <p className="text-xs font-bold text-[#061b36] truncate">
+                                {dpPdfFile?.name || dpPdfUrl.split("/").pop()}
+                              </p>
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                {dpPdfFile?.size || "PDF File"} • <span className="text-emerald-700 font-bold">Ready</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 shrink-0">
+                            {dpPdfUrl && (
+                              <a
+                                href={dpPdfUrl.startsWith("/") ? `http://localhost:8000${dpPdfUrl}` : dpPdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] transition cursor-pointer"
+                                title="Preview Uploaded PDF"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            )}
+                            <label className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-[#061b36] border border-slate-200 text-xs font-bold transition cursor-pointer">
+                              <span>Change</span>
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                onChange={handleDailyPracticeFileUpload}
+                                className="hidden"
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDpPdfUrl("");
+                                setDpPdfFile(null);
+                              }}
+                              className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition cursor-pointer"
+                              title="Remove PDF"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <label className="border-2 border-dashed border-slate-300 hover:border-[#ff7a00] bg-slate-50 hover:bg-orange-50/40 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition space-y-1.5 group">
+                          <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 group-hover:border-orange-200 text-slate-500 group-hover:text-[#ff7a00] flex items-center justify-center shadow-2xs transition">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-[#061b36] group-hover:text-[#ff7a00]">
+                              Click to Upload Study Material PDF (பாடக்குறிப்புகள்)
+                            </span>
+                            <p className="text-[11px] text-slate-500">Supports PDF documents up to 50MB</p>
+                          </div>
+                          <input
+                            type="file"
+                            accept=".pdf"
+                            onChange={handleDailyPracticeFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
                     </div>
 
                     <div>
@@ -1329,21 +1477,52 @@ export default function AdminPage({ user, lang = "en" }) {
                               <span className="text-emerald-700 font-bold">Pass: {dp.pass_percentage || 80}%</span>
                             </div>
 
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {/* VIEW QUIZ BUTTON */}
+                              <button
+                                type="button"
+                                onClick={() => handleViewDailyPracticeQuiz(dp)}
+                                disabled={quizLoading}
+                                className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] border border-blue-200 font-bold text-xs transition flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+                                title="View Quiz Questions for Verification"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>{quizLoading && viewingQuizDp?.id === dp.id ? "Loading..." : "View Quiz"}</span>
+                              </button>
+
+                              {/* DOWNLOAD QUIZ BUTTON */}
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadDailyPracticeQuiz(dp)}
+                                disabled={downloadingQuizId === dp.id}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs transition flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+                                title="Download or Print Quiz for Admin Verification"
+                              >
+                                {downloadingQuizId === dp.id ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="w-3.5 h-3.5" />
+                                )}
+                                <span>Download PDF</span>
+                              </button>
+
+                              {/* RE-GENERATE QUIZ */}
                               <button
                                 type="button"
                                 onClick={() => handleGenerateDailyQuiz(dp)}
                                 disabled={generatingDpId === dp.id}
                                 className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition flex items-center space-x-1 cursor-pointer"
+                                title="Regenerate syllabus questions using AI"
                               >
                                 {generatingDpId === dp.id ? (
                                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                 ) : (
                                   <Sparkles className="w-3.5 h-3.5" />
                                 )}
-                                <span>{generatingDpId === dp.id ? "Generating..." : "⚡ AI Generate Quiz"}</span>
+                                <span>{generatingDpId === dp.id ? "Generating..." : "⚡ AI Quiz"}</span>
                               </button>
 
+                              {/* DELETE */}
                               <button
                                 type="button"
                                 onClick={() => handleDeleteDailyPractice(dp.id)}
@@ -1724,14 +1903,24 @@ export default function AdminPage({ user, lang = "en" }) {
                           <button
                             type="button"
                             onClick={() => handleToggleLessonStage4(lesson.id)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer flex items-center space-x-1.5 ${
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition border cursor-pointer flex items-center space-x-2 ${
                               lesson.stage4_force_open
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
-                                : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                                ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 shadow-md ring-2 ring-emerald-300"
+                                : "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
                             }`}
-                            title="Toggle Stage 4 unlock for this lesson"
+                            title={lesson.stage4_force_open ? "Click to lock Stage 4 back to 8:00 PM schedule" : "Click to force unlock Stage 4 immediately"}
                           >
-                            <span>{lesson.stage4_force_open ? "🔓 Stage 4: Force Unlocked" : "🔒 Stage 4: Opens 8:00 PM"}</span>
+                            {lesson.stage4_force_open ? (
+                              <>
+                                <span className="flex h-2 w-2 relative">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-100"></span>
+                                </span>
+                                <span>🔓 Stage 4: UNLOCKED (திறக்கப்பட்டது)</span>
+                              </>
+                            ) : (
+                              <span>🔒 Stage 4: Opens 8:00 PM</span>
+                            )}
                           </button>
                         </div>
                       </div>
@@ -3355,6 +3544,155 @@ export default function AdminPage({ user, lang = "en" }) {
               </div>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN QUIZ VERIFICATION MODAL */}
+      {viewingQuizDp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#061b36] via-[#092d62] to-[#0055ff] text-white p-5 sm:p-6 flex items-start sm:items-center justify-between gap-4 shrink-0">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-500/30 border border-blue-400/40 text-blue-100 font-black uppercase">
+                    Class {viewingQuizDp.class_num} • {viewingQuizDp.subject}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 font-bold">
+                    {viewingQuizDp.term}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-200 font-bold">
+                    {viewingQuizDp.questions?.length || 0} Questions Verified
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-xl font-black">
+                  📋 Quiz Verification — {viewingQuizDp.title}
+                </h3>
+              </div>
+
+              <div className="flex items-center space-x-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadDailyPracticeQuiz(viewingQuizDp)}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center space-x-1.5 shadow-sm transition cursor-pointer"
+                  title="Download / Print Exam Sheet"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingQuizDp(null)}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                  title="Close Modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Questions Body */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 bg-slate-50">
+              {(!viewingQuizDp.questions || viewingQuizDp.questions.length === 0) ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 p-8 space-y-3">
+                  <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
+                  <h4 className="text-base font-bold text-[#061b36]">No Quiz Questions Available Yet</h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Click the <strong>⚡ AI Quiz</strong> button on this test card to automatically generate TN TET syllabus questions.
+                  </p>
+                </div>
+              ) : (
+                viewingQuizDp.questions.map((q, idx) => {
+                  const opts = q.options || [];
+                  const ansStr = typeof q.answer === "string" ? q.answer.trim().toUpperCase() : "";
+                  const mapLetterToIdx = { A: 0, B: 1, C: 2, D: 3 };
+                  const correctIdx = typeof q.answer_index === "number" 
+                    ? q.answer_index 
+                    : ["A", "B", "C", "D"].includes(ansStr)
+                    ? mapLetterToIdx[ansStr]
+                    : opts.findIndex(o => o.trim() === q.answer?.trim());
+
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start space-x-2.5">
+                          <span className="w-7 h-7 rounded-lg bg-blue-100 text-[#0055ff] font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-snug">
+                            {q.question}
+                          </h4>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+                          Q #{idx + 1}
+                        </span>
+                      </div>
+
+                      {/* Options Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-9">
+                        {opts.map((opt, optIdx) => {
+                          const isCorrect = optIdx === correctIdx;
+                          const letter = String.fromCharCode(65 + optIdx);
+                          return (
+                            <div
+                              key={optIdx}
+                              className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 transition ${
+                                isCorrect
+                                  ? "bg-emerald-50 text-emerald-900 border-emerald-400 font-bold ring-1 ring-emerald-300"
+                                  : "bg-slate-50 text-slate-700 border-slate-200"
+                              }`}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className={`w-5 h-5 rounded-md text-[10px] font-black flex items-center justify-center ${
+                                  isCorrect ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-600"
+                                }`}>
+                                  {letter}
+                                </span>
+                                <span>{opt}</span>
+                              </div>
+                              {isCorrect && (
+                                <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                                  ✓ Correct
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Explanation */}
+                      {q.explanation && (
+                        <div className="ml-9 p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-950 space-y-1">
+                          <div className="font-bold flex items-center space-x-1 text-amber-900">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                            <span>விளக்கம் (Pedagogical Explanation):</span>
+                          </div>
+                          <p className="font-medium leading-relaxed">{q.explanation}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-white border-t border-slate-200 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-500 font-medium">
+                Admin Quality Assurance • TN TET Paper 2 Standard Verification
+              </span>
+              <button
+                type="button"
+                onClick={() => setViewingQuizDp(null)}
+                className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition cursor-pointer"
+              >
+                Close Viewer
+              </button>
+            </div>
           </div>
         </div>
       )}

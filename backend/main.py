@@ -939,6 +939,25 @@ def admin_delete_material(material_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Material deleted successfully."}
 
+@app.post("/api/admin/upload-file")
+def admin_upload_file(file: UploadFile = File(...)):
+    import re
+    safe_name = re.sub(r'[^a-zA-Z0-9_\.-]', '_', file.filename)
+    # prepend timestamp to prevent name collisions
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    final_name = f"{timestamp}_{safe_name}"
+    file_path = os.path.join(UPLOAD_DIR, final_name)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    size_bytes = os.path.getsize(file_path)
+    size_str = f"{(size_bytes / (1024 * 1024)):.1f} MB" if size_bytes > 1024 * 1024 else f"{(size_bytes / 1024):.1f} KB"
+    return {
+        "url": f"/static_uploads/{final_name}",
+        "filename": file.filename,
+        "saved_filename": final_name,
+        "size": size_str
+    }
+
 # --- DEDICATED UPLOAD 2: LEARNING PORTAL MODULE UPLOADS & SCHEDULING ---
 @app.get("/api/admin/lessons")
 def admin_get_lessons(db: Session = Depends(get_db)):

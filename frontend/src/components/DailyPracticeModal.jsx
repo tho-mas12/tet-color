@@ -11,7 +11,8 @@ import {
   Download,
   AlertCircle,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  ArrowLeft
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { downloadQuizAsPdf } from "../utils/pdfExport";
@@ -137,40 +138,60 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
   const questions = data.questions || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/70 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-5xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
-        
-        {/* HEADER BAR */}
-        <div className="bg-gradient-to-r from-[#061b36] via-[#092d62] to-[#0055ff] text-white p-5 sm:p-6 flex items-start sm:items-center justify-between gap-4 shrink-0">
-          <div className="space-y-1">
+    <div className="fixed inset-0 z-50 bg-[#f8fafc] flex flex-col w-screen h-screen overflow-hidden animate-fade-in">
+      
+      {/* FULL-PAGE APPLICATION HEADER */}
+      <header className="bg-gradient-to-r from-[#061b36] via-[#092d62] to-[#0055ff] text-white px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 shrink-0 shadow-md">
+        <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
+          <button
+            onClick={onClose}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm transition cursor-pointer shrink-0"
+            title="Return to Student Dashboard"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Dashboard</span>
+          </button>
+          
+          <div className="h-6 w-px bg-white/20 hidden sm:block" />
+
+          <div className="min-w-0 space-y-0.5">
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="px-3 py-0.5 rounded-full bg-blue-500/30 border border-blue-400/40 text-blue-200 font-black uppercase">
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-500/30 border border-blue-400/40 text-blue-200 font-black uppercase text-[10px]">
                 Class {data.class_num} • {data.subject}
               </span>
-              <span className="px-3 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 font-bold">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 font-bold text-[10px]">
                 {data.term}
               </span>
-              <span className="px-3 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-200 font-bold">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-200 font-bold text-[10px] hidden sm:inline">
                 Pass Mark: {data.pass_percentage || 80}%
               </span>
             </div>
-            <h2 className="text-lg sm:text-2xl font-black tracking-tight">{data.title}</h2>
-            {data.description && (
-              <p className="text-xs sm:text-sm text-blue-100/90 font-medium line-clamp-1">{data.description}</p>
-            )}
+            <h1 className="text-sm sm:text-lg font-black truncate">{data.title}</h1>
           </div>
+        </div>
+
+        <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+          {activeStage === 4 && examActive && !examResult && (
+            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-400 text-[#061b36] font-mono font-black text-xs sm:text-sm shadow-sm animate-pulse">
+              <Clock className="w-4 h-4" />
+              <span>{formatTime(timeLeft)}</span>
+            </div>
+          )}
 
           <button
             onClick={onClose}
-            className="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0"
-            title="Close Daily Practice"
+            className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-red-500 text-white transition cursor-pointer text-xs font-bold"
+            title="Exit Test & Return to Dashboard"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
+            <span className="hidden sm:inline">Exit Full Page</span>
           </button>
         </div>
+      </header>
 
-        {/* STAGES TABS (Strictly showing only configured active stages) */}
-        <div className="flex items-center space-x-2 p-3 sm:p-4 bg-slate-50 border-b border-slate-200 overflow-x-auto shrink-0">
+      {/* FULL-WIDTH STAGES TABS */}
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-8 py-2.5 flex items-center justify-between overflow-x-auto shrink-0 shadow-xs">
+        <div className="flex items-center space-x-2 shrink-0">
           {activeStages.map((stg) => {
             const conf = stageLabels[stg] || { name: `Stage ${stg}`, icon: HelpCircle, color: "text-[#0055ff]" };
             const Icon = conf.icon;
@@ -179,10 +200,10 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
               <button
                 key={stg}
                 onClick={() => setActiveStage(stg)}
-                className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
                   isCurrent
                     ? "bg-[#0055ff] text-white shadow-md font-black"
-                    : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/90"
+                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isCurrent ? "text-white" : conf.color}`} />
@@ -192,46 +213,51 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
           })}
         </div>
 
-        {/* CONTENT VIEWPORT */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="hidden md:flex items-center space-x-2 text-xs text-slate-500 font-semibold">
+          <span>TN TET Official Practice Portal • Full Workspace</span>
+        </div>
+      </div>
 
-          {/* STAGE 1: STUDY MATERIAL */}
-          {activeStage === 1 && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
-                    <FileText className="w-5 h-5 text-[#0055ff]" />
-                    <span>பாடக் குறிப்புகள் & அதிகாரப்பூர்வ பாடப்பொருள் (Official Study Material)</span>
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                    Review official TN textbook syllabus and key takeaways for this daily practice.
-                  </p>
-                </div>
+      {/* FULL-PAGE SCROLLABLE CONTENT VIEWPORT */}
+      <main className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 w-full max-w-7xl mx-auto space-y-6">
 
-                {data.pdf_url && (
-                  <a
-                    href={data.pdf_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-blue-50 text-[#0055ff] border border-blue-200 text-xs font-bold hover:bg-blue-100 transition cursor-pointer"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download PDF</span>
-                  </a>
-                )}
+        {/* STAGE 1: STUDY MATERIAL */}
+        {activeStage === 1 && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
+                  <FileText className="w-5 h-5 text-[#0055ff]" />
+                  <span>பாடக் குறிப்புகள் & அதிகாரப்பூர்வ பாடப்பொருள் (Official Study Material)</span>
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                  Review official TN textbook syllabus and key takeaways for this daily practice.
+                </p>
               </div>
 
-              {data.pdf_url ? (
-                <div className="w-full h-[520px] rounded-2xl border border-slate-200 overflow-hidden shadow-xs bg-slate-100">
-                  <iframe
-                    src={data.pdf_url}
-                    className="w-full h-full"
-                    title="Daily Practice Study Material"
-                  />
-                </div>
-              ) : (
-                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+              {data.pdf_url && (
+                <a
+                  href={data.pdf_url.startsWith("/") ? `http://localhost:8000${data.pdf_url}` : data.pdf_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-blue-50 text-[#0055ff] border border-blue-200 text-xs font-bold hover:bg-blue-100 transition cursor-pointer shrink-0"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download / Open PDF</span>
+                </a>
+              )}
+            </div>
+
+            {data.pdf_url ? (
+              <div className="w-full h-[calc(100vh-230px)] min-h-[580px] rounded-2xl border border-slate-200 overflow-hidden shadow-xs bg-slate-100">
+                <iframe
+                  src={data.pdf_url.startsWith("/") ? `http://localhost:8000${data.pdf_url}` : data.pdf_url}
+                  className="w-full h-full"
+                  title="Daily Practice Study Material"
+                />
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                   <FileText className="w-12 h-12 text-[#0055ff] mx-auto opacity-70" />
                   <h4 className="text-base font-bold text-[#061b36]">வகுப்பு {data.class_num} {data.subject} பாடக் குறிப்புகள்</h4>
                   <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto">
@@ -523,9 +549,7 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
             </div>
           )}
 
-        </div>
-
-      </div>
+      </main>
     </div>
   );
 }

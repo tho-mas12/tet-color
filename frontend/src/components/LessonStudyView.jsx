@@ -379,18 +379,37 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
             !questionsDone
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 4
-              ? "bg-[#8a00e6] text-white border-[#8a00e6] shadow-md scale-[1.01]"
+              ? !lessonData?.is_stage4_locked_by_time
+                ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md ring-2 ring-emerald-300 scale-[1.01]"
+                : "bg-[#8a00e6] text-white border-[#8a00e6] shadow-md scale-[1.01]"
               : testDone
-              ? "bg-purple-50/80 text-[#8a00e6] border-[#8a00e6]/40 cursor-pointer"
-              : "bg-white text-[#061b36] border-slate-200 hover:border-[#8a00e6]/40 cursor-pointer"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-300 cursor-pointer"
+              : !lessonData?.is_stage4_locked_by_time
+              ? "bg-emerald-50/80 text-emerald-950 border-2 border-emerald-400 hover:bg-emerald-100/90 shadow-xs cursor-pointer ring-1 ring-emerald-300/40"
+              : "bg-amber-50/50 text-amber-950 border-amber-200 hover:border-amber-400 cursor-pointer"
           }`}
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 4 • QUIZ (≥80%)</span>
-            {!questionsDone ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : testDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <Award className="w-5 h-5 shrink-0" />}
+            {!questionsDone ? (
+              <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : testDone ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+            ) : !lessonData?.is_stage4_locked_by_time ? (
+              <span className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-xs uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+                <span>🔓 UNLOCKED</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase">
+                <Lock className="w-2.5 h-2.5 inline mr-0.5" /> 8:00 PM
+              </span>
+            )}
           </div>
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage4Title}</h4>
-          <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage4Desc}</span>
+          <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">
+            {!lessonData?.is_stage4_locked_by_time ? "✨ Unlocked & Live Now • Click to Start Exam" : t.stage4Desc}
+          </span>
         </button>
       </div>
 
@@ -845,20 +864,34 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                   )}
                 </div>
               ) : (
-                <div className="text-center py-12 sm:py-16 bg-slate-50 rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-4">
-                  <Award className="w-14 h-14 text-[#0055ff] mx-auto animate-float" />
-                  <h4 className="text-lg sm:text-xl font-black text-[#061b36]">{t.stage4Title}</h4>
-                  <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto font-medium leading-relaxed">
-                    {t.stage4Desc} • You must score at least <strong>80%</strong> to complete this lesson and unlock subsequent lessons.
-                  </p>
+                <div className="text-center py-12 sm:py-16 bg-gradient-to-b from-emerald-50/90 via-teal-50/30 to-slate-50 rounded-3xl border-2 border-emerald-400 p-6 sm:p-10 space-y-5 shadow-sm animate-fade-in relative overflow-hidden">
+                  {/* Top Live Badge */}
+                  <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-black shadow-sm uppercase tracking-wider">
+                    <span className="flex h-2.5 w-2.5 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-100"></span>
+                    </span>
+                    <span>🔓 Stage 4 Unlocked & Active • தேர்வு திறக்கப்பட்டுள்ளது!</span>
+                  </div>
 
-                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <div className="w-16 h-16 rounded-3xl bg-emerald-100 border-2 border-emerald-400 text-emerald-700 flex items-center justify-center mx-auto shadow-md">
+                    <Award className="w-9 h-9" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-xl sm:text-2xl font-black text-[#061b36]">{t.stage4Title}</h4>
+                    <p className="text-xs sm:text-sm text-emerald-950 max-w-lg mx-auto font-medium leading-relaxed bg-emerald-100/70 p-3.5 rounded-2xl border border-emerald-300">
+                      {t.stage4Desc} • You must score at least <strong className="text-emerald-900 font-black">80%</strong> to complete this lesson and unlock subsequent lessons.
+                    </p>
+                  </div>
+
+                  <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
                     <button
                       onClick={handleStartTest}
                       disabled={testLoading}
-                      className="px-8 py-3.5 rounded-2xl bg-[#0055ff] hover:bg-blue-700 text-white font-extrabold text-sm shadow-md transition-all cursor-pointer min-h-[44px]"
+                      className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm sm:text-base shadow-lg transition-all cursor-pointer min-h-[46px] ring-4 ring-emerald-300/40"
                     >
-                      {testLoading ? "Generating Test Questions..." : t.startTimedExam}
+                      {testLoading ? "Generating Test Questions..." : `🚀 ${t.startTimedExam}`}
                     </button>
 
                     {user?.role === "admin" && (
