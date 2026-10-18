@@ -3,30 +3,92 @@ import random
 import os
 import requests
 
-def generate_practice_questions(class_num: int, subject: str, term: str, lesson_title: str, count: int = 200, api_key: str = "") -> list:
+def detect_material_language(subject: str = "", lesson_title: str = "", medium: str = "", description: str = "") -> str:
+    """
+    Detects whether the study material / lesson is in English or Tamil.
+    Returns 'English' or 'Tamil'.
+    """
+    if medium:
+        m = medium.lower().strip()
+        if "english" in m:
+            return "English"
+        if "tamil" in m:
+            return "Tamil"
+
+    if subject:
+        s = subject.lower().strip()
+        if s == "english":
+            return "English"
+        if s == "tamil":
+            return "Tamil"
+
+    combined = f"{lesson_title} {description}".strip()
+    tamil_chars = sum(1 for c in combined if '\u0b80' <= c <= '\u0bff')
+    if tamil_chars > 0:
+        return "Tamil"
+
+    latin_chars = sum(1 for c in combined if c.isascii() and c.isalpha())
+    if latin_chars >= 4:
+        return "English"
+
+    return "Tamil"
+
+
+def generate_practice_questions(
+    class_num: int,
+    subject: str,
+    term: str,
+    lesson_title: str,
+    count: int = 200,
+    api_key: str = "",
+    medium: str = "",
+    description: str = ""
+) -> list:
     """
     Generates practice questions adhering strictly to TN TET Paper 2 blueprint standards:
-    - 6 question types: MCQ, HOTS, Match the following, Multi-statement, Assertion & Reason, Chronological sequencing.
+    - If material is English -> Generates questions and explanations in ENGLISH.
+    - If material is Tamil -> Generates questions and explanations in TAMIL.
+    - 6 question types: MCQ, HOTS, Match the following, Multi-statement, Assertion & Reason, Sequential ordering.
     - Even rotating distribution of answers (A, B, C, D) without B dominance.
-    - Clean text with no file names or page numbers.
+    - Clean text with no file names or bracketed headers.
     """
+    lang = detect_material_language(subject=subject, lesson_title=lesson_title, medium=medium, description=description)
+
     if api_key and api_key.strip():
         clean_key = api_key.strip()
+
+        if lang == "English":
+            lang_instruction = """
+            STRICT LANGUAGE REQUIREMENT:
+            The study material is in ENGLISH.
+            Therefore, EVERY SINGLE question, all 4 options (A, B, C, D), and the explanation MUST be written entirely in clear, academic ENGLISH.
+            Do NOT output any Tamil text.
+            """
+        else:
+            lang_instruction = """
+            STRICT LANGUAGE REQUIREMENT:
+            The study material is in TAMIL (தமிழ்).
+            Therefore, EVERY SINGLE question, all 4 options (A, B, C, D), and the explanation MUST be written entirely in pure, academic TAMIL (தமிழ்).
+            Do NOT output any English text (except standard scientific formulas or names if required).
+            """
+
         prompt = f"""
         Act as a Senior Tamil Nadu TET Paper 2 Exam Specialist and Professor.
         Generate 10 rigorous multiple choice questions for TN TET Paper 2:
         Class: {class_num}, Subject: {subject}, Term: {term}, Lesson: {lesson_title}.
         
+        {lang_instruction}
+
         Strict Guidelines:
         1. Include question types:
-           - முக்கிய கொள்குறி வினா (Core MCQ)
-           - உயர் சிந்தனை வினா (HOTS Analysis)
-           - பொருத்துக வகை (Match the Following)
-           - பல்கூற்று வினா (Multi-statement)
-           - கூற்று மற்றும் காரணம் (Assertion & Reasoning)
-        2. Language: Pure academic Tamil (or English if Subject is English).
-        3. Distribute answers across index 0 (A), 1 (B), 2 (C), and 3 (D). Do not make B the answer for everything.
-        4. Return ONLY a valid JSON array of objects with keys: id, question_type, question, options (list of 4 strings), answer_index (0-3), explanation.
+           - Core MCQ
+           - HOTS (Higher Order Thinking Skills)
+           - Match the Following
+           - Multi-statement Analysis
+           - Assertion & Reasoning
+        2. Distribute answers across index 0 (A), 1 (B), 2 (C), and 3 (D). Do not make B the answer for everything.
+        3. Do NOT include bracketed headers like [Core MCQ] or [முக்கிய கொள்குறி வினா] in the question text.
+        4. Return ONLY a valid JSON array of objects with keys: id, question, options (list of 4 strings), answer_index (0-3), explanation.
         """
         # Attempt fast AI generation with 2.5s max timeout; if delayed or busy, instant fallback
         for model_name in ['gemma-4-26b-a4b-it', 'gemini-flash-latest']:
@@ -44,7 +106,7 @@ def generate_practice_questions(class_num: int, subject: str, term: str, lesson_
                         text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
                         data = json.loads(text_content)
                         if isinstance(data, list) and len(data) > 0:
-                            fallback_pool = _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count)
+                            fallback_pool = _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count, lang=lang)
                             for idx, q in enumerate(data):
                                 if idx < len(fallback_pool) and "options" in q and len(q["options"]) == 4:
                                     q["id"] = idx + 1
@@ -55,35 +117,50 @@ def generate_practice_questions(class_num: int, subject: str, term: str, lesson_
             break  # Never wait more than 2.5s total to guarantee ultra-fast response
 
     # Instant, authentic TN TET Paper 2 curriculum engine fallback
-    return _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count)
+    return _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count, lang=lang)
 
 
-def generate_test_questions(class_num: int, subject: str, term: str, lesson_title: str, count: int = 100, api_key: str = "") -> list:
+def generate_test_questions(
+    class_num: int,
+    subject: str,
+    term: str,
+    lesson_title: str,
+    count: int = 100,
+    api_key: str = "",
+    medium: str = "",
+    description: str = ""
+) -> list:
     """
-    Generates test exam questions (default 100 items or 30/50 items as needed)
-    with balanced question types and rotating answers A, B, C, D.
+    Generates test exam questions with language alignment and rotating answers A, B, C, D.
     """
-    pool = generate_practice_questions(class_num, subject, term, lesson_title, count=max(200, count), api_key=api_key)
+    pool = generate_practice_questions(
+        class_num, subject, term, lesson_title,
+        count=max(200, count), api_key=api_key,
+        medium=medium, description=description
+    )
     selected = pool[:count]
     for idx, q in enumerate(selected, 1):
         q["id"] = idx
     return selected
 
 
-def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesson_title: str, count: int) -> list:
+def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesson_title: str, count: int, lang: str = "Tamil") -> list:
     """
     Generates rich, authentic TN TET Paper 2 curriculum questions covering all 6 question formats:
-    1. Core MCQ (முக்கிய கொள்குறி வினா)
-    2. HOTS (உயர் சிந்தனை வினா)
-    3. Match the following (பொருத்துக வகை வினாக்கள்)
-    4. Multi-statement (பல்கூற்று வினாக்கள்)
-    5. Assertion & Reason (கூற்று மற்றும் காரணம்)
-    6. Chronological / Procedural sequencing (படிநிலை / கால வரிசைப்படுத்துதல்)
+    1. Core MCQ
+    2. HOTS
+    3. Match the following
+    4. Multi-statement
+    5. Assertion & Reason
+    6. Chronological / Procedural sequencing
+
+    Strictly honors 'lang':
+    If lang == 'English' -> 100% English questions, choices, and explanations.
+    If lang == 'Tamil'   -> 100% Tamil questions, choices, and explanations.
+    No bracketed headers in question text.
     """
 
-    questions = []
-
-    curriculum_db = {
+    curriculum_db_ta = {
         "Tamil": {
             "topics": [
                 ("எழுத்திலக்கணம் மற்றும் சொல்லிலக்கணம்", "சார்பெழுத்துகள், போலி, வினையெச்சம், வேற்றுமை உருபுகள்", "தொல்காப்பியம் மற்றும் நன்னூல் இலக்கண விதிகள்"),
@@ -277,11 +354,14 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
                     "ரௌலட் சட்டம் (1919) -> ஒத்துழையாமை இயக்கம் (1920) -> தண்டி யாத்திரை (1930) -> வெள்ளையனே வெளியேறு இயக்கம் (1942). சரியான வரிசை: 3, 1, 2, 4."
                 )
             ]
-        },
+        }
+    }
+
+    curriculum_db_en = {
         "English": {
             "topics": [
                 ("Grammar: Tenses and Concord", "Subject-verb agreement, Modal auxiliaries, Active and Passive voice", "Grammatical precision in complex clauses"),
-                ("Vocabulary and Idioms", "Collocations, Phrasal verbs, Synonyms, Contextual word usage", "Advanced linguistic comprehension"),
+                ("Vocabulary and Idiomatic Usage", "Collocations, Phrasal verbs, Synonyms, Contextual word usage", "Advanced linguistic comprehension"),
                 ("Poetry & Literary Devices", "Metaphor, Simile, Personification, Alliteration, Rhyme scheme", "Appreciation of poetic structure"),
                 ("Reading Analysis & Transformation", "Direct-Indirect speech, Simple-Compound-Complex, Error spotting", "Syntactic structures and cohesion")
             ],
@@ -294,12 +374,12 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
             ],
             "assertion_reasons": [
                 (
-                    "Assertion (A): In conditional clauses, 'If I were a bird, I would fly' uses the subjunctive mood.\nReason (R): Subjunctive mood expresses hypothetical, imaginary, or counter-to-fact wishes.",
+                    "Assertion (A): In conditional clauses, 'If I were a bird, I would fly' uses the subjunctive mood.\nReason (R): The subjunctive mood expresses hypothetical, imaginary, or counter-to-fact wishes.",
                     "Both Assertion (A) and Reason (R) are true, and (R) is the correct explanation for (A).",
                     "Assertion (A) is true, but Reason (R) is false.",
                     "Assertion (A) is false, but Reason (R) is true.",
                     "Both Assertion (A) and Reason (R) are false.",
-                    "'Were' is used with singular subject 'I' to indicate an unreal, hypothetical condition (subjunctive mood). Both statements are accurate."
+                    "'Were' is used with the singular subject 'I' to indicate an unreal, hypothetical condition (subjunctive mood). Both statements are accurate."
                 )
             ],
             "multi_statements": [
@@ -314,30 +394,172 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
             ],
             "chronological": [
                 (
-                    "Arrange the typical steps of a formal letter layout in descending top-to-bottom sequence:\n1. Salutation (e.g. Respected Sir/Madam)\n2. Sender's Address and Date\n3. Subject Line\n4. Subscription and Signature",
+                    "Arrange the typical components of a formal letter layout in descending top-to-bottom sequence:\n1. Salutation (e.g., Respected Sir/Madam)\n2. Sender's Address and Date\n3. Subject Line\n4. Subscription and Signature",
                     "2, 3, 1, 4", "1, 2, 3, 4", "2, 1, 3, 4", "3, 2, 1, 4",
                     "Standard formal letter format: Sender's Address/Date (2) -> Subject Line (3) -> Salutation (1) -> Subscription (4). Sequence: 2, 3, 1, 4."
+                )
+            ]
+        },
+        "Mathematics": {
+            "topics": [
+                ("Number Systems & Real Numbers", "Prime numbers, HCF, LCM, recurring decimals, rationalization", "Fundamental arithmetic theorems and properties"),
+                ("Algebra & Linear Equations", "Polynomial factorization, linear equations in two variables, quadratic identities", "Algebraic reasoning and functional models"),
+                ("Geometry & Mensuration", "Congruence criteria, circle properties, surface area, volume formulas", "Two-dimensional and three-dimensional spatial analysis"),
+                ("Statistics & Probability", "Mean, median, mode, standard deviation, theoretical probability", "Descriptive statistics and probability distributions")
+            ],
+            "matches": [
+                (
+                    "Match List I (Geometric Figure) with List II (Area Formula):\n\nList I:\n1. Trapezium\n2. Parallelogram\n3. Rhombus\n4. Triangle\n\nList II:\ni. b × h\nii. 1/2 × d1 × d2\niii. 1/2 × h × (a + b)\niv. 1/2 × b × h",
+                    "iii, i, ii, iv", "i, ii, iii, iv", "iv, iii, ii, i", "ii, i, iv, iii",
+                    "Trapezium = 1/2 × h(a+b) [iii], Parallelogram = b × h [i], Rhombus = 1/2 × d1 × d2 [ii], Triangle = 1/2 × b × h [iv]. Correct match: iii, i, ii, iv."
+                )
+            ],
+            "assertion_reasons": [
+                (
+                    "Assertion (A): Every integer is a rational number.\nReason (R): Any integer 'n' can be written in the form p/q as n/1, where q = 1 ≠ 0.",
+                    "Both Assertion (A) and Reason (R) are true, and (R) is the correct explanation for (A).",
+                    "Assertion (A) is true, but Reason (R) is false.",
+                    "Assertion (A) is false, but Reason (R) is true.",
+                    "Both Assertion (A) and Reason (R) are false.",
+                    "All integers satisfy the definition of rational numbers with denominator 1. Thus, both statements are correct."
+                )
+            ],
+            "multi_statements": [
+                (
+                    "Consider the following statements regarding Prime Numbers:\n(i) 2 is the only even prime number.\n(ii) Any two consecutive natural numbers are always co-prime.\n(iii) 1 is neither prime nor composite.\nWhich of the above statements is/are correct?",
+                    "All (i), (ii) and (iii) are correct.",
+                    "Only (i) and (ii) are correct.",
+                    "Only (ii) and (iii) are correct.",
+                    "Only (i) is correct.",
+                    "2 is the only even prime, consecutive integers share no common divisor other than 1, and 1 is a unique unit. All three statements are true."
+                )
+            ],
+            "chronological": [
+                (
+                    "Arrange the operational order in evaluating a compound mathematical expression according to standard BODMAS rules:\n1. Division\n2. Brackets\n3. Addition\n4. Multiplication",
+                    "2, 1, 4, 3", "1, 2, 3, 4", "2, 4, 1, 3", "4, 1, 2, 3",
+                    "BODMAS order: Brackets (2) -> Order/Division (1) -> Multiplication (4) -> Addition (3). Sequence: 2, 1, 4, 3."
+                )
+            ]
+        },
+        "Science": {
+            "topics": [
+                ("Physics: Force, Motion and Gravitation", "Newton's laws of motion, friction, gravitation, work and energy", "Conservation laws and mechanical dynamics"),
+                ("Chemistry: Matter, Elements and Compounds", "Acids, bases, salts, chemical reactions, periodic classification", "Chemical bonding and stoichiometry"),
+                ("Biology: Cell Biology & Human Physiology", "Cell organelles, mitosis-meiosis, digestive, circulatory and nervous systems", "Biological homeostasis and tissue morphology"),
+                ("Ecology & Environmental Science", "Food webs, biogeochemical cycles, pollution control, biodiversity", "Ecological balance and sustainable development")
+            ],
+            "matches": [
+                (
+                    "Match List I (Vitamins) with List II (Deficiency Diseases):\n\nList I:\n1. Vitamin A\n2. Vitamin B1\n3. Vitamin C\n4. Vitamin D\n\nList II:\ni. Beriberi\nii. Scurvy\niii. Night Blindness\niv. Rickets",
+                    "iii, i, ii, iv", "i, ii, iii, iv", "iv, iii, i, ii", "ii, i, iv, iii",
+                    "Vitamin A - Night Blindness (iii), Vitamin B1 - Beriberi (i), Vitamin C - Scurvy (ii), Vitamin D - Rickets (iv). Correct sequence: iii, i, ii, iv."
+                )
+            ],
+            "assertion_reasons": [
+                (
+                    "Assertion (A): When an object falls freely in a vacuum, all objects hit the ground simultaneously regardless of mass.\nReason (R): In a vacuum, there is no air resistance, and acceleration due to gravity (g) is independent of the object's mass.",
+                    "Both Assertion (A) and Reason (R) are true, and (R) is the correct explanation for (A).",
+                    "Assertion (A) is true, but Reason (R) is false.",
+                    "Assertion (A) is false, but Reason (R) is true.",
+                    "Both Assertion (A) and Reason (R) are false.",
+                    "Galileo proved that acceleration due to gravity in a vacuum is invariant with respect to mass. Both Assertion and Reason are true."
+                )
+            ],
+            "multi_statements": [
+                (
+                    "Examine the following statements regarding Photosynthesis:\n(i) Oxygen gas is evolved as a byproduct during photosynthesis.\n(ii) Chlorophyll, sunlight, carbon dioxide, and water are indispensable for the process.\n(iii) The light reaction occurs exclusively in the stroma of chloroplasts.",
+                    "Only (i) and (ii) are correct.",
+                    "All (i), (ii) and (iii) are correct.",
+                    "Only (ii) and (iii) are correct.",
+                    "Only (i) is correct.",
+                    "The light-dependent reaction occurs in the thylakoid membranes, while the dark reaction (Calvin cycle) occurs in the stroma. Hence statement (iii) is incorrect."
+                )
+            ],
+            "chronological": [
+                (
+                    "Arrange the key events in the life cycle of angiospermic plants in correct sequential order:\n1. Pollination\n2. Seed Formation\n3. Fertilization\n4. Germination",
+                    "1, 3, 2, 4", "1, 2, 3, 4", "3, 1, 2, 4", "4, 1, 3, 2",
+                    "Plant reproductive sequence: Pollination (1) -> Fertilization (3) -> Seed Formation (2) -> Germination (4). Sequence: 1, 3, 2, 4."
+                )
+            ]
+        },
+        "Social Science": {
+            "topics": [
+                ("History: Ancient to Modern India", "Indus Valley Civilization, Mauryas, Chola Empire, Indian National Movement", "Archaeological evidence, administrative systems and freedom struggle"),
+                ("Geography: Lithosphere, Hydrosphere & Tamil Nadu", "Landforms, atmospheric pressure belts, Indian rivers, mineral resources", "Geographic locations, climate determinants and spatial patterns"),
+                ("Civics: Indian Constitution & Democracy", "Preamble, Fundamental Rights, Directive Principles, Parliamentary system", "Constitutional framework and democratic institutions"),
+                ("Economics: Production, Taxation & Development", "Inflation, Gross Domestic Product, GST, Banking system, Tamil Nadu industrial growth", "Economic indicators and public finance")
+            ],
+            "matches": [
+                (
+                    "Match List I (Historical Sites) with List II (Key Evidence):\n\nList I:\n1. Mohenjo-daro\n2. Lothal\n3. Keeladi\n4. Arikamedu\n\nList II:\ni. Tidal Dockyard\nii. Great Bath\niii. Roman Indo-Pacific Trading Post\niv. Vaigai River Valley Civilization",
+                    "ii, i, iv, iii", "i, ii, iii, iv", "iv, iii, ii, i", "ii, iv, i, iii",
+                    "Mohenjo-daro - Great Bath (ii), Lothal - Dockyard (i), Keeladi - Vaigai Civilization (iv), Arikamedu - Roman trade hub (iii). Sequence: ii, i, iv, iii."
+                )
+            ],
+            "assertion_reasons": [
+                (
+                    "Assertion (A): Article 21 of the Indian Constitution protects the Right to Life and Personal Liberty.\nReason (R): Under Article 359, the enforcement of Article 21 cannot be suspended even during the proclamation of a National Emergency.",
+                    "Both Assertion (A) and Reason (R) are true, and (R) is the correct explanation for (A).",
+                    "Assertion (A) is true, but Reason (R) is false.",
+                    "Assertion (A) is false, but Reason (R) is true.",
+                    "Both Assertion (A) and Reason (R) are false.",
+                    "The 44th Constitutional Amendment Act explicitly established that Articles 20 and 21 cannot be suspended during an emergency. Both statements are accurate."
+                )
+            ],
+            "multi_statements": [
+                (
+                    "Evaluate the following statements concerning the Chola Local Administration:\n(i) The Uttaramerur inscriptions provide comprehensive details of the Kudavolai electoral system.\n(ii) Village committees called 'Variyams' managed irrigation, gardens, and temples.\n(iii) Land revenue collected during the Chola era was termed 'Irai'.",
+                    "All (i), (ii) and (iii) are correct.",
+                    "Only (i) and (ii) are correct.",
+                    "Only (ii) and (iii) are correct.",
+                    "Only (i) and (iii) are correct.",
+                    "Uttaramerur inscriptions document Kudavolai election procedures, committees were termed Variyams, and land tax was known as Irai. All three statements are historically valid."
+                )
+            ],
+            "chronological": [
+                (
+                    "Arrange the following major milestones of the Indian National Movement in chronological order:\n1. Non-Cooperation Movement\n2. Salt Satyagraha (Dandi March)\n3. Rowlatt Act\n4. Quit India Movement",
+                    "3, 1, 2, 4", "1, 2, 3, 4", "3, 2, 1, 4", "4, 3, 2, 1",
+                    "Chronological sequence: Rowlatt Act (1919) -> Non-Cooperation Movement (1920) -> Salt Satyagraha (1930) -> Quit India Movement (1942). Sequence: 3, 1, 2, 4."
                 )
             ]
         }
     }
 
-    sub_key = subject if subject in curriculum_db else "Science"
-    data = curriculum_db[sub_key]
+    is_english = (lang == "English")
+    curriculum = curriculum_db_en if is_english else curriculum_db_ta
+
+    sub_key = subject if subject in curriculum else ("English" if is_english else "Tamil")
+    data = curriculum.get(sub_key, list(curriculum.values())[0])
+
     topics = data["topics"]
     matches = data["matches"]
     ar_list = data["assertion_reasons"]
     multi_list = data["multi_statements"]
     chrono_list = data["chronological"]
 
-    type_labels = [
-        "முக்கிய கொள்குறி வினா (Core MCQ)",
-        "உயர் சிந்தனை வினா (HOTS Analysis)",
-        "பொருத்துக வகை வினா (Match the Following)",
-        "கூற்று - காரணம் வினா (Assertion & Reasoning)",
-        "பல்கூற்று வினா (Multi-Statement Analysis)",
-        "கால / படிநிலை வரிசைப்படுத்துதல் (Sequential Ordering)"
-    ]
+    if is_english:
+        type_labels = [
+            "Core MCQ",
+            "HOTS Analysis",
+            "Match the Following",
+            "Assertion & Reasoning",
+            "Multi-Statement Analysis",
+            "Sequential Ordering"
+        ]
+    else:
+        type_labels = [
+            "முக்கிய கொள்குறி வினா",
+            "உயர் சிந்தனை வினா",
+            "பொருத்துக வகை வினா",
+            "கூற்று - காரணம் வினா",
+            "பல்கூற்று வினா",
+            "கால / படிநிலை வரிசைப்படுத்துதல்"
+        ]
+
+    questions = []
 
     for i in range(1, count + 1):
         type_idx = (i - 1) % len(type_labels)
@@ -386,91 +608,154 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
 
         elif type_idx == 1:  # HOTS
             topic_title, subtopics, concept_desc = topics[(i - 1) % len(topics)]
-            if subject == "Tamil":
-                q_text = f"'{lesson_title}' பாடப்பகுதியில், ஆசிரியர் முன்வைக்கும் முதன்மைக் கருத்தான '{concept_desc}' என்பதை ஆழமாகப் பகுப்பாய்வு செய்யும் போது கீழ்க்கண்டவற்றுள் எது மிகவும் பொருத்தமான உயர்சிந்தனைக் கருத்தாகும்?"
-                correct_opt = f"பாடத்தின் கருத்தியல் பின்னணியில் {concept_desc} என்பது நடைமுறை வாழ்வியல் ஒழுக்கத்தோடும் மொழியியல் பண்பாட்டோடும் இயைந்து நிற்பது."
-                wrong_opts = [
-                    f"இக்கருத்து வெறும் ஏட்டளவிலான விதிகளோடு மட்டும் முடிந்துவிடுகிறது.",
-                    f"முந்தைய இலக்கண விதிகளுக்கு முற்றிலும் முரணான மாற்றுப் பார்வையை முன்வைப்பது.",
-                    f"எவ்வித வரலாற்றுப் பின்னணியும் இன்றி மேலோட்டமாக விளக்கப்படுவது."
-                ]
-                exp = f"விளக்கம்: {lesson_title} பாடப்பகுதியில் {concept_desc} என்பது இலக்கியப் பயன்பாட்டைத் தாண்டி தமிழ்ச் சமூகத்தின் சிந்தனை மரபை வெளிப்படுத்துகிறது. சரியான விடை: '{correct_opt}'."
-            elif subject == "Mathematics":
-                val1 = (i * 3) + 7
-                val2 = (i * 2) + 5
-                result_val = (val1 * val2) - 10
-                q_text = f"In {lesson_title}, apply analytical reasoning: Given expression P = ({val1} × {val2}) - 10 under the properties of {concept_desc}. What is the unique value of P and its prime factorization status?"
-                correct_opt = f"P = {result_val}, which validates the operational symmetry of {topic_title}."
-                wrong_opts = [
-                    f"P = {result_val + 15}, satisfying non-linear boundary limits.",
-                    f"P = {result_val - 12}, representing an undefined irrational subset.",
-                    f"P = {result_val * 2}, which violates arithmetic distributive laws."
-                ]
-                exp = f"Calculation & Explanation: Step-by-step evaluation yields ({val1} × {val2}) - 10 = {result_val}. Correct Choice is: '{correct_opt}'."
-            elif subject == "English":
-                q_text = f"In the study of {lesson_title}, which analytical deduction best demonstrates mastery over '{concept_desc}' in complex structural composition?"
-                correct_opt = f"Synthesizing subordinate clauses using {topic_title} while preserving thematic coherence."
-                wrong_opts = [
-                    f"Using passive voice indiscriminately to lengthen sentence count.",
-                    f"Eliminating contextual markers in dependent clauses.",
-                    f"Applying non-standard agreement markers in compound predicates."
-                ]
-                exp = f"Explanation: Advanced composition requires mastery over syntactic cohesion. Correct Answer: '{correct_opt}'."
+            if is_english:
+                if subject == "Mathematics":
+                    val1 = (i * 3) + 7
+                    val2 = (i * 2) + 5
+                    result_val = (val1 * val2) - 10
+                    q_text = f"In '{lesson_title}', apply analytical reasoning: Given expression P = ({val1} × {val2}) - 10 under the operational rules of {concept_desc}. What is the correct value of P?"
+                    correct_opt = f"P = {result_val}, which preserves the operational properties of {topic_title}."
+                    wrong_opts = [
+                        f"P = {result_val + 15}, which violates boundary condition limits.",
+                        f"P = {result_val - 12}, representing an undefined irrational subset.",
+                        f"P = {result_val * 2}, which doubles the distributive outcome."
+                    ]
+                    exp = f"Explanation: Direct mathematical evaluation yields ({val1} × {val2}) - 10 = {result_val}. Correct choice: '{correct_opt}'."
+                elif subject == "Science":
+                    q_text = f"In '{lesson_title}', which higher-order deduction best explains the scientific mechanism behind '{concept_desc}'?"
+                    correct_opt = f"Changes within {topic_title} occur in strict compliance with conservation laws and systemic equilibrium."
+                    wrong_opts = [
+                        f"{topic_title} processes operate without reference to foundational scientific principles.",
+                        f"Variations in ambient temperature and pressure exert no measurable influence on the system.",
+                        f"The transformation is wholly irreversible and exempt from analytical investigation."
+                    ]
+                    exp = f"Scientific Explanation: {concept_desc} acts as the core investigative principle within {lesson_title}. Correct choice: '{correct_opt}'."
+                elif subject == "Social Science":
+                    q_text = f"In '{lesson_title}', what critical perspective best evaluates '{concept_desc}' in the context of institutional governance?"
+                    correct_opt = f"Historical and civic frameworks under {topic_title} balance institutional accountability with constitutional mandates."
+                    wrong_opts = [
+                        f"Governance policies in this era were formulated without statutory or administrative precedent.",
+                        f"Social and economic dynamics had no bearing on institutional outcomes.",
+                        f"The administrative structure operated purely as a temporary, ad-hoc measure."
+                    ]
+                    exp = f"Civic/Historical Explanation: {concept_desc} provides the foundational basis for understanding {lesson_title}. Correct choice: '{correct_opt}'."
+                else:
+                    q_text = f"In '{lesson_title}', analyze the core theme of '{concept_desc}'. Which critical interpretation is most sound?"
+                    correct_opt = f"Mastery of {topic_title} ensures contextual accuracy and conceptual integrity across standard applications."
+                    wrong_opts = [
+                        f"The concept represents an obsolete framework superseded by modern colloquial usage.",
+                        f"Application of these guidelines should be avoided in formal analytical discourse.",
+                        f"The principle has no established validity within curriculum standards."
+                    ]
+                    exp = f"Explanation: {concept_desc} is a key learning outcome in {lesson_title}. Correct choice: '{correct_opt}'."
             else:
-                topic_title, subtopics, concept_desc = topics[(i - 1) % len(topics)]
-                q_text = f"'{lesson_title}' பாடப்பகுதியில், '{concept_desc}' தொடர்பான உயர்நிலை அறிவியல்/சமூக ஆய்வுக் கோட்பாட்டின்படி சரியான வாதம் எது?"
-                correct_opt = f"{topic_title} அமைப்பில் நிகழும் மாற்றங்கள் சமநிலை மற்றும் தொடர் விதிகளுக்கு உட்பட்டே இயங்குகின்றன."
-                wrong_opts = [
-                    f"{topic_title} செயல்முறையானது எவ்வித அடிப்படைக் கோட்பாடுகளையும் பின்பற்றுவதில்லை.",
-                    f"வெப்பநிலை மற்றும் அழுத்த மாறுபாடுகள் இக்கோட்பாட்டில் எவ்வித தாக்கத்தையும் ஏற்படுத்துவதில்லை.",
-                    f"இம்மாற்றங்கள் மீளாத தன்மை கொண்டவை என்பதால் ஆய்வுக்கு உட்படாதவை."
-                ]
-                exp = f"விளக்கம்: {concept_desc} என்பது பாடத்தின் மையக் கருத்தாக விளங்கி ஆய்வுக் கண்ணோட்டத்தை உறுதிசெய்கிறது. சரியான விடை: '{correct_opt}'."
+                if subject == "Tamil":
+                    q_text = f"'{lesson_title}' பாடப்பகுதியில், ஆசிரியர் முன்வைக்கும் முதன்மைக் கருத்தான '{concept_desc}' என்பதை ஆழமாகப் பகுப்பாய்வு செய்யும் போது கீழ்க்கண்டவற்றுள் எது மிகவும் பொருத்தமான உயர்சிந்தனைக் கருத்தாகும்?"
+                    correct_opt = f"பாடத்தின் கருத்தியல் பின்னணியில் {concept_desc} என்பது நடைமுறை வாழ்வியல் ஒழுக்கத்தோடும் மொழியியல் பண்பாட்டோடும் இயைந்து நிற்பது."
+                    wrong_opts = [
+                        f"இக்கருத்து வெறும் ஏட்டளவிலான விதிகளோடு மட்டும் முடிந்துவிடுகிறது.",
+                        f"முந்தைய இலக்கண விதிகளுக்கு முற்றிலும் முரணான மாற்றுப் பார்வையை முன்வைப்பது.",
+                        f"எவ்வித வரலாற்றுப் பின்னணியும் இன்றி மேலோட்டமாக விளக்கப்படுவது."
+                    ]
+                    exp = f"விளக்கம்: {lesson_title} பாடப்பகுதியில் {concept_desc} என்பது இலக்கியப் பயன்பாட்டைத் தாண்டி தமிழ்ச் சமூகத்தின் சிந்தனை மரபை வெளிப்படுத்துகிறது. சரியான விடை: '{correct_opt}'."
+                elif subject == "Mathematics":
+                    val1 = (i * 3) + 7
+                    val2 = (i * 2) + 5
+                    result_val = (val1 * val2) - 10
+                    q_text = f"'{lesson_title}' பாடத்தில், உயர்சிந்தனைக் கணிப்பு: {concept_desc} விதிகளின் படி P = ({val1} × {val2}) - 10 எனில், P-ன் சரியான மதிப்பைக் கண்டறிக:"
+                    correct_opt = f"P = {result_val}, இது {topic_title} பண்புகளை நிறைவு செய்கிறது."
+                    wrong_opts = [
+                        f"P = {result_val + 15}, இது எல்லை வரம்புகளுக்கு உட்படாத மதிப்பு.",
+                        f"P = {result_val - 12}, இது வரையறுக்கப்படாத விகிதமுறா எண்.",
+                        f"P = {result_val * 2}, இது கணிதப் பங்கீட்டு விதிக்கு எதிரானது."
+                    ]
+                    exp = f"கணக்கீட்டு விளக்கம்: ({val1} × {val2}) - 10 = {result_val}. சரியான விடை: '{correct_opt}'."
+                else:
+                    q_text = f"'{lesson_title}' பாடப்பகுதியில், '{concept_desc}' தொடர்பான உயர்நிலை ஆய்வுக் கோட்பாட்டின்படி சரியான வாதம் எது?"
+                    correct_opt = f"{topic_title} அமைப்பில் நிகழும் மாற்றங்கள் சமநிலை மற்றும் தொடர் விதிகளுக்கு உட்பட்டே இயங்குகின்றன."
+                    wrong_opts = [
+                        f"{topic_title} செயல்முறையானது எவ்வித அடிப்படைக் கோட்பாடுகளையும் பின்பற்றுவதில்லை.",
+                        f"வெப்பநிலை மற்றும் அழுத்த மாறுபாடுகள் இக்கோட்பாட்டில் எவ்வித தாக்கத்தையும் ஏற்படுத்துவதில்லை.",
+                        f"இம்மாற்றங்கள் மீளாத தன்மை கொண்டவை என்பதால் ஆய்வுக்கு உட்படாதவை."
+                    ]
+                    exp = f"விளக்கம்: {concept_desc} என்பது பாடத்தின் மையக் கருத்தாக விளங்கி ஆய்வுக் கண்ணோட்டத்தை உறுதிசெய்கிறது. சரியான விடை: '{correct_opt}'."
 
             opts = list(wrong_opts)
             opts.insert(target_ans_idx, correct_opt)
 
         else:  # Core MCQ (type_idx == 0)
             topic_title, subtopics, concept_desc = topics[(i - 1) % len(topics)]
-            if subject == "Tamil":
-                q_text = f"'{lesson_title}' பாடத்தில் அமைந்துள்ள '{topic_title}' தொடர்பான வினா: கீழ்க்கண்டவற்றுள் எது சரியான கூற்றாகும்?"
-                correct_opt = f"{subtopics} பற்றிய கருத்துக்கள் தமிழ்ச் செம்மொழி மரபின்படி துல்லியமாக வரையறுக்கப்பட்டுள்ளன."
-                wrong_opts = [
-                    f"{subtopics} என்பது இலக்கண விதிகளுக்கு உட்படாத அமைப்பாகும்.",
-                    f"இவை எவ்வித இலக்கியச் சான்றுகளும் அற்ற பிற்கால இடைச்செருகல்கள்.",
-                    f"பொருள் வேறுபாடு உணர்த்தாத பொதுவான சொல் வழக்குகள்."
-                ]
-                exp = f"பாடக் குறிப்பு விளக்கம்: {lesson_title} பாடப்பகுதியில் {topic_title} சார்ந்த {subtopics} மிக முக்கியமான தகுதித்தேர்வு வினாப் பகுதியாகும். சரியான விடை: '{correct_opt}'."
-            elif subject == "Mathematics":
-                n1 = (i * 4) + 6
-                n2 = (i * 2) + 3
-                sum_val = n1 + n2
-                q_text = f"'{lesson_title}' - {topic_title}: If set A represents {n1} elements and subset B represents {n2} complementary factors, calculate total structural nodes (n1 + n2)."
-                correct_opt = f"Total nodes = {sum_val}, aligning with set theory axioms."
-                wrong_opts = [
-                    f"Total nodes = {sum_val + 4}, violating intersection constraints.",
-                    f"Total nodes = {sum_val - 3}, indicating missing element partitions.",
-                    f"Total nodes = {sum_val * 2}, incorrectly doubling the union set."
-                ]
-                exp = f"Calculation & Explanation: {n1} + {n2} = {sum_val}. Correct choice: '{correct_opt}'."
-            elif subject == "English":
-                q_text = f"'{lesson_title}' - {topic_title}: Choose the grammatically sound assertion representing '{concept_desc}'."
-                correct_opt = f"Standard academic usage requires precise application of {subtopics}."
-                wrong_opts = [
-                    f"Tense consistency may be freely omitted in formal discourse.",
-                    f"Prepositional phrases require no antecedent reference.",
-                    f"Subject-verb agreement is not applicable to compound subjects."
-                ]
-                exp = f"Grammar Principle: Accurate usage of {subtopics} is fundamental in TET Paper 2 English. Correct Answer: '{correct_opt}'."
+            if is_english:
+                if subject == "Mathematics":
+                    n1 = (i * 4) + 6
+                    n2 = (i * 2) + 3
+                    sum_val = n1 + n2
+                    q_text = f"In '{lesson_title}' ({topic_title}): If set A contains {n1} elements and disjoint set B contains {n2} elements, determine the total cardinality of (A ∪ B):"
+                    correct_opt = f"Total elements = {sum_val}, satisfying fundamental set theory."
+                    wrong_opts = [
+                        f"Total elements = {sum_val + 4}, violating union bounds.",
+                        f"Total elements = {sum_val - 3}, omitting required subset partitions.",
+                        f"Total elements = {sum_val * 2}, erroneously duplicating the union count."
+                    ]
+                    exp = f"Calculation: Cardinality of disjoint union = {n1} + {n2} = {sum_val}. Correct choice: '{correct_opt}'."
+                elif subject == "Science":
+                    q_text = f"In '{lesson_title}' ({topic_title}): Which fundamental principle correctly defines the role of {subtopics}?"
+                    correct_opt = f"{concept_desc} is experimentally verified in accordance with natural laws."
+                    wrong_opts = [
+                        f"{concept_desc} is an untested hypothesis without empirical evidence.",
+                        f"The phenomenon does not adhere to universal physical or biological laws.",
+                        f"The principle is outside the scope of competitive syllabus standards."
+                    ]
+                    exp = f"Scientific Explanation: {lesson_title} establishes that {concept_desc} is central to {topic_title}. Correct choice: '{correct_opt}'."
+                elif subject == "Social Science":
+                    q_text = f"In '{lesson_title}' ({topic_title}): Which statement accurately reflects the historical/civic context of {subtopics}?"
+                    correct_opt = f"{concept_desc} forms a cornerstone of Indian administrative and socio-economic history."
+                    wrong_opts = [
+                        f"This development had no lasting impact on subsequent regional administration.",
+                        f"The historical records regarding this concept have been thoroughly refuted.",
+                        f"The principle applies exclusively to external foreign affairs."
+                    ]
+                    exp = f"Explanation: {concept_desc} is a vital curriculum component in {lesson_title}. Correct choice: '{correct_opt}'."
+                else:
+                    q_text = f"In '{lesson_title}' ({topic_title}): Identify the statement that correctly exemplifies '{concept_desc}':"
+                    correct_opt = f"Standard academic usage requires precise application of {subtopics}."
+                    wrong_opts = [
+                        f"Syntactic consistency may be freely omitted in formal academic work.",
+                        f"Prepositional phrases require no antecedent or grammatical agreement.",
+                        f"Subject-verb agreement does not apply to compound predicates."
+                    ]
+                    exp = f"Grammar Principle: Accurate usage of {subtopics} is fundamental in TET Paper 2. Correct choice: '{correct_opt}'."
             else:
-                q_text = f"'{lesson_title}' - {topic_title}: {subtopics} குறித்த சரியான கொள்குறி விளக்கம் யாது?"
-                correct_opt = f"{concept_desc} என்பது இப்பாடப்பகுதியின் அடிப்படை விதிகளுக்கு உட்பட்டு விவரிக்கப்படுகிறது."
-                wrong_opts = [
-                    f"{concept_desc} என்பது நடைமுறைச் சூழலுக்குப் பொருந்தாத கருதுகோள் மட்டுமே.",
-                    f"இக்கோட்பாடு எவ்வித அறிவியல்/வரலாற்றுச் சான்றுகளாலும் நிரூபிக்கப்படவில்லை.",
-                    f"இது தகுதித்தேர்வுப் பாடத்திட்டத்திற்கு அப்பாற்பட்டது."
-                ]
-                exp = f"விரிவான விளக்கம்: {lesson_title} பாடத்தில் {topic_title} என்பது {concept_desc} சார்ந்த அடிப்படைக் கருத்துக்களைக் கற்பிக்கிறது. சரியான விடை: '{correct_opt}'."
+                if subject == "Tamil":
+                    q_text = f"'{lesson_title}' பாடத்தில் அமைந்துள்ள '{topic_title}' தொடர்பான வினா: கீழ்க்கண்டவற்றுள் எது சரியான கொள்குறி விளக்கமாகும்?"
+                    correct_opt = f"{subtopics} பற்றிய கருத்துக்கள் தமிழ்ச் செம்மொழி மரபின்படி துல்லியமாக வரையறுக்கப்பட்டுள்ளன."
+                    wrong_opts = [
+                        f"{subtopics} என்பது இலக்கண விதிகளுக்கு உட்படாத அமைப்பாகும்.",
+                        f"இவை எவ்வித இலக்கியச் சான்றுகளும் அற்ற பிற்கால இடைச்செருகல்கள்.",
+                        f"பொருள் வேறுபாடு உணர்த்தாத பொதுவான சொல் வழக்குகள்."
+                    ]
+                    exp = f"பாடக் குறிப்பு விளக்கம்: {lesson_title} பாடப்பகுதியில் {topic_title} சார்ந்த {subtopics} மிக முக்கியமான தகுதித்தேர்வு வினாப் பகுதியாகும். சரியான விடை: '{correct_opt}'."
+                elif subject == "Mathematics":
+                    n1 = (i * 4) + 6
+                    n2 = (i * 2) + 3
+                    sum_val = n1 + n2
+                    q_text = f"'{lesson_title}' - {topic_title}: கணம் A-ல் {n1} உறுப்புகளும், கணம் B-ல் {n2} உறுப்புகளும் வெட்டாத கணங்களாக இருப்பின், n(A ∪ B)-ன் மதிப்பைக் காண்க:"
+                    correct_opt = f"மொத்த உறுப்புகள் = {sum_val}, இது கணக் கோட்பாட்டின் விதியாகும்."
+                    wrong_opts = [
+                        f"மொத்த உறுப்புகள் = {sum_val + 4}, இது கண விதிகளுக்கு எதிரானது.",
+                        f"மொத்த உறுப்புகள் = {sum_val - 3}, இது போதிய உறுப்புகள் அற்றது.",
+                        f"மொத்த உறுப்புகள் = {sum_val * 2}, இது இருமடங்காகப் பெருக்கப்படும் தவறான முடிவு."
+                    ]
+                    exp = f"கணக்கீடு & விளக்கம்: n(A ∪ B) = {n1} + {n2} = {sum_val}. சரியான விடை: '{correct_opt}'."
+                else:
+                    q_text = f"'{lesson_title}' - {topic_title}: {subtopics} குறித்த சரியான கொள்குறி விளக்கம் யாது?"
+                    correct_opt = f"{concept_desc} என்பது இப்பாடப்பகுதியின் அடிப்படை விதிகளுக்கு உட்பட்டு விவரிக்கப்படுகிறது."
+                    wrong_opts = [
+                        f"{concept_desc} என்பது நடைமுறைச் சூழலுக்குப் பொருந்தாத கருதுகோள் மட்டுமே.",
+                        f"இக்கோட்பாடு எவ்வித அறிவியல்/வரலாற்றுச் சான்றுகளாலும் நிரூபிக்கப்படவில்லை.",
+                        f"இது தகுதித்தேர்வுப் பாடத்திட்டத்திற்கு அப்பாற்பட்டது."
+                    ]
+                    exp = f"விரிவான விளக்கம்: {lesson_title} பாடத்தில் {topic_title} என்பது {concept_desc} சார்ந்த அடிப்படைக் கருத்துக்களைக் கற்பிக்கிறது. சரியான விடை: '{correct_opt}'."
 
             opts = list(wrong_opts)
             opts.insert(target_ans_idx, correct_opt)
@@ -485,4 +770,5 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
         })
 
     return questions
+
 

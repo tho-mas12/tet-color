@@ -114,6 +114,7 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
     const secs = seconds % 60;
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
+  const formatTime = formatTimer;
 
   const stageLabels = {
     1: { name: "Stage 1: பாடம் & குறிப்புகள் (Study Material)", icon: FileText, color: "text-[#0055ff]" },

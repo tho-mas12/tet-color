@@ -691,7 +691,9 @@ def get_practice_questions(
         term=lesson.term,
         lesson_title=lesson.title,
         count=target_count or 200,
-        api_key=api_key
+        api_key=api_key,
+        medium=getattr(lesson, "medium", ""),
+        description=getattr(lesson, "description", "")
     )
     return {
         "lesson_title": lesson.title,
@@ -739,7 +741,9 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
             term=lesson.term,
             lesson_title=lesson.title,
             count=test_count,
-            api_key=api_key
+            api_key=api_key,
+            medium=getattr(lesson, "medium", ""),
+            description=getattr(lesson, "description", "")
         )
 
     test_payload = []
@@ -1092,7 +1096,9 @@ def admin_generate_lesson_quiz(
         term=lesson.term,
         lesson_title=lesson.title,
         count=count or 200,
-        api_key=api_key
+        api_key=api_key,
+        medium=getattr(lesson, "medium", ""),
+        description=getattr(lesson, "description", "")
     )
 
     questions_json = json.dumps(questions, ensure_ascii=False)
@@ -1600,7 +1606,9 @@ def admin_create_daily_practice(payload: schemas.DailyPracticeCreate, db: Sessio
             term=payload.term,
             lesson_title=payload.title,
             count=payload.test_questions_count or 20,
-            api_key=api_key
+            api_key=api_key,
+            medium=getattr(payload, "medium", ""),
+            description=payload.description or ""
         )
         qs_json = json.dumps(qs, ensure_ascii=False)
 
@@ -1673,7 +1681,9 @@ def admin_generate_daily_quiz(dp_id: int, count: int = 20, db: Session = Depends
         term=dp.term,
         lesson_title=dp.title,
         count=count,
-        api_key=api_key
+        api_key=api_key,
+        medium=getattr(dp, "medium", ""),
+        description=getattr(dp, "description", "")
     )
     dp.quiz_questions = json.dumps(qs, ensure_ascii=False)
     dp.test_questions_count = count
