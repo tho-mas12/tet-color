@@ -28,6 +28,10 @@ def run_sqlite_migrations():
             cursor.execute("ALTER TABLE lessons ADD COLUMN quiz_type1 TEXT")
         if cols and "quiz_type2" not in cols:
             cursor.execute("ALTER TABLE lessons ADD COLUMN quiz_type2 TEXT")
+        if cols and "stage4_unlock_time" not in cols:
+            cursor.execute("ALTER TABLE lessons ADD COLUMN stage4_unlock_time TEXT DEFAULT '20:00'")
+        if cols and "stage4_force_open" not in cols:
+            cursor.execute("ALTER TABLE lessons ADD COLUMN stage4_force_open BOOLEAN DEFAULT 0")
         
         cursor.execute("PRAGMA table_info(lesson_progress)")
         pcols = [row[1] for row in cursor.fetchall()]
@@ -44,7 +48,7 @@ run_sqlite_migrations()
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="TET Platform API", version="1.3.0")
+app = FastAPI(title="TET Platform API", version="1.4.0")
 
 # CORS setup for Vite React frontend
 app.add_middleware(
@@ -87,18 +91,10 @@ def seed_initial_data(db: Session):
         db.add(admin)
         db.commit()
 
-    demo_user = db.query(models.User).filter(models.User.email == "student@tet.com").first()
-    if not demo_user:
-        demo_user = models.User(
-            name="Kavitha S.",
-            email="student@tet.com",
-            password_hash="student123",
-            role="student",
-            streak_count=14,
-            daily_tasks_done=2,
-            daily_tasks_total=4
-        )
-        db.add(demo_user)
+    # Purge any dummy student data
+    dummy_student = db.query(models.User).filter(models.User.email == "student@tet.com").first()
+    if dummy_student:
+        db.delete(dummy_student)
         db.commit()
 
     if db.query(models.Announcement).count() == 0:
@@ -138,24 +134,23 @@ def seed_initial_data(db: Session):
         db.add_all([card1, card2])
         db.commit()
 
-    # Seed Demo Live Meeting so it is immediately active and visible on the dashboard
+    # Seed Live Meeting if none exists
     now = datetime.datetime.now()
     now_iso = now.strftime("%Y-%m-%dT%H:%M")
     if db.query(models.LiveMeeting).count() == 0:
         start_iso = (now - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
         end_iso = (now + datetime.timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
-        demo_meeting = models.LiveMeeting(
-            title="🔴 TN TET Paper-2 Live Science & Social Science Special Class",
+        meeting = models.LiveMeeting(
+            title="TN TET Paper-2 Live Science & Social Science Special Class",
             meeting_link="https://meet.google.com/abc-defg-hij",
             start_time=start_iso,
             end_time=end_iso,
             description="Live interactive coaching, question paper blueprint analysis & doubt clearing session. Join with the Google Meet link.",
             is_active=True
         )
-        db.add(demo_meeting)
+        db.add(meeting)
         db.commit()
     else:
-        # Ensure at least one active demo meeting for live demonstration
         active_live = db.query(models.LiveMeeting).filter(models.LiveMeeting.end_time > now_iso, models.LiveMeeting.is_active == True).first()
         if not active_live:
             first_m = db.query(models.LiveMeeting).first()
@@ -494,6 +489,9 @@ def get_learning_structure(
                 "video_url": les.video_url,
                 "available_at": les.available_at,
                 "is_disabled_by_schedule": is_scheduled_future,
+                "stage4_unlock_time": les.stage4_unlock_time or "20:00",
+                "stage4_force_open": bool(les.stage4_force_open),
+                "is_stage4_locked_by_time": (not bool(les.stage4_force_open)) and (datetime.datetime.now().strftime("%H:%M") < (les.stage4_unlock_time or "20:00")),
                 "has_quiz_type1": bool(les.quiz_type1),
                 "has_quiz_type2": bool(les.quiz_type2),
                 "stage1_pdf": s1,
@@ -555,6 +553,13 @@ def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: S
 
     now_iso = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M")
     is_scheduled_future = bool(lesson.available_at and lesson.available_at > now_iso)
+    
+    now_hm = datetime.datetime.now().strftime("%H:%M")
+    stage4_time = lesson.stage4_unlock_time or "20:00"
+    is_stage4_time_locked = False
+    if not lesson.stage4_force_open:
+        if now_hm < stage4_time:
+            is_stage4_time_locked = True
 
     return {
         "lesson": {
@@ -569,6 +574,9 @@ def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: S
             "video_url": lesson.video_url,
             "available_at": lesson.available_at,
             "is_disabled_by_schedule": is_scheduled_future,
+            "stage4_unlock_time": stage4_time,
+            "stage4_force_open": bool(lesson.stage4_force_open),
+            "is_stage4_locked_by_time": is_stage4_time_locked,
             "has_quiz_type1": bool(lesson.quiz_type1),
             "has_quiz_type2": bool(lesson.quiz_type2),
         },
@@ -685,6 +693,14 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
 
+    now_hm = datetime.datetime.now().strftime("%H:%M")
+    target_hm = lesson.stage4_unlock_time or "20:00"
+    if not lesson.stage4_force_open and now_hm < target_hm:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Stage 4 Final Exam opens daily at 8:00 PM ({target_hm}). Current time is {now_hm}. Please prepare using Stage 1 and Stage 3 until 8:00 PM."
+        )
+
     settings = db.query(models.AdminSettings).first()
     api_key = settings.gemini_api_key if settings else ""
     test_count = settings.test_question_count if settings else 100
@@ -716,7 +732,6 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
     for q in questions:
         test_payload.append({
             "id": q["id"],
-            "question_type": q.get("question_type", "கொள்குறி வினா"),
             "question": q["question"],
             "options": q["options"]
         })
@@ -1367,6 +1382,347 @@ def delete_tet_card(card_id: str, db: Session = Depends(get_db)):
     db.delete(card)
     db.commit()
     return {"message": "TET Card deleted successfully!"}
+
+# --- STAGE 4 UNLOCK CONTROLS (DEFAULT 8:00 PM WITH MANUAL ADMIN OVERRIDE) ---
+
+@app.post("/api/admin/lessons/{lesson_id}/toggle-stage4")
+def toggle_lesson_stage4(lesson_id: int, db: Session = Depends(get_db)):
+    lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found.")
+    lesson.stage4_force_open = not bool(lesson.stage4_force_open)
+    db.commit()
+    db.refresh(lesson)
+    status_str = "unlocked immediately" if lesson.stage4_force_open else "locked to default 8:00 PM"
+    return {
+        "message": f"Stage 4 is now {status_str} for '{lesson.title}'.",
+        "stage4_force_open": lesson.stage4_force_open,
+        "stage4_unlock_time": lesson.stage4_unlock_time or "20:00"
+    }
+
+@app.post("/api/admin/lessons/unlock-all-stage4")
+def unlock_all_stage4(db: Session = Depends(get_db)):
+    db.query(models.Lesson).update({models.Lesson.stage4_force_open: True})
+    db.commit()
+    return {"message": "All Stage 4 Final Exams are now unlocked immediately for students!"}
+
+# --- GOOGLE AUTHENTICATION ENDPOINT ---
+
+@app.post("/api/auth/google", response_model=schemas.UserProfile)
+def auth_google(payload: schemas.GoogleAuthPayload, db: Session = Depends(get_db)):
+    email = payload.email
+    name = payload.name or "Teacher Candidate"
+    
+    # If credential JWT token is passed, decode email/name
+    if not email and payload.credential:
+        try:
+            import base64
+            parts = payload.credential.split(".")
+            if len(parts) >= 2:
+                padded = parts[1] + "=" * ((4 - len(parts[1]) % 4) % 4)
+                decoded_bytes = base64.urlsafe_b64decode(padded)
+                data = json.loads(decoded_bytes.decode("utf-8"))
+                email = data.get("email")
+                name = data.get("name") or name
+        except Exception as e:
+            print(f"[Google Token Decode Error] {e}")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Invalid Google authentication payload.")
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        user = models.User(
+            name=name,
+            email=email,
+            password_hash="google_oauth_user",
+            role="student",
+            streak_count=1,
+            daily_tasks_done=0,
+            daily_tasks_total=4
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return user
+
+# --- DAILY PRACTICE TEST ENDPOINTS ---
+
+@app.get("/api/daily-practice/active")
+def get_active_daily_practices(db: Session = Depends(get_db)):
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    items = db.query(models.DailyPractice).filter(models.DailyPractice.is_active == True).order_by(models.DailyPractice.id.desc()).all()
+    res = []
+    for dp in items:
+        qs_count = 0
+        if dp.quiz_questions:
+            try:
+                parsed = json.loads(dp.quiz_questions)
+                if isinstance(parsed, list):
+                    qs_count = len(parsed)
+            except Exception:
+                pass
+        
+        stages = [int(s.strip()) for s in (dp.active_stages or "1,3,4").split(",") if s.strip().isdigit()]
+        res.append({
+            "id": dp.id,
+            "title": dp.title,
+            "description": dp.description or "",
+            "class_num": dp.class_num,
+            "subject": dp.subject,
+            "term": dp.term,
+            "active_stages": stages,
+            "pdf_url": dp.pdf_url or "",
+            "video_url": dp.video_url or "",
+            "has_quiz": qs_count > 0,
+            "quiz_questions_count": qs_count,
+            "test_questions_count": dp.test_questions_count or 20,
+            "time_limit_mins": dp.time_limit_mins or 20,
+            "pass_percentage": dp.pass_percentage or 80,
+            "available_date": dp.available_date or today_str,
+            "is_active": dp.is_active,
+            "created_at": dp.created_at.isoformat() if dp.created_at else None
+        })
+    return res
+
+@app.get("/api/daily-practice/{dp_id}")
+def get_daily_practice_detail(dp_id: int, db: Session = Depends(get_db)):
+    dp = db.query(models.DailyPractice).filter(models.DailyPractice.id == dp_id).first()
+    if not dp:
+        raise HTTPException(status_code=404, detail="Daily practice test not found.")
+    
+    questions = []
+    if dp.quiz_questions:
+        try:
+            questions = json.loads(dp.quiz_questions)
+        except Exception:
+            pass
+
+    stages = [int(s.strip()) for s in (dp.active_stages or "1,3,4").split(",") if s.strip().isdigit()]
+    return {
+        "id": dp.id,
+        "title": dp.title,
+        "description": dp.description or "",
+        "class_num": dp.class_num,
+        "subject": dp.subject,
+        "term": dp.term,
+        "active_stages": stages,
+        "pdf_url": dp.pdf_url or "",
+        "video_url": dp.video_url or "",
+        "questions": questions,
+        "test_questions_count": dp.test_questions_count or 20,
+        "time_limit_mins": dp.time_limit_mins or 20,
+        "pass_percentage": dp.pass_percentage or 80,
+        "available_date": dp.available_date,
+        "is_active": dp.is_active
+    }
+
+@app.get("/api/admin/daily-practice")
+def admin_get_daily_practices(db: Session = Depends(get_db)):
+    items = db.query(models.DailyPractice).order_by(models.DailyPractice.created_at.desc()).all()
+    res = []
+    for dp in items:
+        qs_count = 0
+        if dp.quiz_questions:
+            try:
+                parsed = json.loads(dp.quiz_questions)
+                if isinstance(parsed, list):
+                    qs_count = len(parsed)
+            except Exception:
+                pass
+        stages = [int(s.strip()) for s in (dp.active_stages or "1,3,4").split(",") if s.strip().isdigit()]
+        res.append({
+            "id": dp.id,
+            "title": dp.title,
+            "description": dp.description or "",
+            "class_num": dp.class_num,
+            "subject": dp.subject,
+            "term": dp.term,
+            "active_stages": stages,
+            "pdf_url": dp.pdf_url or "",
+            "video_url": dp.video_url or "",
+            "quiz_questions_count": qs_count,
+            "test_questions_count": dp.test_questions_count or 20,
+            "time_limit_mins": dp.time_limit_mins or 20,
+            "pass_percentage": dp.pass_percentage or 80,
+            "available_date": dp.available_date,
+            "is_active": dp.is_active,
+            "created_at": dp.created_at.isoformat() if dp.created_at else None
+        })
+    return res
+
+@app.post("/api/admin/daily-practice")
+def admin_create_daily_practice(payload: schemas.DailyPracticeCreate, db: Session = Depends(get_db)):
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    
+    qs_json = ""
+    if payload.quiz_questions and len(payload.quiz_questions) > 0:
+        qs_json = json.dumps(payload.quiz_questions, ensure_ascii=False)
+    else:
+        settings = db.query(models.AdminSettings).first()
+        api_key = settings.gemini_api_key if settings else ""
+        qs = ai_generator.generate_practice_questions(
+            class_num=payload.class_num,
+            subject=payload.subject,
+            term=payload.term,
+            lesson_title=payload.title,
+            count=payload.test_questions_count or 20,
+            api_key=api_key
+        )
+        qs_json = json.dumps(qs, ensure_ascii=False)
+
+    dp = models.DailyPractice(
+        title=payload.title,
+        description=payload.description or "",
+        class_num=payload.class_num,
+        subject=payload.subject,
+        term=payload.term,
+        active_stages=payload.active_stages or "1,3,4",
+        pdf_url=payload.pdf_url or "",
+        video_url=payload.video_url or "",
+        quiz_questions=qs_json,
+        test_questions_count=payload.test_questions_count or 20,
+        time_limit_mins=payload.time_limit_mins or 20,
+        pass_percentage=payload.pass_percentage or 80,
+        available_date=payload.available_date or today_str,
+        is_active=True
+    )
+    db.add(dp)
+    db.commit()
+    db.refresh(dp)
+    return {"message": "Daily practice card created successfully!", "id": dp.id}
+
+@app.put("/api/admin/daily-practice/{dp_id}")
+def admin_update_daily_practice(dp_id: int, payload: schemas.DailyPracticeUpdate, db: Session = Depends(get_db)):
+    dp = db.query(models.DailyPractice).filter(models.DailyPractice.id == dp_id).first()
+    if not dp:
+        raise HTTPException(status_code=404, detail="Daily practice test not found.")
+    
+    if payload.title is not None: dp.title = payload.title
+    if payload.description is not None: dp.description = payload.description
+    if payload.class_num is not None: dp.class_num = payload.class_num
+    if payload.subject is not None: dp.subject = payload.subject
+    if payload.term is not None: dp.term = payload.term
+    if payload.active_stages is not None: dp.active_stages = payload.active_stages
+    if payload.pdf_url is not None: dp.pdf_url = payload.pdf_url
+    if payload.video_url is not None: dp.video_url = payload.video_url
+    if payload.quiz_questions is not None: dp.quiz_questions = json.dumps(payload.quiz_questions, ensure_ascii=False)
+    if payload.test_questions_count is not None: dp.test_questions_count = payload.test_questions_count
+    if payload.time_limit_mins is not None: dp.time_limit_mins = payload.time_limit_mins
+    if payload.pass_percentage is not None: dp.pass_percentage = payload.pass_percentage
+    if payload.available_date is not None: dp.available_date = payload.available_date
+    if payload.is_active is not None: dp.is_active = payload.is_active
+
+    db.commit()
+    db.refresh(dp)
+    return {"message": "Daily practice test updated successfully!"}
+
+@app.delete("/api/admin/daily-practice/{dp_id}")
+def admin_delete_daily_practice(dp_id: int, db: Session = Depends(get_db)):
+    dp = db.query(models.DailyPractice).filter(models.DailyPractice.id == dp_id).first()
+    if not dp:
+        raise HTTPException(status_code=404, detail="Daily practice test not found.")
+    db.delete(dp)
+    db.commit()
+    return {"message": "Daily practice test deleted successfully!"}
+
+@app.post("/api/admin/daily-practice/{dp_id}/generate-quiz")
+def admin_generate_daily_quiz(dp_id: int, count: int = 20, db: Session = Depends(get_db)):
+    dp = db.query(models.DailyPractice).filter(models.DailyPractice.id == dp_id).first()
+    if not dp:
+        raise HTTPException(status_code=404, detail="Daily practice test not found.")
+    
+    settings = db.query(models.AdminSettings).first()
+    api_key = settings.gemini_api_key if settings else ""
+    qs = ai_generator.generate_practice_questions(
+        class_num=dp.class_num,
+        subject=dp.subject,
+        term=dp.term,
+        lesson_title=dp.title,
+        count=count,
+        api_key=api_key
+    )
+    dp.quiz_questions = json.dumps(qs, ensure_ascii=False)
+    dp.test_questions_count = count
+    db.commit()
+    return {"message": f"Successfully generated {len(qs)} questions for '{dp.title}'!", "questions_count": len(qs)}
+
+# --- NEWS & LIVE AI NEWS ENDPOINTS ---
+
+@app.get("/api/news")
+def get_news(category: Optional[str] = "all", db: Session = Depends(get_db)):
+    news_items = [
+        {
+            "id": "news_1",
+            "title": "TN TET Paper 2 - முக்கிய மாதிரி வினா விடைகள் மற்றும் மாதிரித் தேர்வு வழிகாட்டுதல்",
+            "description": "தமிழ்நாடு ஆசிரியர் தகுதித் தேர்வு (TNTET Paper 2) தயாரிப்பில் ஈடுபட்டுள்ள பட்டதாரி ஆசிரியர்களுக்கான மாதிரித் தேர்வுகள் மற்றும் 80% தேர்ச்சி மதிப்பெண் வழிகாட்டுதல்கள் வெளியிடப்பட்டுள்ளன. பாடவாரியான மாதிரி வினாத்தாள்களை போர்ட்டலில் இருந்து நேரடியாக PDF வடிவில் பதிவிறக்கம் செய்து பயிலலாம்.",
+            "category": "education",
+            "source": "TN TET தேர்வு மையம்",
+            "imageUrl": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&auto=format&fit=crop&q=80",
+            "link": "#",
+            "pubDate": datetime.datetime.now().isoformat()
+        },
+        {
+            "id": "news_2",
+            "title": "ஆசிரியர் தேர்வு வாரியம் (TRB) - பட்டதாரி ஆசிரியர் காலிப்பணியிடங்கள் புதிய பாடத்திட்ட சுற்றறிக்கை",
+            "description": "பள்ளி கல்வித்துறை சார்பில் ஆசிரியர் தேர்வு வாரியம் வழியாக நிரப்பப்பட உள்ள காலிப்பணியிடங்களுக்கு 6 முதல் 12 ஆம் வகுப்பு வரையிலான தமிழ்நாடு அரசு சமச்சீர் கல்வி பாடப்புத்தகங்களின் முக்கியத்துவம் மீண்டும் வலியுறுத்தப்பட்டுள்ளது. தினசரி நேரலை வகுப்புகள் மற்றும் மாதிரிப் பயிற்சிகள் மூலம் ஆசிரியர்கள் தேர்ச்சி பெற வாய்ப்பு.",
+            "category": "education",
+            "source": "பள்ளிக் கல்வித்துறை",
+            "imageUrl": "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800&auto=format&fit=crop&q=80",
+            "link": "#",
+            "pubDate": (datetime.datetime.now() - datetime.timedelta(hours=2)).isoformat()
+        },
+        {
+            "id": "news_3",
+            "title": "சமூக அறிவியல் & அறிவியல் பாடப்பிரிவுகளுக்கான தினசரி மாதிரி வினாடி வினா பயிற்சி தொடக்கம்",
+            "description": "வகுப்பு 8 மற்றும் 9 ஆம் வகுப்பு பாடங்களில் உள்ள மிக முக்கியமான கொள்குறி வினாக்கள், கூற்று-காரணம் மற்றும் பொருத்துக வகை வினாக்களுக்கு மாணவர்களும் ஆசிரியர்களும் தினசரி பயிற்சி எடுக்கும் வகையில் புதிய மாதிரித் தேர்வு முறை போர்ட்டலில் தொடங்கப்பட்டுள்ளது.",
+            "category": "education",
+            "source": "கல்விச் செய்தி",
+            "imageUrl": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&auto=format&fit=crop&q=80",
+            "link": "#",
+            "pubDate": (datetime.datetime.now() - datetime.timedelta(hours=5)).isoformat()
+        },
+        {
+            "id": "news_4",
+            "title": "தமிழ் இலக்கியம் & இலக்கணம்: செம்மொழித் தகுதித்தேர்வு சிறப்பு ஆய்வுக் கட்டுரைகள்",
+            "description": "சங்க இலக்கியம், எட்டுத்தொகை, பத்துப்பாட்டு மற்றும் தொல்காப்பிய இலக்கண விதிகள் அடங்கிய சிறப்புப் பகுப்பாய்வு தொகுப்பு. ஆசிரியர் தகுதித் தேர்வில் முதல் தாள் மற்றும் இரண்டாம் தாள் எழுதுவோருக்கு பயன்படும் வகையில் முழுமையான விளக்கக் குறிப்புகள் வழங்கப்பட்டுள்ளன.",
+            "category": "education",
+            "source": "தமிழ் தகுதித் தேர்வு மையம்",
+            "imageUrl": "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&auto=format&fit=crop&q=80",
+            "link": "#",
+            "pubDate": (datetime.datetime.now() - datetime.timedelta(hours=8)).isoformat()
+        }
+    ]
+    if category and category != "all":
+        news_items = [n for n in news_items if n.get("category") == category]
+    return news_items
+
+@app.post("/api/news/ai-live")
+def get_ai_live_news(db: Session = Depends(get_db)):
+    now = datetime.datetime.now()
+    live_items = [
+        {
+            "id": f"live_{int(now.timestamp())}_1",
+            "title": f"⚡ [நேரலை] TN TET Paper 2 - இன்றைய கல்வித்துறை முக்கிய அறிவிப்புகள் ({now.strftime('%d-%m-%Y')})",
+            "description": "தமிழக பள்ளிக்கல்வித்துறை மற்றும் ஆசிரியர் தேர்வு வாரியம் (TRB) நடத்தும் TET Paper 2 தேர்விற்கான தற்போதைய தேர்வு மைய முன்னேற்பாடுகள், ஹால் டிக்கெட் விபரங்கள் மற்றும் திருத்தப்பட்ட பாடத்திட்ட வழிகாட்டுதல்கள் வெளியிடப்பட்டுள்ளன.",
+            "category": "education",
+            "source": "மின்னல் கல்வி நேரலை",
+            "imageUrl": "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80",
+            "link": "#",
+            "pubDate": now.isoformat()
+        },
+        {
+            "id": f"live_{int(now.timestamp())}_2",
+            "title": "அறிவியல் & கணிதப் பாடங்களுக்கான உயர் சிந்தனை வினா வங்கி நேரடி தொகுப்பு",
+            "description": "தேர்வர்கள் குறைந்த நேரத்தில் அதிக மதிப்பெண் பெறும் உத்திகள் மற்றும் படிநிலைத் தீர்வுகள் அடங்கிய 200 கொள்குறி வினாத்தாள் வங்கி போர்ட்டலில் உடனடியாகப் படிக்கக் கிடைக்கிறது.",
+            "category": "education",
+            "source": "TET ஆசிரியர் மன்றம்",
+            "imageUrl": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&auto=format&fit=crop&q=80",
+            "link": "#",
+            "pubDate": (now - datetime.timedelta(minutes=30)).isoformat()
+        }
+    ]
+    return {"ok": True, "news": live_items}
 
 if __name__ == "__main__":
     import uvicorn

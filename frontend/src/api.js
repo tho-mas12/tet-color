@@ -77,8 +77,8 @@ export async function fetchApi(endpoint, options = {}) {
 
       return {
         id: 1,
-        name: "Kavitha S. (Teacher Candidate)",
-        email: "student@tet.com",
+        name: "Teacher Candidate",
+        email: "candidate@tet.com",
         role: "student",
         streak_count: 14,
         daily_tasks_done: 0,
@@ -91,8 +91,8 @@ export async function fetchApi(endpoint, options = {}) {
       return {
         user: {
           id: 1,
-          name: "Kavitha S.",
-          email: "student@tet.com",
+          name: "Teacher Candidate",
+          email: "candidate@tet.com",
           role: "student",
           streak_count: 14,
           daily_tasks_done: 0,

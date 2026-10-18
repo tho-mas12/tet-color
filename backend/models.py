@@ -47,6 +47,8 @@ class Lesson(Base):
     pdf_url = Column(String)
     video_url = Column(String)
     available_at = Column(String, nullable=True) # ISO "YYYY-MM-DDTHH:MM" or datetime string
+    stage4_unlock_time = Column(String, default="20:00") # Default opens at 8:00 PM
+    stage4_force_open = Column(Boolean, default=False) # Manual override by admin to open immediately
     quiz_type1 = Column(Text, nullable=True) # JSON string of questions array
     quiz_type2 = Column(Text, nullable=True) # JSON string of alternate questions array
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -112,4 +114,25 @@ class LiveMeeting(Base):
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class DailyPractice(Base):
+    __tablename__ = "daily_practices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    description = Column(Text, nullable=True)
+    class_num = Column(Integer, default=8) # Target class 1-12
+    subject = Column(String, default="Social Science")
+    term = Column(String, default="Term 1")
+    active_stages = Column(String, default="1,3,4") # Comma-separated stages, e.g. "1,3,4"
+    pdf_url = Column(String, nullable=True)
+    video_url = Column(String, nullable=True)
+    quiz_questions = Column(Text, nullable=True) # JSON array of questions
+    test_questions_count = Column(Integer, default=20)
+    time_limit_mins = Column(Integer, default=20)
+    pass_percentage = Column(Integer, default=80)
+    available_date = Column(String, nullable=True) # "YYYY-MM-DD"
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 

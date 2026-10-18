@@ -19,11 +19,15 @@ import {
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
+import DailyPracticeModal from "./DailyPracticeModal";
+import NewsSection from "./NewsSection";
 
 export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, lang = "en" }) {
   const [dashboardData, setDashboardData] = useState(null);
   const [tetCards, setTetCards] = useState([]);
   const [liveMeetings, setLiveMeetings] = useState([]);
+  const [dailyPractices, setDailyPractices] = useState([]);
+  const [selectedDailyPracticeId, setSelectedDailyPracticeId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const t = translations[lang] || translations.en;
@@ -32,7 +36,19 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
     loadDashboard();
     loadTetCards();
     loadLiveMeetings();
+    loadDailyPractices();
   }, [user]);
+
+  const loadDailyPractices = async () => {
+    try {
+      const data = await fetchApi("/daily-practice/active");
+      if (Array.isArray(data)) {
+        setDailyPractices(data);
+      }
+    } catch (err) {
+      console.error("Daily practices error:", err);
+    }
+  };
 
   const loadLiveMeetings = async () => {
     try {
@@ -59,7 +75,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const email = user ? user.email : "student@tet.com";
+      const email = user ? user.email : "candidate@tet.com";
       const data = await fetchApi(`/dashboard?email=${encodeURIComponent(email)}`);
       setDashboardData(data);
     } catch (err) {
@@ -247,6 +263,91 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
               </a>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ================= DAILY PRACTICE TESTS (CONFIGURABLE STAGE CARDS) ================= */}
+      {dailyPractices && dailyPractices.length > 0 && (
+        <div className="space-y-3.5">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-[#061b36] flex items-center space-x-2">
+              <Clock className="w-4 h-4 text-[#ff7a00]" />
+              <span>⚡ Today's Daily Practice Tests (இன்றைய மாதிரிப் பயிற்சித் தேர்வுகள்)</span>
+            </h3>
+            <span className="text-xs sm:text-sm text-slate-500 font-semibold">Class-wise tests with custom stages</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {dailyPractices.map((dp) => (
+              <div
+                key={dp.id}
+                className="bg-white border-2 border-orange-200/80 hover:border-orange-400 rounded-3xl p-5 sm:p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-50 text-[#ff7a00] border border-orange-200">
+                      Class {dp.class_num} • {dp.subject}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">
+                      {dp.term}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-[#061b36] tracking-tight leading-snug">
+                      {dp.title}
+                    </h3>
+                    {dp.description && (
+                      <p className="text-xs text-slate-600 font-medium mt-1 line-clamp-2">
+                        {dp.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Active stages pill badges */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                      Included Stages:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(dp.active_stages || [1, 3, 4]).map((stg) => {
+                        const labels = {
+                          1: "Stage 1: Notes",
+                          2: "Stage 2: Video",
+                          3: "Stage 3: Practice",
+                          4: "Stage 4: Quiz (80%)"
+                        };
+                        return (
+                          <span
+                            key={stg}
+                            className="px-2.5 py-1 rounded-lg bg-blue-50 text-[#0055ff] border border-blue-200/80 text-[11px] font-bold"
+                          >
+                            ✓ {labels[stg] || `Stage ${stg}`}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                  <div className="text-xs text-slate-500 font-semibold">
+                    <span>{dp.quiz_questions_count || dp.test_questions_count || 20} Qs</span>
+                    <span className="mx-1.5">•</span>
+                    <span>{dp.time_limit_mins || 20} Mins</span>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedDailyPracticeId(dp.id)}
+                    className="px-4 py-2.5 rounded-xl bg-[#ff7a00] hover:bg-orange-600 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer min-h-[40px]"
+                  >
+                    <span>Start Test</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -476,62 +577,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
       </div>
 
-      {/* GOOGLE EDUCATION NEWS FEED */}
-      {dashboardData?.news_feed?.length > 0 && (
-        <div className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-6 shadow-xs">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#061b36] flex items-center space-x-2">
-                <Globe className="w-5 h-5 text-[#0055ff] animate-pulse" />
-                <span>{t.educationNewsTitle}</span>
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-                {t.educationNewsSubtitle}
-              </p>
-            </div>
-            <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs font-black uppercase tracking-wider flex items-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <span>{t.liveNewsBadge}</span>
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {dashboardData.news_feed.map((news) => (
-              <a
-                key={news.id}
-                href={news.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-[#0055ff]/40 hover:bg-blue-50/40 transition-all group flex flex-col justify-between card-interactive"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-[#0055ff] border border-[#0055ff]/30 text-xs font-bold">
-                      {news.category || "Education"}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-400">
-                      {news.date}
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold text-[#061b36] group-hover:text-[#0055ff] transition-colors leading-snug line-clamp-2">
-                    {news.title}
-                  </h4>
-                </div>
-
-                <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-xs font-bold text-[#0055ff]">
-                  <span className="text-slate-500 font-medium truncate text-xs">
-                    {news.source}
-                  </span>
-                  <span className="flex items-center space-x-1 group-hover:underline">
-                    <span>{t.readFullNews}</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ================= LIGHTNING EDUCATION NEWS (INSHORTS-STYLE AI LIVE FEED) ================= */}
+      <NewsSection lang={lang} />
 
       {/* ANNOUNCEMENTS SECTION */}
       {announcements.length > 0 && (
@@ -569,6 +616,16 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
             ))}
           </div>
         </div>
+      )}
+
+      {/* DAILY PRACTICE MODAL RUNNER */}
+      {selectedDailyPracticeId && (
+        <DailyPracticeModal
+          practiceId={selectedDailyPracticeId}
+          onClose={() => setSelectedDailyPracticeId(null)}
+          user={user}
+          lang={lang}
+        />
       )}
 
     </div>

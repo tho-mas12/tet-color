@@ -65,6 +65,9 @@ class LessonOut(BaseModel):
     stage4_test: bool
     is_locked: bool
     test_score: Optional[int] = 0
+    stage4_unlock_time: Optional[str] = "20:00"
+    stage4_force_open: Optional[bool] = False
+    is_stage4_locked_by_time: Optional[bool] = False
 
 class Question(BaseModel):
     id: int
@@ -125,6 +128,8 @@ class LessonUpdate(BaseModel):
     description: Optional[str] = None
     video_url: Optional[str] = None
     available_at: Optional[str] = None
+    stage4_unlock_time: Optional[str] = None
+    stage4_force_open: Optional[bool] = None
 
 class QuizSavePayload(BaseModel):
     questions: List[dict]
@@ -149,4 +154,64 @@ class LiveMeetingOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class DailyPracticeCreate(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    class_num: int = 8
+    subject: str = "Social Science"
+    term: str = "Term 1"
+    active_stages: str = "1,3,4"
+    pdf_url: Optional[str] = ""
+    video_url: Optional[str] = ""
+    quiz_questions: Optional[List[dict]] = None
+    test_questions_count: Optional[int] = 20
+    time_limit_mins: Optional[int] = 20
+    pass_percentage: Optional[int] = 80
+    available_date: Optional[str] = None
+    is_active: Optional[bool] = True
+
+class DailyPracticeUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    class_num: Optional[int] = None
+    subject: Optional[str] = None
+    term: Optional[str] = None
+    active_stages: Optional[str] = None
+    pdf_url: Optional[str] = None
+    video_url: Optional[str] = None
+    quiz_questions: Optional[List[dict]] = None
+    test_questions_count: Optional[int] = None
+    time_limit_mins: Optional[int] = None
+    pass_percentage: Optional[int] = None
+    available_date: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class DailyPracticeOut(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    class_num: int
+    subject: str
+    term: str
+    active_stages: str
+    pdf_url: Optional[str]
+    video_url: Optional[str]
+    quiz_questions: Optional[str]
+    test_questions_count: int
+    time_limit_mins: int
+    pass_percentage: int
+    available_date: Optional[str]
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class GoogleAuthPayload(BaseModel):
+    credential: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    picture: Optional[str] = None
+
 

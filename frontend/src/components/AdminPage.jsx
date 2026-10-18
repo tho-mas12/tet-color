@@ -166,6 +166,22 @@ export default function AdminPage({ user, lang = "en" }) {
     "Commerce", "Economics", "Accountancy"
   ];
 
+  // Daily Practice Management State
+  const [dailyPracticeList, setDailyPracticeList] = useState([]);
+  const [dpTitle, setDpTitle] = useState("");
+  const [dpDesc, setDpDesc] = useState("");
+  const [dpClass, setDpClass] = useState(8);
+  const [dpSubject, setDpSubject] = useState("Social Science");
+  const [dpTerm, setDpTerm] = useState("Term-1");
+  const [dpActiveStages, setDpActiveStages] = useState([1, 3, 4]); // Stages 1, 3, 4 enabled by default
+  const [dpPdfUrl, setDpPdfUrl] = useState("");
+  const [dpVideoUrl, setDpVideoUrl] = useState("");
+  const [dpQuestionsCount, setDpQuestionsCount] = useState(20);
+  const [dpTimeLimit, setDpTimeLimit] = useState(20);
+  const [dpPassPercent, setDpPassPercent] = useState(80);
+  const [creatingDp, setCreatingDp] = useState(false);
+  const [generatingDpId, setGeneratingDpId] = useState(null);
+
   useEffect(() => {
     loadStats();
     loadMaterials();
@@ -175,7 +191,97 @@ export default function AdminPage({ user, lang = "en" }) {
     loadAnnouncements();
     loadTetCards();
     loadMeetings();
+    loadDailyPractices();
   }, []);
+
+  const loadDailyPractices = async () => {
+    try {
+      const data = await fetchApi("/admin/daily-practice");
+      setDailyPracticeList(data || []);
+    } catch (err) {
+      console.error("Daily practices error:", err);
+    }
+  };
+
+  const handleCreateDailyPractice = async (e) => {
+    e.preventDefault();
+    if (!dpTitle || !dpSubject) {
+      return showToast("Please fill in Title and Subject for Daily Practice.", "error");
+    }
+    setCreatingDp(true);
+    try {
+      await fetchApi("/admin/daily-practice", {
+        method: "POST",
+        body: JSON.stringify({
+          title: dpTitle,
+          description: dpDesc,
+          class_num: Number(dpClass),
+          subject: dpSubject,
+          term: dpTerm,
+          active_stages: dpActiveStages.sort().join(","),
+          pdf_url: dpPdfUrl,
+          video_url: dpVideoUrl,
+          test_questions_count: Number(dpQuestionsCount),
+          time_limit_mins: Number(dpTimeLimit),
+          pass_percentage: Number(dpPassPercent)
+        })
+      });
+      showToast("Daily Practice Test created and published to Student Dashboard!", "success");
+      setDpTitle("");
+      setDpDesc("");
+      loadDailyPractices();
+    } catch (err) {
+      showToast(err.message || "Failed to create daily practice.", "error");
+    } finally {
+      setCreatingDp(false);
+    }
+  };
+
+  const handleDeleteDailyPractice = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this Daily Practice test?")) return;
+    try {
+      await fetchApi(`/admin/daily-practice/${id}`, { method: "DELETE" });
+      showToast("Daily practice test deleted.");
+      loadDailyPractices();
+    } catch (err) {
+      showToast("Failed to delete daily practice.", "error");
+    }
+  };
+
+  const handleGenerateDailyQuiz = async (dp) => {
+    setGeneratingDpId(dp.id);
+    try {
+      const res = await fetchApi(`/admin/daily-practice/${dp.id}/generate-quiz?count=${dp.test_questions_count || 20}`, {
+        method: "POST"
+      });
+      showToast(res.message || "AI questions generated successfully!", "success");
+      loadDailyPractices();
+    } catch (err) {
+      showToast("Failed to generate quiz: " + err.message, "error");
+    } finally {
+      setGeneratingDpId(null);
+    }
+  };
+
+  const handleUnlockAllStage4 = async () => {
+    try {
+      const res = await fetchApi("/admin/lessons/unlock-all-stage4", { method: "POST" });
+      showToast(res.message || "All Stage 4 exams unlocked immediately!");
+      loadLessons();
+    } catch (err) {
+      showToast("Failed to unlock Stage 4 exams: " + err.message, "error");
+    }
+  };
+
+  const handleToggleLessonStage4 = async (lessonId) => {
+    try {
+      const res = await fetchApi(`/admin/lessons/${lessonId}/toggle-stage4`, { method: "POST" });
+      showToast(res.message || "Stage 4 status updated!");
+      loadLessons();
+    } catch (err) {
+      showToast("Failed to toggle Stage 4: " + err.message, "error");
+    }
+  };
 
   const loadMeetings = async () => {
     try {
@@ -775,6 +881,7 @@ export default function AdminPage({ user, lang = "en" }) {
   // Nav Tabs configuration for Left Sidebar
   const navTabs = [
     { id: "stats", label: t.tabStats, icon: BarChart3, badge: null },
+    { id: "daily_practice", label: "Daily Practice Tests", icon: Clock, badge: dailyPracticeList.length },
     { id: "les_upload", label: t.tabLesUpload, icon: BookOpen, badge: lessonsList.length },
     { id: "quiz_manager", label: t.tabQuizManager, icon: HelpCircle, badge: "New" },
     { id: "meetings", label: t.tabMeetings, icon: Video, badge: meetingsList.filter(m => m.is_live).length > 0 ? "LIVE" : null },
@@ -941,6 +1048,320 @@ export default function AdminPage({ user, lang = "en" }) {
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB: DAILY PRACTICE TEST SYSTEM */}
+          {activeTab === "daily_practice" && (
+            <div className="space-y-6">
+              
+              <div className="bg-white border border-orange-200 rounded-3xl p-6 shadow-xs">
+                <div className="flex items-center space-x-2 text-[#ff7a00] mb-1 font-bold text-xs uppercase tracking-wider">
+                  <Clock className="w-4 h-4" />
+                  <span>Student Daily Practice & Model Exam System</span>
+                </div>
+                <h3 className="text-xl font-black text-[#061b36]">
+                  Daily Practice Test Management (தினசரி மாதிரிப் பயிற்சித் தேர்வு)
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Create and publish daily practice test cards to student dashboards. Configure target Class (1–12), subjects, and select exactly which stages are enabled (e.g. Stage 1 Notes, Stage 3 Practice, Stage 4 Timed Test). Generate AI questions or manual quizzes with 80% pass criteria.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* FORM: CREATE DAILY PRACTICE */}
+                <div className="lg:col-span-5 bg-white border border-sky-100 rounded-3xl p-6 shadow-xs space-y-4">
+                  <h4 className="text-sm font-black text-[#1E3A8A] flex items-center space-x-2 border-b border-sky-100 pb-3">
+                    <Plus className="w-4 h-4 text-[#ff7a00]" />
+                    <span>Create Daily Practice Card</span>
+                  </h4>
+
+                  <form onSubmit={handleCreateDailyPractice} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                        Card Title (தலைப்பு) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. TN TET Paper 2 - சமூக அறிவியல் மாதிரிப் பயிற்சித் தேர்வு"
+                        value={dpTitle}
+                        onChange={(e) => setDpTitle(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold focus:outline-none focus:border-[#ff7a00]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                        Description (விளக்கக் குறிப்பு)
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. 8 ஆம் வகுப்பு வரலாற்றுப் பாட முக்கிய வினாக்கள் மற்றும் மாதிரித் தேர்வு"
+                        value={dpDesc}
+                        onChange={(e) => setDpDesc(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-medium focus:outline-none focus:border-[#ff7a00]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Class (வகுப்பு)</label>
+                        <select
+                          value={dpClass}
+                          onChange={(e) => setDpClass(e.target.value)}
+                          className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold focus:outline-none focus:border-[#ff7a00]"
+                        >
+                          {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => (
+                            <option key={c} value={c}>Class {c}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Subject (பாடம்)</label>
+                        <select
+                          value={dpSubject}
+                          onChange={(e) => setDpSubject(e.target.value)}
+                          className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold focus:outline-none focus:border-[#ff7a00]"
+                        >
+                          {standardSubjects.map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Term (பருவம்)</label>
+                        <select
+                          value={dpTerm}
+                          onChange={(e) => setDpTerm(e.target.value)}
+                          className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold focus:outline-none focus:border-[#ff7a00]"
+                        >
+                          <option value="Term-1">Term 1</option>
+                          <option value="Term-2">Term 2</option>
+                          <option value="Term-3">Term 3</option>
+                          <option value="Full Syllabus">Full Syllabus</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* STAGE SELECTOR CHECKBOXES */}
+                    <div className="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200/90 space-y-2">
+                      <label className="block text-xs font-black text-orange-900 uppercase tracking-wider">
+                        Configure Included Stages (படிநிலைகள் தேர்வு):
+                      </label>
+                      <p className="text-[11px] text-orange-800 font-medium">
+                        Select which stages are required for this daily practice (e.g. Stage 1, 3, 4 only):
+                      </p>
+
+                      <div className="space-y-1.5 pt-1">
+                        {[
+                          { id: 1, label: "Stage 1: Study Notes / PDF (பாடக் குறிப்புகள்)" },
+                          { id: 2, label: "Stage 2: Video Class (வீடியோ விளக்கம்)" },
+                          { id: 3, label: "Stage 3: Practice Questions (பயிற்சி வினாக்கள்)" },
+                          { id: 4, label: "Stage 4: Timed Final Exam (80% தேர்ச்சி தேர்வு)" }
+                        ].map((stg) => {
+                          const isChecked = dpActiveStages.includes(stg.id);
+                          return (
+                            <label
+                              key={stg.id}
+                              className="flex items-center space-x-2 text-xs font-bold text-slate-800 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setDpActiveStages([...dpActiveStages, stg.id]);
+                                  } else {
+                                    if (dpActiveStages.length <= 1) {
+                                      return showToast("At least one stage must be active.", "error");
+                                    }
+                                    setDpActiveStages(dpActiveStages.filter(s => s !== stg.id));
+                                  }
+                                }}
+                                className="w-4 h-4 text-[#ff7a00] rounded focus:ring-0 cursor-pointer"
+                              />
+                              <span>{stg.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                        Study Material PDF URL (Stage 1)
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://example.com/notes.pdf"
+                        value={dpPdfUrl}
+                        onChange={(e) => setDpPdfUrl(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-medium focus:outline-none focus:border-[#ff7a00]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
+                        Video Class URL (Stage 2 - Optional)
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://www.youtube.com/embed/..."
+                        value={dpVideoUrl}
+                        onChange={(e) => setDpVideoUrl(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-medium focus:outline-none focus:border-[#ff7a00]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Questions</label>
+                        <input
+                          type="number"
+                          min={5}
+                          max={200}
+                          value={dpQuestionsCount}
+                          onChange={(e) => setDpQuestionsCount(e.target.value)}
+                          className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold text-center"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Time (Mins)</label>
+                        <input
+                          type="number"
+                          min={5}
+                          max={180}
+                          value={dpTimeLimit}
+                          onChange={(e) => setDpTimeLimit(e.target.value)}
+                          className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold text-center"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Pass %</label>
+                        <input
+                          type="number"
+                          value={dpPassPercent}
+                          disabled
+                          className="w-full p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold text-center"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={creatingDp}
+                      className="w-full py-3 rounded-2xl bg-[#ff7a00] hover:bg-orange-600 text-white font-extrabold text-xs sm:text-sm shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>{creatingDp ? "Creating Card..." : "Publish Daily Practice Card →"}</span>
+                    </button>
+                  </form>
+                </div>
+
+                {/* LIST: EXISTING DAILY PRACTICE CARDS */}
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-black text-[#1E3A8A]">
+                      Published Daily Practice Tests ({dailyPracticeList.length})
+                    </h4>
+                    <span className="text-xs text-slate-500 font-semibold">Live on Student Dashboard</span>
+                  </div>
+
+                  {dailyPracticeList.length === 0 ? (
+                    <div className="bg-white border border-sky-100 rounded-3xl p-8 text-center text-slate-500 space-y-2">
+                      <Clock className="w-10 h-10 text-orange-400 mx-auto" />
+                      <p className="text-sm font-bold text-slate-700">No Daily Practice tests published yet.</p>
+                      <p className="text-xs">Use the form on the left to create and publish a daily practice card.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {dailyPracticeList.map((dp) => (
+                        <div
+                          key={dp.id}
+                          className="bg-white border border-slate-200 hover:border-orange-300 rounded-3xl p-5 shadow-xs transition-all space-y-3"
+                        >
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="px-2.5 py-0.5 rounded-md bg-orange-100 text-[#ff7a00] text-[10px] font-black uppercase">
+                                  Class {dp.class_num} • {dp.subject}
+                                </span>
+                                <span className="text-xs font-bold text-slate-500">{dp.term}</span>
+                              </div>
+                              <h4 className="text-base font-black text-[#061b36] mt-1">{dp.title}</h4>
+                            </div>
+
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              Active Card
+                            </span>
+                          </div>
+
+                          {dp.description && (
+                            <p className="text-xs text-slate-600 font-medium">{dp.description}</p>
+                          )}
+
+                          {/* Stages Badges */}
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            <span className="text-[11px] font-bold text-slate-400 mr-1">Stages:</span>
+                            {(dp.active_stages || [1, 3, 4]).map((stg) => {
+                              const labels = { 1: "Stage 1: Notes", 2: "Stage 2: Video", 3: "Stage 3: Practice", 4: "Stage 4: Quiz (80%)" };
+                              return (
+                                <span
+                                  key={stg}
+                                  className="px-2 py-0.5 rounded-md bg-blue-50 text-[#0055ff] border border-blue-200 text-[10px] font-bold"
+                                >
+                                  ✓ {labels[stg] || `Stage ${stg}`}
+                                </span>
+                              );
+                            })}
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                            <div className="text-xs text-slate-500 font-semibold">
+                              <span>{dp.quiz_questions_count || 0} Questions Ready</span>
+                              <span className="mx-1.5">•</span>
+                              <span>{dp.time_limit_mins || 20} Mins</span>
+                              <span className="mx-1.5">•</span>
+                              <span className="text-emerald-700 font-bold">Pass: {dp.pass_percentage || 80}%</span>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateDailyQuiz(dp)}
+                                disabled={generatingDpId === dp.id}
+                                className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition flex items-center space-x-1 cursor-pointer"
+                              >
+                                {generatingDpId === dp.id ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                )}
+                                <span>{generatingDpId === dp.id ? "Generating..." : "⚡ AI Generate Quiz"}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDailyPractice(dp.id)}
+                                className="p-1.5 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 transition cursor-pointer"
+                                title="Delete Daily Practice"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
             </div>
           )}
 
@@ -1259,6 +1680,17 @@ export default function AdminPage({ user, lang = "en" }) {
                       {standardSubjects.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
+
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={handleUnlockAllStage4}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs shadow-sm flex items-center space-x-1.5 cursor-pointer whitespace-nowrap"
+                      title="Force unlock all lessons Stage 4 Timed Exams immediately today"
+                    >
+                      <span>🔓 Unlock All Stage 4 Today</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1285,6 +1717,22 @@ export default function AdminPage({ user, lang = "en" }) {
                           <span className="text-xs text-slate-500 font-medium">
                             {lesson.subject} ({lesson.medium})
                           </span>
+                        </div>
+
+                        {/* Stage 4 Manual Unlock / Lock Toggle */}
+                        <div className="flex items-center space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleLessonStage4(lesson.id)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer flex items-center space-x-1.5 ${
+                              lesson.stage4_force_open
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                                : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                            }`}
+                            title="Toggle Stage 4 unlock for this lesson"
+                          >
+                            <span>{lesson.stage4_force_open ? "🔓 Stage 4: Force Unlocked" : "🔒 Stage 4: Opens 8:00 PM"}</span>
+                          </button>
                         </div>
                       </div>
 

@@ -40,12 +40,48 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   const [testActive, setTestActive] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [showDetailedReview, setShowDetailedReview] = useState(false);
+  const [countdownStr, setCountdownStr] = useState("");
 
   const t = translations[lang] || translations.en;
 
   useEffect(() => {
     loadLessonDetails();
   }, [lessonId]);
+
+  useEffect(() => {
+    if (!lessonData?.is_stage4_locked_by_time) return;
+    const updateCountdown = () => {
+      const now = new Date();
+      const target = new Date();
+      const [th, tm] = (lessonData.stage4_unlock_time || "20:00").split(":").map(Number);
+      target.setHours(th || 20, tm || 0, 0, 0);
+
+      const diff = target.getTime() - now.getTime();
+      if (diff <= 0) {
+        setCountdownStr("00:00:00");
+        loadLessonDetails();
+        return;
+      }
+      const hrs = Math.floor(diff / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+      setCountdownStr(
+        `${String(hrs).padStart(2, "0")}h ${String(mins).padStart(2, "0")}m ${String(secs).padStart(2, "0")}s`
+      );
+    };
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [lessonData?.is_stage4_locked_by_time, lessonData?.stage4_unlock_time]);
+
+  const handleAdminToggleStage4 = async () => {
+    try {
+      await fetchApi(`/admin/lessons/${lessonId}/toggle-stage4`, { method: "POST" });
+      await loadLessonDetails();
+    } catch (err) {
+      alert("Failed to toggle Stage 4: " + err.message);
+    }
+  };
 
   useEffect(() => {
     if (activeStage === 3 && questionsData.length === 0 && !questionsLoading) {
@@ -73,7 +109,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   const loadLessonDetails = async () => {
     setLoading(true);
     try {
-      const email = user ? user.email : "student@tet.com";
+      const email = user ? user.email : "candidate@tet.com";
       const res = await fetchApi(`/learning/lesson/${lessonId}?user_email=${encodeURIComponent(email)}`);
       setLessonData(res.lesson);
       setProgress(res.progress);
@@ -91,7 +127,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
 
   const markStageComplete = async (stageNum) => {
     try {
-      const email = user ? user.email : "student@tet.com";
+      const email = user ? user.email : "candidate@tet.com";
       await fetchApi(`/learning/lesson/${lessonId}/stage/${stageNum}/complete?user_email=${encodeURIComponent(email)}`, {
         method: "POST"
       });
@@ -113,7 +149,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   const handleLoadPracticeQuestions = async (forcedQuizType = null) => {
     setQuestionsLoading(true);
     try {
-      const email = user ? user.email : "student@tet.com";
+      const email = user ? user.email : "candidate@tet.com";
       const typeQuery = forcedQuizType ? `&quiz_type=${forcedQuizType}` : "";
       const data = await fetchApi(`/learning/lesson/${lessonId}/questions?user_email=${encodeURIComponent(email)}${typeQuery}`);
       if (data && Array.isArray(data.questions)) {
@@ -517,11 +553,6 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                         <span className="text-xs font-black text-[#ff7a00] uppercase tracking-wider block">
                           {t.questionCountLabel} {idx + 1} {t.ofLabel} {questionsData.length}
                         </span>
-                        {q.question_type && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-orange-100 text-orange-900 border border-orange-200/80 shadow-2xs">
-                            {q.question_type}
-                          </span>
-                        )}
                       </div>
 
                       <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line">
@@ -718,11 +749,6 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                             }`}>
                               Question {idx + 1} {item.is_correct ? "• ✅ Correct (+1)" : "• ❌ Incorrect (0)"}
                             </span>
-                            {item.question_type && (
-                              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-100 text-blue-900 border border-blue-200 shadow-2xs">
-                                {item.question_type}
-                              </span>
-                            )}
                           </div>
 
                           <h5 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line">
@@ -774,23 +800,79 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                 )}
               </div>
             ) : !testActive ? (
-              <div className="text-center py-12 sm:py-16 bg-slate-50 rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-4">
-                <Award className="w-14 h-14 text-[#0055ff] mx-auto animate-float" />
-                <h4 className="text-lg sm:text-xl font-black text-[#061b36]">{t.stage4Title}</h4>
-                <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto font-medium leading-relaxed">
-                  {t.stage4Desc} • You must score at least <strong>80%</strong> to complete this lesson and unlock subsequent lessons.
-                </p>
+              lessonData?.is_stage4_locked_by_time ? (
+                <div className="text-center py-12 sm:py-16 bg-gradient-to-b from-amber-50/80 to-slate-50 rounded-3xl border-2 border-amber-300 p-6 sm:p-8 space-y-4 shadow-sm animate-fade-in">
+                  <div className="w-16 h-16 rounded-full bg-amber-100 border-2 border-amber-400 text-amber-800 flex items-center justify-center mx-auto shadow-xs">
+                    <Lock className="w-8 h-8" />
+                  </div>
 
-                <div className="pt-2">
-                  <button
-                    onClick={handleStartTest}
-                    disabled={testLoading}
-                    className="px-8 py-3.5 rounded-2xl bg-[#0055ff] hover:bg-blue-700 text-white font-extrabold text-sm shadow-md transition-all cursor-pointer min-h-[44px]"
-                  >
-                    {testLoading ? "Generating Test Questions..." : t.startTimedExam}
-                  </button>
+                  <div className="space-y-1.5">
+                    <span className="px-3.5 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 inline-block uppercase tracking-wider">
+                      🔒 Scheduled Daily Exam Unlock • இரவு 8:00 மணி
+                    </span>
+                    <h4 className="text-xl sm:text-2xl font-black text-[#061b36] pt-1">
+                      Stage 4 Final Timed Exam Opens at {lessonData.stage4_unlock_time || "20:00"} (8:00 PM)
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto font-medium leading-relaxed">
+                      TET-1 மற்றும் TET-2 பாடங்களுக்கான மாதிரித் தேர்வு தினமும் இரவு 8:00 மணிக்கு அதிகாரப்பூர்வமாக திறக்கப்படும். அதுவரை நீங்கள் Stage 1 பாடக்குறிப்புகள், Stage 2 வீடியோ மற்றும் Stage 3 பயிற்சி வினாக்களை நிறைவு செய்து தேர்வுக்கு தயாராகுங்கள்.
+                    </p>
+                  </div>
+
+                  {/* Countdown Timer Display */}
+                  <div className="py-2">
+                    <div className="inline-flex items-center space-x-2.5 px-6 py-3 rounded-2xl bg-white border border-amber-300 shadow-sm">
+                      <Clock className="w-4 h-4 text-amber-600 animate-spin" />
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">தேர்வு திறக்க இன்னும்:</span>
+                      <span className="font-mono font-black text-sm sm:text-base text-amber-900">
+                        {countdownStr || "Computing Time..."}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Admin Manual Override Control */}
+                  {user?.role === "admin" && (
+                    <div className="pt-4 border-t border-amber-200/90 max-w-md mx-auto">
+                      <p className="text-xs font-bold text-amber-800 mb-2">
+                        Admin Executive Privileges:
+                      </p>
+                      <button
+                        onClick={handleAdminToggleStage4}
+                        className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
+                      >
+                        🔓 Admin Override: Open Stage 4 Immediately for Students
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <div className="text-center py-12 sm:py-16 bg-slate-50 rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-4">
+                  <Award className="w-14 h-14 text-[#0055ff] mx-auto animate-float" />
+                  <h4 className="text-lg sm:text-xl font-black text-[#061b36]">{t.stage4Title}</h4>
+                  <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto font-medium leading-relaxed">
+                    {t.stage4Desc} • You must score at least <strong>80%</strong> to complete this lesson and unlock subsequent lessons.
+                  </p>
+
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      onClick={handleStartTest}
+                      disabled={testLoading}
+                      className="px-8 py-3.5 rounded-2xl bg-[#0055ff] hover:bg-blue-700 text-white font-extrabold text-sm shadow-md transition-all cursor-pointer min-h-[44px]"
+                    >
+                      {testLoading ? "Generating Test Questions..." : t.startTimedExam}
+                    </button>
+
+                    {user?.role === "admin" && (
+                      <button
+                        onClick={handleAdminToggleStage4}
+                        className="px-4 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs cursor-pointer"
+                        title="Lock Stage 4 back to 8:00 PM schedule"
+                      >
+                        🔒 Admin: Lock back to 8:00 PM
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
             ) : testLoading || !testData?.questions ? (
               <div className="py-20 text-center space-y-4">
                 <div className="w-12 h-12 border-4 border-[#0055ff] border-t-transparent rounded-full animate-spin mx-auto" />
@@ -827,11 +909,6 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                         <span className="text-xs font-black text-[#0055ff] uppercase tracking-wider block">
                           {t.questionCountLabel} {idx + 1} {t.ofLabel} {testData?.questions?.length || 0}
                         </span>
-                        {q.question_type && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-100 text-blue-900 border border-blue-200 shadow-2xs">
-                            {q.question_type}
-                          </span>
-                        )}
                       </div>
 
                       <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line">

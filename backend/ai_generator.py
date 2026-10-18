@@ -346,7 +346,7 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
 
         if type_idx == 2:  # Match
             item = matches[(i // len(type_labels)) % len(matches)]
-            q_text = f"[{q_type_name}] {item[0]}"
+            q_text = item[0]
             raw_opts = [item[1], item[2], item[3], item[4]]
             correct_val = raw_opts[0]
             opts = list(raw_opts)
@@ -356,7 +356,7 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
 
         elif type_idx == 3:  # Assertion Reason
             item = ar_list[(i // len(type_labels)) % len(ar_list)]
-            q_text = f"[{q_type_name}] {item[0]}"
+            q_text = item[0]
             raw_opts = [item[1], item[2], item[3], item[4]]
             correct_val = raw_opts[0]
             opts = list(raw_opts)
@@ -366,7 +366,7 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
 
         elif type_idx == 4:  # Multi-Statement
             item = multi_list[(i // len(type_labels)) % len(multi_list)]
-            q_text = f"[{q_type_name}] {item[0]}"
+            q_text = item[0]
             raw_opts = [item[1], item[2], item[3], item[4]]
             correct_val = raw_opts[0]
             opts = list(raw_opts)
@@ -376,7 +376,7 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
 
         elif type_idx == 5:  # Chronological
             item = chrono_list[(i // len(type_labels)) % len(chrono_list)]
-            q_text = f"[{q_type_name}] {item[0]}"
+            q_text = item[0]
             raw_opts = [item[1], item[2], item[3], item[4]]
             correct_val = raw_opts[0]
             opts = list(raw_opts)
@@ -387,45 +387,45 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
         elif type_idx == 1:  # HOTS
             topic_title, subtopics, concept_desc = topics[(i - 1) % len(topics)]
             if subject == "Tamil":
-                q_text = f"[{q_type_name}] '{lesson_title}' பாடப்பகுதியில், ஆசிரியர் முன்வைக்கும் முதன்மைக் கருத்தான '{concept_desc}' என்பதை ஆழமாகப் பகுப்பாய்வு செய்யும் போது கீழ்க்கண்டவற்றுள் எது மிகவும் பொருத்தமான உயர்சிந்தனைக் கருத்தாகும்?"
+                q_text = f"'{lesson_title}' பாடப்பகுதியில், ஆசிரியர் முன்வைக்கும் முதன்மைக் கருத்தான '{concept_desc}' என்பதை ஆழமாகப் பகுப்பாய்வு செய்யும் போது கீழ்க்கண்டவற்றுள் எது மிகவும் பொருத்தமான உயர்சிந்தனைக் கருத்தாகும்?"
                 correct_opt = f"பாடத்தின் கருத்தியல் பின்னணியில் {concept_desc} என்பது நடைமுறை வாழ்வியல் ஒழுக்கத்தோடும் மொழியியல் பண்பாட்டோடும் இயைந்து நிற்பது."
                 wrong_opts = [
                     f"இக்கருத்து வெறும் ஏட்டளவிலான விதிகளோடு மட்டும் முடிந்துவிடுகிறது.",
                     f"முந்தைய இலக்கண விதிகளுக்கு முற்றிலும் முரணான மாற்றுப் பார்வையை முன்வைப்பது.",
                     f"எவ்வித வரலாற்றுப் பின்னணியும் இன்றி மேலோட்டமாக விளக்கப்படுவது."
                 ]
-                exp = f"உயர் சிந்தனை விளக்கம்: {lesson_title} பாடப்பகுதியில் {concept_desc} என்பது இலக்கியப் பயன்பாட்டைத் தாண்டி தமிழ்ச் சமூகத்தின் சிந்தனை மரபை வெளிப்படுத்துகிறது. சரியான விடை: '{correct_opt}'."
+                exp = f"விளக்கம்: {lesson_title} பாடப்பகுதியில் {concept_desc} என்பது இலக்கியப் பயன்பாட்டைத் தாண்டி தமிழ்ச் சமூகத்தின் சிந்தனை மரபை வெளிப்படுத்துகிறது. சரியான விடை: '{correct_opt}'."
             elif subject == "Mathematics":
                 val1 = (i * 3) + 7
                 val2 = (i * 2) + 5
                 result_val = (val1 * val2) - 10
-                q_text = f"[{q_type_name}] In {lesson_title}, apply analytical reasoning: Given expression P = ({val1} × {val2}) - 10 under the properties of {concept_desc}. What is the unique value of P and its prime factorization status?"
+                q_text = f"In {lesson_title}, apply analytical reasoning: Given expression P = ({val1} × {val2}) - 10 under the properties of {concept_desc}. What is the unique value of P and its prime factorization status?"
                 correct_opt = f"P = {result_val}, which validates the operational symmetry of {topic_title}."
                 wrong_opts = [
                     f"P = {result_val + 15}, satisfying non-linear boundary limits.",
                     f"P = {result_val - 12}, representing an undefined irrational subset.",
                     f"P = {result_val * 2}, which violates arithmetic distributive laws."
                 ]
-                exp = f"Pedagogical Theory: Step-by-step evaluation yields ({val1} × {val2}) - 10 = {result_val}. Correct Choice is: '{correct_opt}'."
+                exp = f"Calculation & Explanation: Step-by-step evaluation yields ({val1} × {val2}) - 10 = {result_val}. Correct Choice is: '{correct_opt}'."
             elif subject == "English":
-                q_text = f"[{q_type_name}] In the study of {lesson_title}, which analytical deduction best demonstrates mastery over '{concept_desc}' in complex structural composition?"
+                q_text = f"In the study of {lesson_title}, which analytical deduction best demonstrates mastery over '{concept_desc}' in complex structural composition?"
                 correct_opt = f"Synthesizing subordinate clauses using {topic_title} while preserving thematic coherence."
                 wrong_opts = [
                     f"Using passive voice indiscriminately to lengthen sentence count.",
                     f"Eliminating contextual markers in dependent clauses.",
                     f"Applying non-standard agreement markers in compound predicates."
                 ]
-                exp = f"Deep Dive Explanation: Advanced composition requires mastery over syntactic cohesion. Correct Answer: '{correct_opt}'."
+                exp = f"Explanation: Advanced composition requires mastery over syntactic cohesion. Correct Answer: '{correct_opt}'."
             else:
                 topic_title, subtopics, concept_desc = topics[(i - 1) % len(topics)]
-                q_text = f"[{q_type_name}] '{lesson_title}' பாடப்பகுதியில், '{concept_desc}' தொடர்பான உயர்நிலை அறிவியல்/சமூக ஆய்வுக் கோட்பாட்டின்படி சரியான வாதம் எது?"
+                q_text = f"'{lesson_title}' பாடப்பகுதியில், '{concept_desc}' தொடர்பான உயர்நிலை அறிவியல்/சமூக ஆய்வுக் கோட்பாட்டின்படி சரியான வாதம் எது?"
                 correct_opt = f"{topic_title} அமைப்பில் நிகழும் மாற்றங்கள் சமநிலை மற்றும் தொடர் விதிகளுக்கு உட்பட்டே இயங்குகின்றன."
                 wrong_opts = [
                     f"{topic_title} செயல்முறையானது எவ்வித அடிப்படைக் கோட்பாடுகளையும் பின்பற்றுவதில்லை.",
                     f"வெப்பநிலை மற்றும் அழுத்த மாறுபாடுகள் இக்கோட்பாட்டில் எவ்வித தாக்கத்தையும் ஏற்படுத்துவதில்லை.",
                     f"இம்மாற்றங்கள் மீளாத தன்மை கொண்டவை என்பதால் ஆய்வுக்கு உட்படாதவை."
                 ]
-                exp = f"ஆய்வு விளக்கம்: {concept_desc} என்பது பாடத்தின் மையக் கருத்தாக விளங்கி ஆய்வுக் கண்ணோட்டத்தை உறுதிசெய்கிறது. சரியான விடை: '{correct_opt}'."
+                exp = f"விளக்கம்: {concept_desc} என்பது பாடத்தின் மையக் கருத்தாக விளங்கி ஆய்வுக் கண்ணோட்டத்தை உறுதிசெய்கிறது. சரியான விடை: '{correct_opt}'."
 
             opts = list(wrong_opts)
             opts.insert(target_ans_idx, correct_opt)
@@ -433,7 +433,7 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
         else:  # Core MCQ (type_idx == 0)
             topic_title, subtopics, concept_desc = topics[(i - 1) % len(topics)]
             if subject == "Tamil":
-                q_text = f"[{q_type_name}] '{lesson_title}' பாடத்தில் அமைந்துள்ள '{topic_title}' தொடர்பான வினா: கீழ்க்கண்டவற்றுள் எது சரியான கூற்றாகும்?"
+                q_text = f"'{lesson_title}' பாடத்தில் அமைந்துள்ள '{topic_title}' தொடர்பான வினா: கீழ்க்கண்டவற்றுள் எது சரியான கூற்றாகும்?"
                 correct_opt = f"{subtopics} பற்றிய கருத்துக்கள் தமிழ்ச் செம்மொழி மரபின்படி துல்லியமாக வரையறுக்கப்பட்டுள்ளன."
                 wrong_opts = [
                     f"{subtopics} என்பது இலக்கண விதிகளுக்கு உட்படாத அமைப்பாகும்.",
@@ -445,16 +445,16 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
                 n1 = (i * 4) + 6
                 n2 = (i * 2) + 3
                 sum_val = n1 + n2
-                q_text = f"[{q_type_name}] '{lesson_title}' - {topic_title}: If set A represents {n1} elements and subset B represents {n2} complementary factors, calculate total structural nodes (n1 + n2)."
+                q_text = f"'{lesson_title}' - {topic_title}: If set A represents {n1} elements and subset B represents {n2} complementary factors, calculate total structural nodes (n1 + n2)."
                 correct_opt = f"Total nodes = {sum_val}, aligning with set theory axioms."
                 wrong_opts = [
                     f"Total nodes = {sum_val + 4}, violating intersection constraints.",
                     f"Total nodes = {sum_val - 3}, indicating missing element partitions.",
                     f"Total nodes = {sum_val * 2}, incorrectly doubling the union set."
                 ]
-                exp = f"Calculation & Pedagogical Note: {n1} + {n2} = {sum_val}. Correct choice: '{correct_opt}'."
+                exp = f"Calculation & Explanation: {n1} + {n2} = {sum_val}. Correct choice: '{correct_opt}'."
             elif subject == "English":
-                q_text = f"[{q_type_name}] '{lesson_title}' - {topic_title}: Choose the grammatically sound assertion representing '{concept_desc}'."
+                q_text = f"'{lesson_title}' - {topic_title}: Choose the grammatically sound assertion representing '{concept_desc}'."
                 correct_opt = f"Standard academic usage requires precise application of {subtopics}."
                 wrong_opts = [
                     f"Tense consistency may be freely omitted in formal discourse.",
@@ -463,7 +463,7 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
                 ]
                 exp = f"Grammar Principle: Accurate usage of {subtopics} is fundamental in TET Paper 2 English. Correct Answer: '{correct_opt}'."
             else:
-                q_text = f"[{q_type_name}] '{lesson_title}' - {topic_title}: {subtopics} குறித்த சரியான கொள்குறி விளக்கம் யாது?"
+                q_text = f"'{lesson_title}' - {topic_title}: {subtopics} குறித்த சரியான கொள்குறி விளக்கம் யாது?"
                 correct_opt = f"{concept_desc} என்பது இப்பாடப்பகுதியின் அடிப்படை விதிகளுக்கு உட்பட்டு விவரிக்கப்படுகிறது."
                 wrong_opts = [
                     f"{concept_desc} என்பது நடைமுறைச் சூழலுக்குப் பொருந்தாத கருதுகோள் மட்டுமே.",
