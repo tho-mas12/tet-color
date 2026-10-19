@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -51,8 +52,8 @@ class Lesson(Base):
     available_at = Column(String(100), nullable=True) # ISO "YYYY-MM-DDTHH:MM" or datetime string
     stage4_unlock_time = Column(String(50), default="20:00") # Default opens at 8:00 PM
     stage4_force_open = Column(Boolean, default=False) # Manual override by admin to open immediately
-    quiz_type1 = Column(Text, nullable=True) # JSON string of questions array
-    quiz_type2 = Column(Text, nullable=True) # JSON string of alternate questions array
+    quiz_type1 = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True) # JSON string of questions array
+    quiz_type2 = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True) # JSON string of alternate questions array
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class LessonProgress(Base):
@@ -129,7 +130,7 @@ class DailyPractice(Base):
     active_stages = Column(String(50), default="1,3,4") # Comma-separated stages, e.g. "1,3,4"
     pdf_url = Column(String(500), nullable=True)
     video_url = Column(String(500), nullable=True)
-    quiz_questions = Column(Text, nullable=True) # JSON array of questions
+    quiz_questions = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True) # JSON array of questions
     test_questions_count = Column(Integer, default=20)
     time_limit_mins = Column(Integer, default=20)
     pass_percentage = Column(Integer, default=80)

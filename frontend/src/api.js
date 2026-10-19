@@ -732,6 +732,76 @@ export async function fetchApi(endpoint, options = {}) {
       return storedDP;
     }
 
+    // 7.6 Lesson Quiz Fallbacks: /admin/lessons/:id/quiz/:type
+    if (endpoint.includes("/admin/lessons/") && endpoint.includes("/quiz/")) {
+      const match = endpoint.match(/\/admin\/lessons\/(\d+)\/quiz\/(type1|type2)/);
+      if (match) {
+        const lesId = Number(match[1]);
+        const qType = match[2];
+        const propName = qType === "type2" ? "quiz_type2" : "quiz_type1";
+        
+        let storedLessons = [];
+        try { storedLessons = JSON.parse(localStorage.getItem("tet_stored_lessons") || "[]"); } catch (e) {}
+        let targetLes = storedLessons.find(l => l.id === lesId);
+
+        if (endpoint.includes("/generate")) {
+          const generatedQs = [];
+          for (let i = 1; i <= 200; i++) {
+            generatedQs.push({
+              id: i,
+              question_type: "Core MCQ",
+              question: `Curriculum Question ${i}: Core competencies and syllabus concepts for Lesson #${lesId}.`,
+              options: [
+                "Fundamental concept analysis and standard formula derivation.",
+                "Direct application in problem-solving scenario.",
+                "Theoretical evaluation according to SCERT benchmark.",
+                "Empirical proof and experimental validation."
+              ],
+              answer_index: (i % 4),
+              explanation: "Structured according to TN TET standard paper blueprint."
+            });
+          }
+          if (targetLes) {
+            targetLes[propName] = JSON.stringify(generatedQs);
+            try { localStorage.setItem("tet_stored_lessons", JSON.stringify(storedLessons)); } catch (e) {}
+          }
+          return {
+            message: `Quiz ${qType.toUpperCase()} generated successfully with 200 questions!`,
+            quiz_type: qType,
+            total: 200,
+            questions: generatedQs
+          };
+        }
+
+        if (endpoint.includes("/save")) {
+          const body = options.body ? JSON.parse(options.body) : {};
+          const qs = body.questions || [];
+          if (targetLes) {
+            targetLes[propName] = JSON.stringify(qs);
+            try { localStorage.setItem("tet_stored_lessons", JSON.stringify(storedLessons)); } catch (e) {}
+          }
+          return {
+            message: `Quiz ${qType.toUpperCase()} saved successfully with ${qs.length} questions!`,
+            quiz_type: qType,
+            total: qs.length
+          };
+        }
+
+        let questions = [];
+        if (targetLes && targetLes[propName]) {
+          try {
+            questions = typeof targetLes[propName] === "string" ? JSON.parse(targetLes[propName]) : targetLes[propName];
+          } catch (e) {}
+        }
+        return {
+          lesson_id: lesId,
+          quiz_type: qType,
+          total: questions.length,
+          questions: questions
+        };
+      }
+    }
+
     if (endpoint.startsWith("/admin/users")) {
       return [
         {

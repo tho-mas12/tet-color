@@ -679,8 +679,21 @@ export default function AdminPage({ user, lang = "en" }) {
       const res = await fetchApi(`/admin/lessons/${lesson.id}/quiz/${quizType}/generate?count=200`, {
         method: "POST"
       });
-      showToast(res.message || `Quiz ${quizType.toUpperCase()} (200 Questions) generated!`, "success");
-      loadLessons();
+      const qCount = (res && res.questions && res.questions.length) || res?.total || 200;
+      showToast(res?.message || `Quiz ${quizType.toUpperCase()} (${qCount} Questions) generated!`, "success");
+      
+      // Update local state immediately so user sees the change without delay
+      setLessonsList(prev => prev.map(l => {
+        if (l.id === lesson.id) {
+          return {
+            ...l,
+            [quizType === "type2" ? "has_quiz_type2" : "has_quiz_type1"]: true,
+            [quizType === "type2" ? "quiz_type2_count" : "quiz_type1_count"]: qCount
+          };
+        }
+        return l;
+      }));
+      await loadLessons();
     } catch (err) {
       showToast(err.message || "Failed to generate quiz.", "error");
     } finally {
@@ -729,13 +742,26 @@ export default function AdminPage({ user, lang = "en" }) {
     }
     setSavingManualQuiz(true);
     try {
-      await fetchApi(`/admin/lessons/${manualQuizModal.lesson.id}/quiz/${manualQuizModal.quiz_type}/save`, {
+      const qType = manualQuizModal.quiz_type;
+      const lesId = manualQuizModal.lesson.id;
+      await fetchApi(`/admin/lessons/${lesId}/quiz/${qType}/save`, {
         method: "POST",
         body: JSON.stringify({ questions: validQs })
       });
-      showToast(`Quiz ${manualQuizModal.quiz_type.toUpperCase()} saved successfully with ${validQs.length} questions!`, "success");
+      showToast(`Quiz ${qType.toUpperCase()} saved successfully with ${validQs.length} questions!`, "success");
+      
+      setLessonsList(prev => prev.map(l => {
+        if (l.id === lesId) {
+          return {
+            ...l,
+            [qType === "type2" ? "has_quiz_type2" : "has_quiz_type1"]: true,
+            [qType === "type2" ? "quiz_type2_count" : "quiz_type1_count"]: validQs.length
+          };
+        }
+        return l;
+      }));
       setManualQuizModal(null);
-      loadLessons();
+      await loadLessons();
     } catch (err) {
       showToast(err.message || "Failed to save quiz.", "error");
     } finally {
@@ -746,14 +772,15 @@ export default function AdminPage({ user, lang = "en" }) {
   const handleViewQuiz = async (lesson, quizType) => {
     try {
       const res = await fetchApi(`/admin/lessons/${lesson.id}/quiz/${quizType}`);
-      if (!res.questions || res.questions.length === 0) {
-        showToast("No questions generated or added for this quiz yet.", "info");
+      const questions = res && res.questions ? res.questions : [];
+      if (!questions || questions.length === 0) {
+        showToast("No questions generated or added for this quiz yet. Please click 'AI Generate' first.", "info");
         return;
       }
       setViewQuizModal({
         lesson,
         quiz_type: quizType,
-        questions: res.questions
+        questions: questions
       });
     } catch (err) {
       showToast("Could not load quiz questions.", "error");
