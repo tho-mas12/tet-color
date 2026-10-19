@@ -46,10 +46,16 @@ export async function fetchApi(endpoint, options = {}) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: "Request failed" }));
-      throw new Error(err.detail || "Server error");
+      const error = new Error(err.detail || err.message || "Server error");
+      error.status = res.status;
+      throw error;
     }
     return await res.json();
   } catch (err) {
+    if (err.status) {
+      // Real API responded with an error (e.g. 401 Unauthorized, 400 Bad Request, 404 Not Found)
+      throw err;
+    }
     console.warn(`API fallback triggered for ${endpoint}:`, err.message);
 
     // Get materials & lessons from LocalStorage for client-side persistence
@@ -61,7 +67,7 @@ export async function fetchApi(endpoint, options = {}) {
     } catch (e) {}
 
     // 1. LOGIN / AUTH FALLBACK
-    if (endpoint.startsWith("/user/profile") || endpoint.startsWith("/auth/login")) {
+    if (endpoint.startsWith("/user/profile") || endpoint.startsWith("/auth/login") || endpoint.startsWith("/auth/google") || endpoint.startsWith("/auth/register")) {
       const bodyStr = typeof options.body === "string" ? options.body : JSON.stringify(options.body || {});
       const isAdminLogin = bodyStr.includes("admin@tet.com") || bodyStr.includes("admin") || endpoint.includes("email=admin");
 
@@ -75,14 +81,34 @@ export async function fetchApi(endpoint, options = {}) {
         };
       }
 
+      let parsedBody = {};
+      try { parsedBody = JSON.parse(bodyStr); } catch (e) {}
+
       return {
-        id: 1,
-        name: "Teacher Candidate",
-        email: "candidate@tet.com",
+        id: Date.now(),
+        name: parsedBody.name || "Teacher Candidate",
+        email: parsedBody.email || "candidate@tet.com",
         role: "student",
         streak_count: 14,
         daily_tasks_done: 0,
         daily_tasks_total: 4
+      };
+    }
+
+    if (endpoint.startsWith("/auth/forgot-password")) {
+      const body = typeof options.body === "string" ? JSON.parse(options.body || "{}") : (options.body || {});
+      return {
+        message: "Account verified. Please enter your new password.",
+        email: body.email,
+        name: "Teacher Candidate",
+        exists: true
+      };
+    }
+
+    if (endpoint.startsWith("/auth/reset-password")) {
+      return {
+        message: "Password updated successfully! You can now log in with your new password.",
+        success: true
       };
     }
     

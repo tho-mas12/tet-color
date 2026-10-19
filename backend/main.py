@@ -6,6 +6,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, F
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -185,18 +186,20 @@ def startup_event():
 
 @app.post("/api/auth/register", response_model=schemas.UserProfile)
 def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
-    existing = db.query(models.User).filter(models.User.email == user_data.email).first()
+    clean_email = user_data.email.strip().lower()
+    existing = db.query(models.User).filter(func.lower(models.User.email) == clean_email).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered.")
+        raise HTTPException(status_code=400, detail="Email already registered. Please sign in.")
     
     user = models.User(
-        name=user_data.name,
-        email=user_data.email,
+        name=user_data.name.strip(),
+        email=clean_email,
         password_hash=user_data.password,
         role="student",
         streak_count=1,
         daily_tasks_done=0,
-        daily_tasks_total=4
+        daily_tasks_total=4,
+        last_login=datetime.datetime.utcnow()
     )
     db.add(user)
     db.commit()
@@ -205,13 +208,43 @@ def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
 
 @app.post("/api/auth/login", response_model=schemas.UserProfile)
 def login(credentials: schemas.UserLogin, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == credentials.email).first()
+    clean_email = credentials.email.strip().lower()
+    user = db.query(models.User).filter(func.lower(models.User.email) == clean_email).first()
     if not user or user.password_hash != credentials.password:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
     user.last_login = datetime.datetime.utcnow()
     db.commit()
     db.refresh(user)
     return user
+
+@app.post("/api/auth/forgot-password")
+def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    clean_email = payload.email.strip().lower()
+    user = db.query(models.User).filter(func.lower(models.User.email) == clean_email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No registered account found with this email.")
+    return {
+        "message": f"Account verified for {user.name}. Please enter your new password below.",
+        "email": user.email,
+        "name": user.name,
+        "exists": True
+    }
+
+@app.post("/api/auth/reset-password")
+def reset_password(payload: schemas.UserResetPassword, db: Session = Depends(get_db)):
+    clean_email = payload.email.strip().lower()
+    user = db.query(models.User).filter(func.lower(models.User.email) == clean_email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No registered account found with this email.")
+    if len(payload.new_password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters long.")
+    
+    user.password_hash = payload.new_password
+    db.commit()
+    return {
+        "message": "Password updated successfully! You can now log in with your new password.",
+        "success": True
+    }
 
 @app.get("/api/user/profile", response_model=schemas.UserProfile)
 def get_profile(email: str = "student@tet.com", db: Session = Depends(get_db)):
@@ -1571,20 +1604,27 @@ def auth_google(payload: schemas.GoogleAuthPayload, db: Session = Depends(get_db
     if not email:
         raise HTTPException(status_code=400, detail="Invalid Google authentication payload.")
 
-    user = db.query(models.User).filter(models.User.email == email).first()
+    clean_email = email.strip().lower()
+    user = db.query(models.User).filter(func.lower(models.User.email) == clean_email).first()
     if not user:
         user = models.User(
-            name=name,
-            email=email,
+            name=name.strip(),
+            email=clean_email,
             password_hash="google_oauth_user",
             role="student",
             streak_count=1,
             daily_tasks_done=0,
-            daily_tasks_total=4
+            daily_tasks_total=4,
+            last_login=datetime.datetime.utcnow()
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+    else:
+        if name and name != "Google Candidate":
+            user.name = name.strip()
+    
+    user.last_login = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(user)
     return user
 
 # --- DAILY PRACTICE TEST ENDPOINTS ---

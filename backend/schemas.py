@@ -217,4 +217,12 @@ class GoogleAuthPayload(BaseModel):
     name: Optional[str] = None
     picture: Optional[str] = None
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class UserResetPassword(BaseModel):
+    email: str
+    new_password: str
+
+
 
