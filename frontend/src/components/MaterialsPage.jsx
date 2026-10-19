@@ -79,7 +79,7 @@ export default function MaterialsPage({ lang = "en" }) {
   };
 
   const handleDownload = (mat) => {
-    const pdfUrl = mat.pdf_url.startsWith("/") ? `http://localhost:8000${mat.pdf_url}` : mat.pdf_url;
+    const pdfUrl = mat.pdf_url;
     const link = document.createElement("a");
     link.href = pdfUrl;
     link.download = mat.pdf_filename || `${mat.title}.pdf`;
@@ -370,7 +370,7 @@ export default function MaterialsPage({ lang = "en" }) {
 
             <div className="flex-1 bg-slate-100">
               <iframe
-                src={activePdfModal.pdf_url.startsWith("/") ? `http://localhost:8000${activePdfModal.pdf_url}` : activePdfModal.pdf_url}
+                src={activePdfModal.pdf_url}
                 className="w-full h-full border-none"
                 title="PDF Viewer"
               />

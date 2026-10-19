@@ -732,6 +732,39 @@ export async function fetchApi(endpoint, options = {}) {
       return storedDP;
     }
 
+    if (endpoint.startsWith("/admin/users")) {
+      return [
+        {
+          id: 1,
+          name: "Platform Administrator",
+          email: "admin@tet.com",
+          role: "admin",
+          streak_count: 50,
+          daily_tasks_done: 4,
+          daily_tasks_total: 4,
+          last_login: "Just now",
+          last_viewed_lesson: "Admin Executive Portal",
+          completed_lessons_count: 25,
+          average_score: 98,
+          created_at: "19 Oct 2026"
+        },
+        {
+          id: 2,
+          name: "Teacher Candidate",
+          email: "candidate@tet.com",
+          role: "student",
+          streak_count: 14,
+          daily_tasks_done: 1,
+          daily_tasks_total: 4,
+          last_login: "Today, 03:20 PM",
+          last_viewed_lesson: "Class 8 Social Science (Term-1) - Unit 1",
+          completed_lessons_count: 3,
+          average_score: 92,
+          created_at: "19 Oct 2026"
+        }
+      ];
+    }
+
     // Default: If endpoint represents a list, safely return empty array
     if (endpoint.endsWith("/active") || endpoint.includes("/list") || endpoint.includes("/all") || endpoint.endsWith("s")) {
       return [];

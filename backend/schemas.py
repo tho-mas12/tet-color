@@ -19,6 +19,9 @@ class UserProfile(BaseModel):
     streak_count: int
     daily_tasks_done: int
     daily_tasks_total: int
+    last_login: Optional[datetime] = None
+    last_viewed_lesson: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

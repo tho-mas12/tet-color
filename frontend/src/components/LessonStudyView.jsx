@@ -441,7 +441,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
 
             <div className="w-full h-[520px] sm:h-[650px] bg-slate-100 rounded-2xl overflow-hidden border border-slate-200">
               <iframe
-                src={lessonData.pdf_url.startsWith("/") ? `http://localhost:8000${lessonData.pdf_url}` : lessonData.pdf_url}
+                src={lessonData.pdf_url}
                 className="w-full h-full border-none"
                 title="Lesson PDF Material"
               />
