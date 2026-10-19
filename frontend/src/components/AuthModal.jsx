@@ -16,7 +16,8 @@ import {
 import { fetchApi } from "../api";
 import { translations } from "../translations";
 
-const GOOGLE_CLIENT_ID = "32539783138-d31vusgaqtqejk481q542k1qfc77jn01.apps.googleusercontent.com";
+// Frontierwox Google OAuth Client ID
+const GOOGLE_CLIENT_ID = "332539783138-d31vusgaqtqejk481q542k1qfc77jn01.apps.googleusercontent.com";
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" }) {
   const [isLogin, setIsLogin] = useState(true);
