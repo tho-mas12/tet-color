@@ -88,6 +88,12 @@ class AdminSettingsSchema(BaseModel):
     test_question_count: int
     test_time_limit_mins: int
     pass_percentage: int
+    count_mcq: Optional[int] = 40
+    count_hots: Optional[int] = 30
+    count_match: Optional[int] = 30
+    count_multi_stmt: Optional[int] = 40
+    count_assertion: Optional[int] = 30
+    count_chronological: Optional[int] = 30
 
 class AnnouncementCreate(BaseModel):
     title: str

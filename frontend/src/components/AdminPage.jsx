@@ -123,6 +123,12 @@ export default function AdminPage({ user, lang = "en" }) {
   const [testCount, setTestCount] = useState(100);
   const [timeLimit, setTimeLimit] = useState(60);
   const [passPercent, setPassPercent] = useState(80);
+  const [countMcq, setCountMcq] = useState(40);
+  const [countHots, setCountHots] = useState(30);
+  const [countMatch, setCountMatch] = useState(30);
+  const [countMultiStmt, setCountMultiStmt] = useState(40);
+  const [countAssertion, setCountAssertion] = useState(30);
+  const [countChronological, setCountChronological] = useState(30);
   const [savingSettings, setSavingSettings] = useState(false);
 
   const [usersList, setUsersList] = useState([]);
@@ -483,6 +489,12 @@ export default function AdminPage({ user, lang = "en" }) {
       setTestCount(data.test_question_count || 100);
       setTimeLimit(data.test_time_limit_mins || 60);
       setPassPercent(data.pass_percentage || 80);
+      setCountMcq(data.count_mcq !== undefined ? data.count_mcq : 40);
+      setCountHots(data.count_hots !== undefined ? data.count_hots : 30);
+      setCountMatch(data.count_match !== undefined ? data.count_match : 30);
+      setCountMultiStmt(data.count_multi_stmt !== undefined ? data.count_multi_stmt : 40);
+      setCountAssertion(data.count_assertion !== undefined ? data.count_assertion : 30);
+      setCountChronological(data.count_chronological !== undefined ? data.count_chronological : 30);
     } catch (err) {
       console.error("Settings load error:", err);
     }
@@ -908,7 +920,13 @@ export default function AdminPage({ user, lang = "en" }) {
           practice_question_count: Number(practiceCount),
           test_question_count: Number(testCount),
           test_time_limit_mins: Number(timeLimit),
-          pass_percentage: Number(passPercent)
+          pass_percentage: Number(passPercent),
+          count_mcq: Number(countMcq || 0),
+          count_hots: Number(countHots || 0),
+          count_match: Number(countMatch || 0),
+          count_multi_stmt: Number(countMultiStmt || 0),
+          count_assertion: Number(countAssertion || 0),
+          count_chronological: Number(countChronological || 0)
         })
       });
       showToast("Admin & Gemini AI Settings saved successfully!");
@@ -2861,6 +2879,145 @@ export default function AdminPage({ user, lang = "en" }) {
                       onChange={(e) => setPassPercent(e.target.value)}
                       className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
                     />
+                  </div>
+                </div>
+
+                {/* QUESTION TYPE DISTRIBUTION CONFIGURATION */}
+                <div className="pt-3 border-t border-slate-200/80 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
+                        <SlidersHorizontal className="w-4 h-4 text-[#0055ff]" />
+                        <span>Question Types Distribution (வினா வகை ஒதுக்கீடு)</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Specify exact number of questions needed per type. Strictly generated from uploaded PDF material.
+                      </p>
+                    </div>
+                    <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-blue-50 text-[#0055ff] border border-blue-200 shrink-0 self-start sm:self-auto">
+                      Total: {Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0)} Qs
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* 1. MCQ */}
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-[#061b36]">
+                          1. MCQ (கொள்குறி வினாக்கள்)
+                        </label>
+                        <span className="text-[10px] font-semibold text-slate-400">Multiple Choice</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countMcq}
+                        onChange={(e) => setCountMcq(e.target.value)}
+                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                        placeholder="e.g. 40"
+                      />
+                    </div>
+
+                    {/* 2. உயர் சிந்தனை வினாக்கள் (HOTS) */}
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-[#061b36]">
+                          2. உயர் சிந்தனை வினாக்கள்
+                        </label>
+                        <span className="text-[10px] font-semibold text-slate-400">HOTS Questions</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countHots}
+                        onChange={(e) => setCountHots(e.target.value)}
+                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                        placeholder="e.g. 30"
+                      />
+                    </div>
+
+                    {/* 3. பொருத்துக வகை வினாக்கள் (Match) */}
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-[#061b36]">
+                          3. பொருத்துக வகை வினாக்கள்
+                        </label>
+                        <span className="text-[10px] font-semibold text-slate-400">Match the Following</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countMatch}
+                        onChange={(e) => setCountMatch(e.target.value)}
+                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                        placeholder="e.g. 30"
+                      />
+                    </div>
+
+                    {/* 4. பல்கூற்று வகை வினாக்கள் (Multi-Statement) */}
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-[#061b36]">
+                          4. பல்கூற்று வகை வினாக்கள்
+                        </label>
+                        <span className="text-[10px] font-semibold text-slate-400">Multi-Statement Analysis</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countMultiStmt}
+                        onChange={(e) => setCountMultiStmt(e.target.value)}
+                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                        placeholder="e.g. 40"
+                      />
+                    </div>
+
+                    {/* 5. கூற்று காரணம் வகை வினாக்கள் (Assertion & Reason) */}
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-[#061b36]">
+                          5. கூற்று காரணம் வகை வினாக்கள்
+                        </label>
+                        <span className="text-[10px] font-semibold text-slate-400">Assertion & Reason</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countAssertion}
+                        onChange={(e) => setCountAssertion(e.target.value)}
+                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                        placeholder="e.g. 30"
+                      />
+                    </div>
+
+                    {/* 6. கால வரிசைப்படுத்துதல் வினாக்கள் (Chronological Ordering) */}
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-[#061b36]">
+                          6. கால வரிசைப்படுத்துதல் வினாக்கள்
+                        </label>
+                        <span className="text-[10px] font-semibold text-slate-400">Chronological Ordering</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countChronological}
+                        onChange={(e) => setCountChronological(e.target.value)}
+                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                        placeholder="e.g. 30"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Strict PDF Notice Banner */}
+                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/90 text-amber-950 text-xs flex items-start gap-2.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <strong className="block text-amber-950 font-bold">Strict PDF Material Extraction Active</strong>
+                      <span className="text-amber-800 leading-relaxed font-medium">
+                        All questions are generated exclusively from the uploaded lesson PDF material. No outside questions, and zero repetitions (ONE question ONCE only).
+                      </span>
+                    </div>
                   </div>
                 </div>
 

@@ -89,6 +89,12 @@ class AdminSettings(Base):
     test_question_count = Column(Integer, default=100)
     test_time_limit_mins = Column(Integer, default=60)
     pass_percentage = Column(Integer, default=80)
+    count_mcq = Column(Integer, default=40)
+    count_hots = Column(Integer, default=30)
+    count_match = Column(Integer, default=30)
+    count_multi_stmt = Column(Integer, default=40)
+    count_assertion = Column(Integer, default=30)
+    count_chronological = Column(Integer, default=30)
 
 class TETCard(Base):
     __tablename__ = "tet_cards"

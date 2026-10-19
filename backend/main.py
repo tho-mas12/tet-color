@@ -726,6 +726,14 @@ def get_practice_questions(
     settings = db.query(models.AdminSettings).first()
     api_key = settings.gemini_api_key if settings else ""
     target_count = settings.practice_question_count if settings else count
+    type_counts = {
+        "count_mcq": getattr(settings, "count_mcq", 40) if settings else 40,
+        "count_hots": getattr(settings, "count_hots", 30) if settings else 30,
+        "count_match": getattr(settings, "count_match", 30) if settings else 30,
+        "count_multi_stmt": getattr(settings, "count_multi_stmt", 40) if settings else 40,
+        "count_assertion": getattr(settings, "count_assertion", 30) if settings else 30,
+        "count_chronological": getattr(settings, "count_chronological", 30) if settings else 30,
+    }
 
     questions = ai_generator.generate_practice_questions(
         class_num=lesson.class_num,
@@ -735,7 +743,9 @@ def get_practice_questions(
         count=target_count or 200,
         api_key=api_key,
         medium=getattr(lesson, "medium", ""),
-        description=getattr(lesson, "description", "")
+        description=getattr(lesson, "description", ""),
+        pdf_url=getattr(lesson, "pdf_url", "") or "",
+        type_counts=type_counts
     )
     return {
         "lesson_title": lesson.title,
@@ -777,6 +787,14 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
             print(f"[Test Pool Error] {e}")
 
     if not questions:
+        type_counts = {
+            "count_mcq": getattr(settings, "count_mcq", 40) if settings else 40,
+            "count_hots": getattr(settings, "count_hots", 30) if settings else 30,
+            "count_match": getattr(settings, "count_match", 30) if settings else 30,
+            "count_multi_stmt": getattr(settings, "count_multi_stmt", 40) if settings else 40,
+            "count_assertion": getattr(settings, "count_assertion", 30) if settings else 30,
+            "count_chronological": getattr(settings, "count_chronological", 30) if settings else 30,
+        }
         questions = ai_generator.generate_test_questions(
             class_num=lesson.class_num,
             subject=lesson.subject,
@@ -785,7 +803,9 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
             count=test_count,
             api_key=api_key,
             medium=getattr(lesson, "medium", ""),
-            description=getattr(lesson, "description", "")
+            description=getattr(lesson, "description", ""),
+            pdf_url=getattr(lesson, "pdf_url", "") or "",
+            type_counts=type_counts
         )
 
     test_payload = []
@@ -833,13 +853,25 @@ def submit_test(
             pass
 
     if not ref_questions:
+        type_counts = {
+            "count_mcq": getattr(settings, "count_mcq", 40) if settings else 40,
+            "count_hots": getattr(settings, "count_hots", 30) if settings else 30,
+            "count_match": getattr(settings, "count_match", 30) if settings else 30,
+            "count_multi_stmt": getattr(settings, "count_multi_stmt", 40) if settings else 40,
+            "count_assertion": getattr(settings, "count_assertion", 30) if settings else 30,
+            "count_chronological": getattr(settings, "count_chronological", 30) if settings else 30,
+        }
         ref_questions = ai_generator.generate_test_questions(
             class_num=lesson.class_num,
             subject=lesson.subject,
             term=lesson.term,
             lesson_title=lesson.title,
             count=test_count,
-            api_key=settings.gemini_api_key if settings else ""
+            api_key=settings.gemini_api_key if settings else "",
+            medium=getattr(lesson, "medium", ""),
+            description=getattr(lesson, "description", ""),
+            pdf_url=getattr(lesson, "pdf_url", "") or "",
+            type_counts=type_counts
         )
 
     correct_count = 0
@@ -1161,17 +1193,27 @@ def admin_generate_lesson_quiz(
 
     settings = db.query(models.AdminSettings).first()
     api_key = settings.gemini_api_key if settings else ""
+    type_counts = {
+        "count_mcq": getattr(settings, "count_mcq", 40) if settings else 40,
+        "count_hots": getattr(settings, "count_hots", 30) if settings else 30,
+        "count_match": getattr(settings, "count_match", 30) if settings else 30,
+        "count_multi_stmt": getattr(settings, "count_multi_stmt", 40) if settings else 40,
+        "count_assertion": getattr(settings, "count_assertion", 30) if settings else 30,
+        "count_chronological": getattr(settings, "count_chronological", 30) if settings else 30,
+    }
 
-    # Generate questions via ai_generator (200 questions)
+    # Generate questions strictly from uploaded PDF via ai_generator
     questions = ai_generator.generate_practice_questions(
         class_num=lesson.class_num,
         subject=lesson.subject,
         term=lesson.term,
         lesson_title=lesson.title,
-        count=count or 200,
+        count=count or getattr(settings, "practice_question_count", 200) or 200,
         api_key=api_key,
         medium=getattr(lesson, "medium", ""),
-        description=getattr(lesson, "description", "")
+        description=getattr(lesson, "description", ""),
+        pdf_url=getattr(lesson, "pdf_url", "") or "",
+        type_counts=type_counts
     )
 
     questions_json = json.dumps(questions, ensure_ascii=False)
@@ -1467,6 +1509,12 @@ def update_admin_settings(new_settings: schemas.AdminSettingsSchema, db: Session
     settings.test_question_count = new_settings.test_question_count
     settings.test_time_limit_mins = new_settings.test_time_limit_mins
     settings.pass_percentage = new_settings.pass_percentage
+    if new_settings.count_mcq is not None: settings.count_mcq = new_settings.count_mcq
+    if new_settings.count_hots is not None: settings.count_hots = new_settings.count_hots
+    if new_settings.count_match is not None: settings.count_match = new_settings.count_match
+    if new_settings.count_multi_stmt is not None: settings.count_multi_stmt = new_settings.count_multi_stmt
+    if new_settings.count_assertion is not None: settings.count_assertion = new_settings.count_assertion
+    if new_settings.count_chronological is not None: settings.count_chronological = new_settings.count_chronological
 
     db.commit()
     db.refresh(settings)
@@ -1753,6 +1801,14 @@ def admin_create_daily_practice(payload: schemas.DailyPracticeCreate, db: Sessio
     else:
         settings = db.query(models.AdminSettings).first()
         api_key = settings.gemini_api_key if settings else ""
+        type_counts = {
+            "count_mcq": getattr(settings, "count_mcq", 40) if settings else 40,
+            "count_hots": getattr(settings, "count_hots", 30) if settings else 30,
+            "count_match": getattr(settings, "count_match", 30) if settings else 30,
+            "count_multi_stmt": getattr(settings, "count_multi_stmt", 40) if settings else 40,
+            "count_assertion": getattr(settings, "count_assertion", 30) if settings else 30,
+            "count_chronological": getattr(settings, "count_chronological", 30) if settings else 30,
+        }
         qs = ai_generator.generate_practice_questions(
             class_num=payload.class_num,
             subject=payload.subject,
@@ -1761,7 +1817,9 @@ def admin_create_daily_practice(payload: schemas.DailyPracticeCreate, db: Sessio
             count=payload.test_questions_count or 20,
             api_key=api_key,
             medium=getattr(payload, "medium", ""),
-            description=payload.description or ""
+            description=payload.description or "",
+            pdf_url=payload.pdf_url or "",
+            type_counts=type_counts
         )
         qs_json = json.dumps(qs, ensure_ascii=False)
 
@@ -1828,6 +1886,14 @@ def admin_generate_daily_quiz(dp_id: int, count: int = 20, db: Session = Depends
     
     settings = db.query(models.AdminSettings).first()
     api_key = settings.gemini_api_key if settings else ""
+    type_counts = {
+        "count_mcq": getattr(settings, "count_mcq", 40) if settings else 40,
+        "count_hots": getattr(settings, "count_hots", 30) if settings else 30,
+        "count_match": getattr(settings, "count_match", 30) if settings else 30,
+        "count_multi_stmt": getattr(settings, "count_multi_stmt", 40) if settings else 40,
+        "count_assertion": getattr(settings, "count_assertion", 30) if settings else 30,
+        "count_chronological": getattr(settings, "count_chronological", 30) if settings else 30,
+    }
     qs = ai_generator.generate_practice_questions(
         class_num=dp.class_num,
         subject=dp.subject,
@@ -1836,7 +1902,9 @@ def admin_generate_daily_quiz(dp_id: int, count: int = 20, db: Session = Depends
         count=count,
         api_key=api_key,
         medium=getattr(dp, "medium", ""),
-        description=getattr(dp, "description", "")
+        description=getattr(dp, "description", ""),
+        pdf_url=dp.pdf_url or "",
+        type_counts=type_counts
     )
     dp.quiz_questions = json.dumps(qs, ensure_ascii=False)
     dp.test_questions_count = count
