@@ -7,9 +7,6 @@ import {
   Bell, 
   Calendar,
   Globe,
-  ExternalLink,
-  Video,
-  Radio,
   FileText,
   Clock,
   Sparkles
@@ -22,9 +19,9 @@ import NewsSection from "./NewsSection";
 export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, lang = "en" }) {
   const [dashboardData, setDashboardData] = useState(null);
   const [tetCards, setTetCards] = useState([]);
-  const [liveMeetings, setLiveMeetings] = useState([]);
   const [dailyPractices, setDailyPractices] = useState([]);
   const [selectedDailyPracticeId, setSelectedDailyPracticeId] = useState(null);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const t = translations[lang] || translations.en;
@@ -32,7 +29,6 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
   useEffect(() => {
     loadDashboard();
     loadTetCards();
-    loadLiveMeetings();
     loadDailyPractices();
   }, [user]);
 
@@ -44,17 +40,6 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       }
     } catch (err) {
       console.error("Daily practices error:", err);
-    }
-  };
-
-  const loadLiveMeetings = async () => {
-    try {
-      const meetings = await fetchApi("/meetings/active");
-      if (Array.isArray(meetings)) {
-        setLiveMeetings(meetings);
-      }
-    } catch (err) {
-      console.error("Live Meetings error:", err);
     }
   };
 
@@ -141,6 +126,57 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         </div>
       </div>
 
+      {/* ================= PLATFORM ANNOUNCEMENTS & NOTICES (MARQUEE TICKER) ================= */}
+      {announcements && announcements.length > 0 && (
+        <div className="bg-gradient-to-r from-[#061b36] via-[#092d62] to-[#0055ff] border border-[#0055ff]/40 rounded-2xl p-2 sm:p-2.5 shadow-sm text-white overflow-hidden relative flex items-center gap-3">
+          {/* Static Pinned Badge */}
+          <div className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 font-black text-xs shrink-0 z-10 backdrop-blur-md shadow-2xs">
+            <Bell className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
+            <span className="uppercase tracking-wider">
+              {lang === "ta" ? "முக்கிய அறிவிப்பு:" : "Notice:"}
+            </span>
+          </div>
+
+          {/* Scrolling Marquee Container */}
+          <div className="overflow-hidden flex-1 relative cursor-pointer group">
+            <div className="animate-marquee flex items-center space-x-8 whitespace-nowrap">
+              {/* Duplicate array for seamless infinite scroll */}
+              {[...announcements, ...announcements].map((ann, idx) => (
+                <div
+                  key={`${ann.id}-${idx}`}
+                  onClick={() => setSelectedAnnouncement(ann)}
+                  className="flex items-center space-x-2 text-xs font-semibold hover:text-amber-200 transition-colors cursor-pointer"
+                >
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                      ann.priority === "urgent"
+                        ? "bg-rose-500 text-white shadow-2xs"
+                        : "bg-blue-500/40 text-blue-200 border border-blue-400/30"
+                    }`}
+                  >
+                    {ann.priority || "INFO"}
+                  </span>
+                  <span className="font-bold text-white group-hover:text-amber-100">{ann.title}:</span>
+                  <span className="text-slate-200/90 max-w-md truncate">{ann.content}</span>
+                  <span className="text-[10px] text-blue-300/80">({ann.date})</span>
+                  <span className="text-amber-400/70 ml-4 font-bold">⚡</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Notice Modal Trigger */}
+          <button
+            onClick={() => setSelectedAnnouncement(announcements[0])}
+            className="hidden sm:flex items-center space-x-1 text-[11px] font-bold text-blue-200 hover:text-white px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all shrink-0 cursor-pointer"
+            title="Read Full Notice"
+          >
+            <span>{lang === "ta" ? "பார்வை" : "View"}</span>
+            <span>↗</span>
+          </button>
+        </div>
+      )}
+
       {/* STATUS BAR & DAILY STREAK */}
       <div className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-7 shadow-xs">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-5 sm:gap-6">
@@ -192,66 +228,6 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
         </div>
       </div>
-
-      {/* ================= LIVE MEETINGS BANNER (IF ACTIVE / LIVE NOW) ================= */}
-      {liveMeetings && liveMeetings.length > 0 && (
-        <div className="space-y-3">
-          {liveMeetings.map((meeting) => (
-            <div
-              key={meeting.id}
-              className={`rounded-3xl p-5 sm:p-6 border transition-all shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-                meeting.is_live
-                  ? "bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white border-rose-500/60 shadow-rose-500/10"
-                  : "bg-white border-slate-200 text-[#061b36]"
-              }`}
-            >
-              <div className="space-y-1.5 flex-1">
-                <div className="flex items-center space-x-2.5">
-                  {meeting.is_live ? (
-                    <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-600 text-white flex items-center space-x-1.5 shadow-md">
-                      <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
-                      <span>🔴 LIVE NOW</span>
-                    </span>
-                  ) : (
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#0055ff] border border-blue-200 flex items-center space-x-1.5">
-                      <Radio className="w-3.5 h-3.5 text-[#0055ff]" />
-                      <span>Live Meeting Scheduled</span>
-                    </span>
-                  )}
-                  <span className={`text-xs font-bold ${meeting.is_live ? "text-rose-200" : "text-slate-500"}`}>
-                    {meeting.start_time ? meeting.start_time.replace("T", " ") : ""} {meeting.end_time ? `– ${meeting.end_time.replace("T", " ")}` : ""}
-                  </span>
-                </div>
-
-                <h3 className={`text-base sm:text-lg font-black tracking-tight ${meeting.is_live ? "text-white" : "text-[#061b36]"}`}>
-                  {meeting.title}
-                </h3>
-
-                {meeting.description && (
-                  <p className={`text-xs sm:text-sm font-medium ${meeting.is_live ? "text-rose-100/90" : "text-slate-600"}`}>
-                    {meeting.description}
-                  </p>
-                )}
-              </div>
-
-              <a
-                href={meeting.meeting_link || meeting.meeting_url || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`px-5 py-3 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 shadow-md transition-all hover:scale-105 cursor-pointer shrink-0 ${
-                  meeting.is_live
-                    ? "bg-rose-500 hover:bg-rose-600 text-white"
-                    : "bg-[#0055ff] hover:bg-blue-700 text-white"
-                }`}
-              >
-                <Video className="w-4 h-4" />
-                <span>{meeting.is_live ? "Join Live Meeting Now ↗" : "Open Meeting Link ↗"}</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ================= DAILY PRACTICE TESTS (CONFIGURABLE STAGE CARDS) ================= */}
       {dailyPractices && dailyPractices.length > 0 && (
@@ -476,40 +452,44 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       {/* ================= LIGHTNING EDUCATION NEWS (INSHORTS-STYLE AI LIVE FEED) ================= */}
       <NewsSection lang={lang} />
 
-      {/* ANNOUNCEMENTS SECTION */}
-      {announcements.length > 0 && (
-        <div className="bg-white border border-sky-100 rounded-3xl p-6 shadow-sm">
-          <h3 className="text-base font-bold text-[#1E3A8A] flex items-center space-x-2 mb-4">
-            <Bell className="w-5 h-5 text-[#0284C7] animate-bounce" />
-            <span>{t.announcementsTitle}</span>
-          </h3>
-
-          <div className="space-y-3">
-            {announcements.map((ann) => (
-              <div
-                key={ann.id}
-                className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-              >
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                        ann.priority === "urgent"
-                          ? "bg-red-100 text-red-700 border border-red-200"
-                          : "bg-sky-100 text-[#0284C7] border border-[#0284C7]/30"
-                      }`}
-                    >
-                      {ann.priority}
-                    </span>
-                    <h4 className="text-xs font-bold text-[#1E3A8A]">{ann.title}</h4>
-                  </div>
-                  <p className="text-xs text-slate-600 font-medium mt-1">{ann.content}</p>
-                </div>
-                <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">
-                  {ann.date}
+      {/* ANNOUNCEMENT DETAIL MODAL */}
+      {selectedAnnouncement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <span
+                  className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                    selectedAnnouncement.priority === "urgent"
+                      ? "bg-rose-100 text-rose-700 border border-rose-200"
+                      : "bg-blue-100 text-[#0055ff] border border-blue-200"
+                  }`}
+                >
+                  {selectedAnnouncement.priority || "ANNOUNCEMENT"}
                 </span>
+                <span className="text-xs text-slate-400 font-semibold">{selectedAnnouncement.date}</span>
               </div>
-            ))}
+              <button
+                onClick={() => setSelectedAnnouncement(null)}
+                className="text-slate-400 hover:text-slate-700 text-xl font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-[#061b36] mb-2">{selectedAnnouncement.title}</h3>
+              <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-line">
+                {selectedAnnouncement.content}
+              </p>
+            </div>
+            <div className="pt-2 text-right">
+              <button
+                onClick={() => setSelectedAnnouncement(null)}
+                className="px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

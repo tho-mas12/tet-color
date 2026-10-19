@@ -15,7 +15,10 @@ import {
   Zap,
   Crown,
   ShieldCheck,
-  Flame
+  Flame,
+  Radio,
+  Video,
+  ExternalLink
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
@@ -42,6 +45,7 @@ export default function LearningPage({ user, lang = "en" }) {
   const [loading, setLoading] = useState(false);
   const [activeLessonId, setActiveLessonId] = useState(null);
   const [streakCount, setStreakCount] = useState(user?.streak_count || 0);
+  const [liveMeetings, setLiveMeetings] = useState([]);
 
   const t = translations[lang] || translations.en;
 
@@ -129,6 +133,49 @@ export default function LearningPage({ user, lang = "en" }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadLiveMeetings();
+  }, []);
+
+  const loadLiveMeetings = async () => {
+    try {
+      const meetings = await fetchApi("/meetings/active");
+      if (Array.isArray(meetings)) {
+        setLiveMeetings(meetings);
+      }
+    } catch (err) {
+      console.error("Live Meetings error in LearningPage:", err);
+    }
+  };
+
+  // Filter & deduplicate live meetings for the selected TET Paper
+  const courseMeetings = (liveMeetings || []).filter((meeting) => {
+    if (meeting.is_active === false) return false;
+    const text = `${meeting.title || ""} ${meeting.description || ""}`.toLowerCase();
+    const isPaper1 = text.includes("paper 1") || text.includes("paper-1") || text.includes("tet 1") || text.includes("tet-1") || text.includes("classes 1") || text.includes("class 1");
+    const isPaper2 = text.includes("paper 2") || text.includes("paper-2") || text.includes("tet 2") || text.includes("tet-2") || text.includes("classes 6") || text.includes("class 6");
+    
+    if (tetPaper === "paper1") {
+      if (isPaper2 && !isPaper1) return false;
+      return true;
+    }
+    if (tetPaper === "paper2") {
+      if (isPaper1 && !isPaper2) return false;
+      return true;
+    }
+    return true;
+  });
+
+  const uniqueCourseMeetings = [];
+  const seenMeetingKeys = new Set();
+  for (const m of courseMeetings) {
+    const key = `${m.title}_${m.meeting_link || m.meeting_url}`;
+    if (!seenMeetingKeys.has(key)) {
+      seenMeetingKeys.add(key);
+      uniqueCourseMeetings.push(m);
+    }
+  }
 
   // Milestone Badges tailored to selected TET Paper
   const badges = [
@@ -251,6 +298,73 @@ export default function LearningPage({ user, lang = "en" }) {
           </div>
         </div>
       </div>
+
+      {/* ================= LIVE / SCHEDULED COURSE MEETINGS NOTIFICATION ================= */}
+      {uniqueCourseMeetings && uniqueCourseMeetings.length > 0 && (
+        <div className="space-y-3">
+          {uniqueCourseMeetings.map((meeting) => (
+            <div
+              key={meeting.id}
+              className={`rounded-3xl p-5 sm:p-6 border transition-all shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+                meeting.is_live
+                  ? "bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white border-rose-500/60 shadow-rose-500/20"
+                  : "bg-white border-blue-200 text-[#061b36] shadow-xs"
+              }`}
+            >
+              <div className="space-y-1.5 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {meeting.is_live ? (
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-600 text-white flex items-center space-x-1.5 shadow-md animate-pulse">
+                      <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
+                      <span>🔴 LIVE NOW</span>
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#0055ff] border border-blue-200 flex items-center space-x-1.5">
+                      <Radio className="w-3.5 h-3.5 text-[#0055ff]" />
+                      <span>Live Meeting Scheduled</span>
+                    </span>
+                  )}
+
+                  <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${
+                    meeting.is_live ? "bg-white/10 text-rose-200" : "bg-slate-100 text-slate-600"
+                  }`}>
+                    {tetPaper === "paper1" ? "TET-1 Course" : "TET-2 Course"}
+                  </span>
+
+                  <span className={`text-xs font-bold ${meeting.is_live ? "text-rose-200" : "text-slate-500"}`}>
+                    {meeting.start_time ? meeting.start_time.replace("T", " ") : ""} {meeting.end_time ? `– ${meeting.end_time.replace("T", " ")}` : ""}
+                  </span>
+                </div>
+
+                <h3 className={`text-base sm:text-lg font-black tracking-tight ${meeting.is_live ? "text-white" : "text-[#061b36]"}`}>
+                  {meeting.title}
+                </h3>
+
+                {meeting.description && (
+                  <p className={`text-xs sm:text-sm font-medium leading-relaxed ${meeting.is_live ? "text-rose-100/90" : "text-slate-600"}`}>
+                    {meeting.description}
+                  </p>
+                )}
+              </div>
+
+              <a
+                href={meeting.meeting_link || meeting.meeting_url || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`px-5 py-3 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 shadow-md transition-all hover:scale-105 cursor-pointer shrink-0 ${
+                  meeting.is_live
+                    ? "bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/30"
+                    : "bg-[#0055ff] hover:bg-blue-700 text-white"
+                }`}
+              >
+                <Video className="w-4 h-4" />
+                <span>{meeting.is_live ? "Join Live Meeting Now ↗" : "Open Meeting Link ↗"}</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* MOTIVATION QUOTE BOX & STREAK BADGES (DYNAMICALLY ADAPTED FOR TET 1 vs TET 2) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
