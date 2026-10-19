@@ -30,10 +30,10 @@ export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
 
   // Real-time Active Students Statistics
   const [stats, setStats] = useState({
-    active_students: 14850,
-    active_today: 1420,
+    active_students: 0,
+    live_count: 0,
     total_lessons: 2450,
-    pass_rate: "98.4%",
+    pass_rate: "80%",
     districts_count: 38
   });
 
@@ -41,24 +41,17 @@ export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
     let isMounted = true;
     fetchApi("/public-stats")
       .then((data) => {
-        if (isMounted && data && data.active_students) {
+        if (isMounted && data && typeof data.active_students !== "undefined") {
           setStats(data);
         }
       })
       .catch((err) => {
-        // Fallback default statistics already set
         console.warn("Public stats load note:", err);
       });
     return () => {
       isMounted = false;
     };
   }, []);
-
-  const districts = [
-    "Chennai", "Madurai", "Coimbatore", "Tiruchirappalli", "Salem", 
-    "Tirunelveli", "Vellore", "Thanjavur", "Erode", "Dindigul", 
-    "Tiruppur", "Kanyakumari", "Cuddalore", "Kanchipuram", "Villupuram", "Thiruvallur"
-  ];
 
   return (
     <div className="w-full space-y-12 sm:space-y-16 animate-fade-in text-[#061b36] font-sans">
@@ -85,13 +78,13 @@ export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
               
               <span className="text-emerald-700 font-extrabold flex items-center gap-1">
                 <Activity className="w-3.5 h-3.5" />
-                {stats.active_today.toLocaleString()}+ {isTa ? "ஆசிரியர்கள் இப்போது பயிற்சியில்" : "Teachers Practicing Now"}
+                {stats.active_students} {isTa ? "மாணவர்கள் நேரலையில்" : "Live Students Enrolled"}
               </span>
 
               <span className="text-slate-300 hidden sm:inline">•</span>
 
               <span className="text-[#061b36] font-bold">
-                {stats.active_students.toLocaleString()}+ {isTa ? "பதிவுசெய்த தேர்வர்கள்" : "Aspirants Enrolled"}
+                {isTa ? "தாள் 1 & தாள் 2 பாடநெறி" : "Paper 1 & Paper 2 Comprehensive Track"}
               </span>
             </div>
 
@@ -195,25 +188,26 @@ export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
                 <div className="flex items-center justify-between text-xs font-bold text-slate-600">
                   <span className="flex items-center gap-1.5 text-[#061b36]">
                     <Users className="w-4 h-4 text-[#0055ff]" />
-                    {isTa ? "செயலில் உள்ள தேர்வர்கள்" : "Active Enrolled Aspirants"}
+                    {isTa ? "நேரலை மாணவர்கள்" : "Live Active Students"}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
-                    ● {isTa ? "நேரடி" : "LIVE"}
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                    {isTa ? "நேரடி" : "LIVE NOW"}
                   </span>
                 </div>
                 
                 <div className="flex items-baseline justify-between pt-1">
                   <span className="text-3xl font-black text-[#061b36] tracking-tight">
-                    {stats.active_students.toLocaleString()}+
+                    {stats.active_students}
                   </span>
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
-                    {stats.active_today.toLocaleString()} {isTa ? "இன்று செயலில்" : "Active Today"}
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                    {stats.active_students} {isTa ? "மாணவர்கள் இணைக்கப்பட்டுள்ளனர்" : "Students Online"}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 font-medium leading-tight">
                   {isTa 
-                    ? "தமிழ்நாட்டின் 38 மாவட்டங்களில் உள்ள அரசு மற்றும் தனியார் பள்ளி ஆசிரியர் ஆர்வலர்கள்."
-                    : "Aspiring and in-service educators preparing daily across all 38 districts of Tamil Nadu."}
+                    ? "டி.என். டெட் போர்ட்டலில் தற்போது பதிவுசெய்து பயிலும் நேரடி மாணவர்கள்."
+                    : "Real-time count of registered students preparing on TN Teacher Portal."}
                 </p>
               </div>
 
@@ -258,35 +252,35 @@ export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
           <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-[#0055ff]/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-                {isTa ? "செயலில் உள்ள மாணவர்கள்" : "Active Students"}
+                {isTa ? "நேரடி மாணவர்கள்" : "Live Students"}
               </span>
               <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0055ff] flex items-center justify-center font-bold">
                 <Users className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-black text-[#061b36] tracking-tight">
-              {stats.active_students.toLocaleString()}+
+              {stats.active_students}
             </div>
             <p className="text-xs text-slate-500 mt-1 font-medium">
-              {isTa ? "38 மாவட்டங்களில் பதிவுசெய்தோர்" : "Enrolled across 38 districts"}
+              {isTa ? "தளத்தில் இணைந்துள்ள நேரடி மாணவர்கள்" : "Enrolled candidates on portal"}
             </p>
           </div>
 
-          {/* Stat 2: Active Today */}
+          {/* Stat 2: Syllabus Tracks */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-emerald-500/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-                {isTa ? "இன்று பயிற்சி செய்வோர்" : "Active Today"}
+                {isTa ? "தேர்வுப் பாடத்திட்டம்" : "Syllabus Tracks"}
               </span>
               <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                 <Flame className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight">
-              {stats.active_today.toLocaleString()}+
+              Paper 1 & 2
             </div>
             <p className="text-xs text-slate-500 mt-1 font-medium">
-              {isTa ? "தினசரி தேர்வு எழுதுவோர்" : "Practicing timed tests today"}
+              {isTa ? "தொடக்க & பட்டதாரி ஆசிரியர் பிரிவுகள்" : "Primary & Graduate Teacher Tracks"}
             </p>
           </div>
 
@@ -505,83 +499,6 @@ export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
             </button>
           </div>
 
-        </div>
-      </section>
-
-
-      {/* ================= ACTIVE STATE-WIDE COMMUNITY SECTION ================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-10 shadow-sm space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-            <div>
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#0055ff] block mb-1">
-                {isTa ? "தமிழ்நாடு தழுவிய தேர்வர் சமூகம்" : "State-Wide Active Educator Network"}
-              </span>
-              <h3 className="text-xl sm:text-2xl font-black text-[#061b36]">
-                {stats.active_students.toLocaleString()}+ {isTa ? "ஆசிரியர்கள் 38 மாவட்டங்களில் இணைந்து பயில்கின்றனர்" : "Teachers & Aspirants Across 38 Districts"}
-              </h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-xs font-bold text-slate-600">
-                {stats.active_today.toLocaleString()} {isTa ? "தேர்வர்கள் இன்று ஆன்லைனில்" : "Online Practicing Today"}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {districts.map((dst, dIdx) => (
-              <span 
-                key={dIdx} 
-                className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200/80 text-slate-700 hover:text-[#0055ff] text-xs font-bold transition flex items-center gap-1.5"
-              >
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                {dst}
-              </span>
-            ))}
-            <span className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-[#0055ff] text-xs font-extrabold">
-              +22 {isTa ? "இதர மாவட்டங்கள்" : "More Districts"}
-            </span>
-          </div>
-        </div>
-      </section>
-
-
-      {/* ================= BOTTOM LIGHT ACADEMIC CTA BANNER ================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
-        <div className="bg-gradient-to-r from-blue-50 via-white to-sky-50 border-2 border-blue-200/90 rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-lg shadow-blue-500/5 relative overflow-hidden">
-          <div className="max-w-2xl mx-auto space-y-3 relative z-10">
-            <span className="inline-block px-3 py-1 rounded-full bg-blue-100/80 border border-blue-300 text-xs font-bold uppercase tracking-wider text-[#0055ff]">
-              {isTa ? "இப்போதே தொடங்குங்கள்" : "Join 14,850+ Candidates Today"}
-            </span>
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-[#061b36]">
-              {isTa 
-                ? "ஆசிரியர் தகுதித் தேர்வில் சிறந்த மதிப்பெண் பெறத் தயாரா?"
-                : "Ready to Achieve Your TN Teacher Eligibility Benchmark?"}
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-xl mx-auto">
-              {isTa 
-                ? "உங்கள் கணக்கில் உள்நுழைந்து உடனடி மாதிரிப் பயிற்சிகள் மற்றும் பாடக்குறிப்புகளைப் பெறுங்கள்."
-                : "Sign in with your Google or candidate account to access study notes, attend live faculty sessions, and track your daily streak."}
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 relative z-10">
-            <button
-              onClick={onOpenLogin}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#0055ff] hover:bg-blue-600 text-white font-black text-sm shadow-xl shadow-blue-500/20 hover:scale-102 active:scale-98 transition cursor-pointer flex items-center justify-center space-x-2"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>{isTa ? "போர்ட்டலில் நுழைக (Candidate Sign In)" : "Sign In to Candidate Portal"}</span>
-            </button>
-
-            <button
-              onClick={onOpenRegister}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-[#061b36] border border-slate-300 font-bold text-sm shadow-xs transition cursor-pointer"
-            >
-              <span>{isTa ? "புதிய மாணவர் பதிவு (Register)" : "Register as New Candidate"}</span>
-            </button>
-          </div>
         </div>
       </section>
 

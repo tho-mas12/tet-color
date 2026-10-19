@@ -908,13 +908,12 @@ def submit_test(
 
 @app.get("/api/public-stats")
 def get_public_stats(db: Session = Depends(get_db)):
-    base_count = 14850
     db_students = db.query(models.User).filter(models.User.role == "student").count()
     return {
-        "active_students": base_count + db_students,
-        "active_today": 1420 + (db_students * 2),
+        "active_students": db_students,
+        "live_count": db_students,
         "total_lessons": 2450,
-        "pass_rate": "98.4%",
+        "pass_rate": "80%",
         "districts_count": 38
     }
 

@@ -9,7 +9,8 @@ import {
   Globe,
   FileText,
   Clock,
-  Sparkles
+  Sparkles,
+  Download
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
@@ -441,8 +442,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                 onClick={() => onNavigateToMaterials && onNavigateToMaterials()}
                 className="w-full py-3 px-4 rounded-xl bg-slate-50 hover:bg-[#0055ff] text-[#061b36] hover:text-white border border-slate-200/90 hover:border-[#0055ff] font-extrabold text-xs sm:text-sm transition-all duration-200 shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer group min-h-[44px]"
               >
-                <BookOpen className="w-4 h-4 mr-1 text-[#0055ff] group-hover:text-white" />
-                <span>OPEN MATERIALS EXPLORER →</span>
+                <Download className="w-4 h-4 mr-1 text-[#0055ff] group-hover:text-white" />
+                <span>DOWNLOAD ALL BOOKS</span>
               </button>
             </div>
           </div>
