@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   Flame, 
-  Award, 
-  Zap, 
-  Crown, 
-  ShieldCheck, 
   CheckCircle2, 
-  Sparkles, 
   BookOpen, 
   ArrowRight, 
   Bell, 
@@ -96,8 +91,6 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
   }
 
   const u = dashboardData?.user || user || {};
-  const quote = dashboardData?.quote || "Success is built on small daily study steps.";
-  const badges = dashboardData?.badges || [];
   const announcements = dashboardData?.announcements || [];
 
   return (
@@ -121,14 +114,6 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-[#061b36] tracking-tight">
                   {t.welcomeBack}, {u.name}!
                 </h1>
-                
-                {/* Highest Unlocked Badge Logo Displayed Right Next to Name */}
-                {badges.filter(b => b.unlocked).length > 0 && (
-                  <div className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 text-amber-900 text-xs font-black flex items-center space-x-1.5 shadow-2xs">
-                    <Crown className="w-4 h-4 text-amber-600 fill-amber-500" />
-                    <span>{badges.filter(b => b.unlocked).slice(-1)[0]?.name}</span>
-                  </div>
-                )}
               </div>
 
               <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
@@ -485,97 +470,6 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
             </div>
           </div>
         </div>
-      </div>
-
-      {/* MOTIVATION QUOTE BOX & STREAK BADGES */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        <div className="lg:col-span-5 bg-gradient-to-br from-sky-50 to-blue-50/60 border border-sky-100 rounded-3xl p-6 flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="px-3 py-1 rounded-full bg-white text-[#0284C7] text-xs font-bold uppercase flex items-center space-x-1.5 border border-[#0284C7]/30 shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#0284C7]" />
-                <span>{t.dailyMotivationTitle}</span>
-              </span>
-            </div>
-
-            <blockquote className="text-base sm:text-lg font-extrabold text-[#1E3A8A] italic leading-relaxed my-2">
-              "{quote}"
-            </blockquote>
-          </div>
-
-          <div className="pt-4 border-t border-sky-200/80 flex items-center justify-between text-xs text-[#0284C7] font-semibold">
-            <span>TET Portal</span>
-            <span className="font-bold text-[#1E3A8A]">Daily Learning Focus</span>
-          </div>
-        </div>
-
-        <div className="lg:col-span-7 bg-white border border-sky-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-base font-bold text-[#1E3A8A] flex items-center space-x-2">
-                  <Award className="w-5 h-5 text-[#0284C7]" />
-                  <span>{t.streakBadgesTitle}</span>
-                </h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  {t.badgesDesc}
-                </p>
-              </div>
-              <span className="text-xs font-bold text-[#0284C7] bg-sky-50 px-3 py-1 rounded-full border border-[#0284C7]/30">
-                {badges.filter(b => b.unlocked).length} / {badges.length} {t.unlockedText}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {badges.map((b) => {
-                const isUnlocked = b.unlocked;
-                return (
-                  <div
-                    key={b.id}
-                    className={`relative p-3.5 rounded-2xl border text-center transition-all ${
-                      isUnlocked
-                        ? "bg-sky-50/70 border-[#0284C7]/40 shadow-xs"
-                        : "bg-slate-50 border-slate-200 opacity-60 grayscale"
-                    }`}
-                  >
-                    {isUnlocked && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#0284C7] text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                        ✓
-                      </div>
-                    )}
-
-                    <div className="w-11 h-11 mx-auto rounded-xl bg-gradient-to-br from-[#1E3A8A] to-[#0284C7] p-0.5 shadow-xs flex items-center justify-center mb-2">
-                      <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
-                        {b.id === "day15" && <Zap className="w-5 h-5 text-yellow-500 fill-yellow-400" />}
-                        {b.id === "day30" && <Award className="w-5 h-5 text-orange-500" />}
-                        {b.id === "day90" && <ShieldCheck className="w-5 h-5 text-indigo-600" />}
-                        {b.id === "day180" && <Sparkles className="w-5 h-5 text-emerald-600" />}
-                        {b.id === "day365" && <Crown className="w-5 h-5 text-[#0284C7] fill-[#0284C7]" />}
-                      </div>
-                    </div>
-
-                    <h4 className="text-xs font-bold text-[#061b36] truncate">{b.name}</h4>
-                    <span className="text-xs font-semibold text-slate-500 block mt-0.5">
-                      {b.required_streak} {t.streakDays}
-                    </span>
-
-                    <span
-                      className={`inline-block mt-2 px-2.5 py-0.5 text-xs font-extrabold uppercase rounded-full ${
-                        isUnlocked
-                          ? "bg-blue-100 text-[#0055ff] border border-[#0055ff]/30"
-                          : "bg-slate-200 text-slate-600"
-                      }`}
-                    >
-                      {isUnlocked ? t.unlockedText : `${t.needStreakText} ${b.required_streak}`}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
       </div>
 
       {/* ================= LIGHTNING EDUCATION NEWS (INSHORTS-STYLE AI LIVE FEED) ================= */}

@@ -10,7 +10,12 @@ import {
   Award,
   Info,
   UserCheck,
-  Clock
+  Clock,
+  Sparkles,
+  Zap,
+  Crown,
+  ShieldCheck,
+  Flame
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
@@ -22,6 +27,11 @@ export default function LearningPage({ user, lang = "en" }) {
   });
 
   const [selectedClass, setSelectedClass] = useState(() => {
+    const saved = localStorage.getItem("tet_selected_class");
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if (!isNaN(parsed)) return parsed;
+    }
     const initialPaper = localStorage.getItem("tet_paper_choice") || "paper1";
     return initialPaper === "paper1" ? 1 : 6;
   });
@@ -31,6 +41,7 @@ export default function LearningPage({ user, lang = "en" }) {
   const [learningStructure, setLearningStructure] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeLessonId, setActiveLessonId] = useState(null);
+  const [streakCount, setStreakCount] = useState(user?.streak_count || 0);
 
   const t = translations[lang] || translations.en;
 
@@ -77,6 +88,22 @@ export default function LearningPage({ user, lang = "en" }) {
   }, [tetPaper]);
 
   useEffect(() => {
+    loadUserStreak();
+  }, [user]);
+
+  const loadUserStreak = async () => {
+    try {
+      const email = user ? user.email : "student@tet.com";
+      const data = await fetchApi(`/dashboard?email=${encodeURIComponent(email)}`);
+      if (data?.user?.streak_count !== undefined) {
+        setStreakCount(data.user.streak_count);
+      }
+    } catch (err) {
+      console.error("Streak load error in LearningPage:", err);
+    }
+  };
+
+  useEffect(() => {
     if (selectedSubject === "Tamil") {
       setSelectedMedium("Tamil Medium");
     } else if (selectedSubject === "English") {
@@ -103,6 +130,61 @@ export default function LearningPage({ user, lang = "en" }) {
     }
   };
 
+  // Milestone Badges tailored to selected TET Paper
+  const badges = [
+    {
+      id: "day15",
+      name: lang === "ta" ? "15-நாள் சாதனையாளர்" : "15-Day Scholar",
+      required_streak: 15,
+      unlocked: streakCount >= 15,
+      icon: "Zap"
+    },
+    {
+      id: "day30",
+      name: lang === "ta" ? "30-நாள் மாஸ்டர்" : "30-Day Master",
+      required_streak: 30,
+      unlocked: streakCount >= 30,
+      icon: "Award"
+    },
+    {
+      id: "day90",
+      name: lang === "ta" ? "90-நாள் நிபுணர்" : "90-Day Veteran",
+      required_streak: 90,
+      unlocked: streakCount >= 90,
+      icon: "ShieldCheck"
+    },
+    {
+      id: "day180",
+      name: lang === "ta" ? "180-நாள் வெற்றியாளர்" : "180-Day Titan",
+      required_streak: 180,
+      unlocked: streakCount >= 180,
+      icon: "Sparkles"
+    },
+    {
+      id: "day365",
+      name: lang === "ta" ? "365-நாள் வைரம்" : "365-Day Diamond Legend",
+      required_streak: 365,
+      unlocked: streakCount >= 365,
+      icon: "Crown"
+    }
+  ];
+
+  const motivationQuote = tetPaper === "paper1"
+    ? t.tet1MotivationQuote
+    : t.tet2MotivationQuote;
+
+  const motivationTitle = tetPaper === "paper1"
+    ? t.tet1MotivationTitle
+    : t.tet2MotivationTitle;
+
+  const badgesTitle = tetPaper === "paper1"
+    ? t.tet1BadgesTitle
+    : t.tet2BadgesTitle;
+
+  const badgesDesc = tetPaper === "paper1"
+    ? t.tet1BadgesDesc
+    : t.tet2BadgesDesc;
+
   if (activeLessonId) {
     return (
       <LessonStudyView
@@ -120,18 +202,166 @@ export default function LearningPage({ user, lang = "en" }) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#071c38]">
       
-      {/* Header Banner */}
-      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-3">
-        <div className="flex items-center space-x-2 text-[#0055ff] font-bold text-xs uppercase tracking-wider">
-          <GraduationCap className="w-4 h-4" />
-          <span>Sequential Study Engine</span>
+      {/* Header Banner & TET Track Selector */}
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2 text-[#0055ff] font-bold text-xs uppercase tracking-wider">
+              <GraduationCap className="w-4 h-4" />
+              <span>{tetPaper === "paper1" ? "TET-1 Candidate Portal" : "TET-2 Candidate Portal"}</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-[#061b36] tracking-tight">
+              {t.learningTitle}
+            </h1>
+            <p className="text-xs text-slate-500 max-w-2xl font-medium">
+              {t.learningSubtitle}
+            </p>
+          </div>
+
+          {/* TET-1 vs TET-2 Interactive Switcher */}
+          <div className="flex items-center p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80 w-full sm:w-auto shadow-2xs">
+            <button
+              onClick={() => {
+                setTetPaper("paper1");
+                setSelectedClass(1);
+              }}
+              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-2 ${
+                tetPaper === "paper1"
+                  ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
+                  : "text-[#061b36] hover:bg-slate-200/70"
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>TET-1 (Classes 1–8)</span>
+            </button>
+            <button
+              onClick={() => {
+                setTetPaper("paper2");
+                setSelectedClass(6);
+              }}
+              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-2 ${
+                tetPaper === "paper2"
+                  ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
+                  : "text-[#061b36] hover:bg-slate-200/70"
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              <span>TET-2 (Classes 6–12)</span>
+            </button>
+          </div>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-[#061b36] tracking-tight">
-          {t.learningTitle}
-        </h1>
-        <p className="text-xs text-slate-500 max-w-2xl font-medium">
-          {t.learningSubtitle}
-        </p>
+      </div>
+
+      {/* MOTIVATION QUOTE BOX & STREAK BADGES (DYNAMICALLY ADAPTED FOR TET 1 vs TET 2) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Daily Motivation Box */}
+        <div className={`lg:col-span-5 border rounded-3xl p-6 flex flex-col justify-between shadow-xs transition-all ${
+          tetPaper === "paper1"
+            ? "bg-gradient-to-br from-blue-50/80 via-sky-50/50 to-indigo-50/60 border-blue-200/80"
+            : "bg-gradient-to-br from-indigo-50/80 via-slate-50 to-sky-50/60 border-indigo-200/80"
+        }`}>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase flex items-center space-x-1.5 shadow-2xs border ${
+                tetPaper === "paper1"
+                  ? "bg-white text-[#0055ff] border-blue-200"
+                  : "bg-white text-indigo-700 border-indigo-200"
+              }`}>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{motivationTitle}</span>
+              </span>
+
+              <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-lg bg-white/80 border border-slate-200 text-slate-600">
+                {tetPaper === "paper1" ? "Primary & Upper Primary" : "High School & Higher Sec"}
+              </span>
+            </div>
+
+            <blockquote className="text-base sm:text-lg font-black text-[#061b36] italic leading-relaxed my-2.5">
+              "{motivationQuote}"
+            </blockquote>
+          </div>
+
+          <div className="pt-4 border-t border-blue-200/60 flex items-center justify-between text-xs font-bold text-slate-500">
+            <span className="flex items-center space-x-1">
+              <Flame className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
+              <span>Streak: <b className="text-[#061b36]">{streakCount} {t.streakDays}</b></span>
+            </span>
+            <span className="text-[#0055ff] font-extrabold">
+              {tetPaper === "paper1" ? "TET-1 Curriculum Focus" : "TET-2 Pedagogy Focus"}
+            </span>
+          </div>
+        </div>
+
+        {/* Streak Achievement Badges Box */}
+        <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 className="text-base font-black text-[#061b36] flex items-center space-x-2">
+                  <Award className="w-5 h-5 text-[#0055ff]" />
+                  <span>{badgesTitle}</span>
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  {badgesDesc}
+                </p>
+              </div>
+              <span className="self-start sm:self-auto text-xs font-black text-[#0055ff] bg-blue-50 px-3 py-1 rounded-full border border-blue-200 shadow-2xs">
+                {badges.filter(b => b.unlocked).length} / {badges.length} {t.unlockedText}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {badges.map((b) => {
+                const isUnlocked = b.unlocked;
+                return (
+                  <div
+                    key={b.id}
+                    className={`relative p-3 rounded-2xl border text-center transition-all ${
+                      isUnlocked
+                        ? "bg-blue-50/60 border-blue-300 shadow-xs ring-1 ring-blue-200/50"
+                        : "bg-slate-50 border-slate-200/90 opacity-60 grayscale"
+                    }`}
+                  >
+                    {isUnlocked && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#0055ff] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                        ✓
+                      </div>
+                    )}
+
+                    <div className="w-10 h-10 mx-auto rounded-xl bg-gradient-to-br from-[#061b36] to-[#0055ff] p-0.5 shadow-2xs flex items-center justify-center mb-2">
+                      <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
+                        {b.id === "day15" && <Zap className="w-4 h-4 text-yellow-500 fill-yellow-400" />}
+                        {b.id === "day30" && <Award className="w-4 h-4 text-orange-500" />}
+                        {b.id === "day90" && <ShieldCheck className="w-4 h-4 text-indigo-600" />}
+                        {b.id === "day180" && <Sparkles className="w-4 h-4 text-emerald-600" />}
+                        {b.id === "day365" && <Crown className="w-4 h-4 text-[#0055ff] fill-[#0055ff]" />}
+                      </div>
+                    </div>
+
+                    <h4 className="text-xs font-black text-[#061b36] truncate leading-tight" title={b.name}>
+                      {b.name}
+                    </h4>
+                    <span className="text-[11px] font-bold text-slate-500 block mt-0.5">
+                      {b.required_streak} {t.streakDays}
+                    </span>
+
+                    <span
+                      className={`inline-block mt-2 px-2 py-0.5 text-[10px] font-black uppercase rounded-full ${
+                        isUnlocked
+                          ? "bg-[#0055ff] text-white"
+                          : "bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      {isUnlocked ? t.unlockedText : `${t.needStreakText} ${b.required_streak}`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* SELECTORS: CLASS, SUBJECT & MEDIUM */}
