@@ -1063,13 +1063,13 @@ export default function AdminPage({ user, lang = "en" }) {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in text-slate-800">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-5 space-y-5 animate-fade-in text-slate-800">
       
       {/* Modern Dynamic Toast Alert */}
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {/* TOP HEADER BAR (FWT iZON Dashboard Style) */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl px-4 py-3 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      {/* TOP HEADER BAR (FWT iZON Dashboard Style - Full Width) */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl px-5 py-3.5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Left: Brand Logo & Sidebar Toggle */}
         <div className="flex items-center space-x-3 w-full md:w-auto justify-between md:justify-start">
           <div className="flex items-center space-x-2.5">
@@ -1114,14 +1114,8 @@ export default function AdminPage({ user, lang = "en" }) {
           />
         </div>
 
-        {/* Right: Operational Status, Notifications Bell, User Pill */}
+        {/* Right: Notifications Bell & User Pill */}
         <div className="flex items-center space-x-3 w-full md:w-auto justify-end">
-          {/* Status Badge */}
-          <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>All Systems Operational</span>
-          </div>
-
           {/* Bell Icon */}
           <button
             onClick={() => setActiveTab("announcements")}
@@ -1218,11 +1212,6 @@ export default function AdminPage({ user, lang = "en" }) {
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
                     Real-time analytics and performance metrics
                   </p>
-                </div>
-
-                <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold shadow-2xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>All Systems Operational</span>
                 </div>
               </div>
 
