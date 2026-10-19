@@ -11,7 +11,9 @@ import {
   BookOpen, 
   Newspaper,
   Maximize2,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { fetchApi } from "../api";
 
@@ -23,6 +25,27 @@ export default function NewsSection({ lang = "ta" }) {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFullNews, setActiveFullNews] = useState(null);
   const [fullScreenImage, setFullScreenImage] = useState(null);
+
+  // Default news to closed/collapsed; view only when eye icon is clicked/enabled
+  const [isVisible, setIsVisible] = useState(() => {
+    try {
+      return localStorage.getItem("tet_show_news") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const isTa = lang === "ta";
+
+  const toggleVisibility = () => {
+    setIsVisible(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem("tet_show_news", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const DRIVE_API = "https://script.google.com/macros/s/AKfycbxMexRa77406z3_CmqK55FPxeP9QHkbJDmCgC1A7eA2omJ8MJDwJ8t_GKs-grA9DpgvkA/exec?action=news&_=";
 
@@ -123,141 +146,177 @@ export default function NewsSection({ lang = "ta" }) {
   };
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-7 shadow-xs space-y-5">
+    <div className={`bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-6 shadow-xs transition-all duration-300 ${isVisible ? "space-y-5" : ""}`}>
       
       {/* HEADER BAR */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isVisible ? "border-b border-slate-100 pb-4" : ""}`}>
         <div className="flex items-center space-x-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#ff5722] to-amber-500 flex items-center justify-center text-white shadow-sm shadow-orange-500/20">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#ff5722] to-amber-500 flex items-center justify-center text-white shadow-sm shadow-orange-500/20 shrink-0">
             <Zap className="w-5 h-5 fill-white" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
               <h3 className="text-base sm:text-lg font-black text-[#061b36] tracking-tight">
-                மின்னல் செய்திகள்
+                {isTa ? "மின்னல் செய்திகள்" : "Lightning Live News"}
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-950 border border-orange-200">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-950 border border-orange-200 shrink-0">
                 LIVE NEWS
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
-              கல்வித்துறை, TET/TRB அறிவிப்புகள் மற்றும் உடனுக்குடன் நேரலைச் செய்திகள்
+              {isVisible
+                ? (isTa ? "கல்வித்துறை, TET/TRB அறிவிப்புகள் மற்றும் உடனுக்குடன் நேரலைச் செய்திகள்" : "Education department, TET/TRB circulars and breaking updates")
+                : (isTa ? "நேரலை செய்திகளைக் காண கண் குறியீட்டை (Eye Icon) அழுத்தவும்" : "Click the eye icon to view live news updates")}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 self-end sm:self-auto">
-          {/* Category Filter Pills */}
-          <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-            <button
-              onClick={() => setCurrentFilter("all")}
-              className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                currentFilter === "all" ? "bg-white text-[#ff5722] shadow-xs font-black" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              அனைத்தும்
-            </button>
-            <button
-              onClick={() => setCurrentFilter("education")}
-              className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                currentFilter === "education" ? "bg-white text-[#ff5722] shadow-xs font-black" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              கல்வி & TET
-            </button>
-          </div>
-
+        <div className="flex items-center space-x-2 self-end sm:self-auto shrink-0">
+          {/* EYE ICON TOGGLE BUTTON (ENABLED = VIEW, DISABLED = COLLAPSED) */}
           <button
-            onClick={handleLiveAiRefresh}
-            disabled={refreshing}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#ff5722] text-xs font-bold border border-orange-200 transition cursor-pointer"
-            title="AI நேரலை செய்திகளைப் புதுப்பிக்க"
+            onClick={toggleVisibility}
+            title={isVisible ? (isTa ? "செய்திகளை மறை (Hide)" : "Hide News") : (isTa ? "செய்திகளைப் பார் (View)" : "View News")}
+            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs ${
+              isVisible
+                ? "bg-orange-500 text-white border-orange-600 shadow-orange-500/20 hover:bg-orange-600 active:scale-95"
+                : "bg-white hover:bg-orange-50 text-slate-700 hover:text-orange-600 border-slate-200 hover:border-orange-300 active:scale-95"
+            }`}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">AI Update</span>
+            {isVisible ? (
+              <>
+                <EyeOff className="w-4 h-4 shrink-0 text-white" />
+                <span>{isTa ? "செய்திகளை மறை" : "Hide News"}</span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4 shrink-0 text-orange-500" />
+                <span>{isTa ? "செய்திகளைப் பார்" : "View News"}</span>
+              </>
+            )}
           </button>
+
+          {/* When enabled / visible, display filters and AI update button */}
+          {isVisible && (
+            <>
+              {/* Category Filter Pills */}
+              <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                <button
+                  onClick={() => setCurrentFilter("all")}
+                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                    currentFilter === "all" ? "bg-white text-[#ff5722] shadow-xs font-black" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {isTa ? "அனைத்தும்" : "All"}
+                </button>
+                <button
+                  onClick={() => setCurrentFilter("education")}
+                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                    currentFilter === "education" ? "bg-white text-[#ff5722] shadow-xs font-black" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {isTa ? "கல்வி & TET" : "Education & TET"}
+                </button>
+              </div>
+
+              <button
+                onClick={handleLiveAiRefresh}
+                disabled={refreshing}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#ff5722] text-xs font-bold border border-orange-200 transition cursor-pointer"
+                title={isTa ? "AI நேரலை செய்திகளைப் புதுப்பிக்க" : "Refresh AI Live News"}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">AI Update</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* CONTENT AREA */}
-      {loading ? (
-        <div className="py-16 text-center space-y-3">
-          <div className="w-8 h-8 border-3 border-[#ff5722] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-500">செய்திகள் ஏற்றப்படுகின்றன...</p>
-        </div>
-      ) : filteredNews.length === 0 ? (
-        <div className="text-center py-12 text-slate-400 text-xs font-medium">
-          செய்திகள் எதுவும் கிடைக்கவில்லை.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {filteredNews.slice(0, 6).map((news, idx) => (
-            <div
-              key={news.id || idx}
-              className="group flex flex-col justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-orange-300 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md"
-            >
-              <div>
-                {/* News Image */}
-                {news.imageUrl && (
-                  <div className="relative aspect-video w-full overflow-hidden bg-slate-200">
-                    <img
-                      src={news.imageUrl}
-                      alt={news.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
-                      onClick={() => setFullScreenImage(news.imageUrl)}
-                      loading="lazy"
-                    />
-                    <button
-                      onClick={() => setFullScreenImage(news.imageUrl)}
-                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-black/80 transition"
-                      title="முழுத்திரை"
-                    >
-                      <Maximize2 className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-black/70 text-white backdrop-blur-xs">
-                      {news.source || "மின்னல் செய்தி"}
-                    </span>
-                  </div>
-                )}
-
-                {/* News Content */}
-                <div className="p-4 space-y-2">
-                  <div className="flex items-center space-x-2 text-[11px] text-slate-500 font-semibold">
-                    <Clock className="w-3.5 h-3.5 text-orange-500" />
-                    <span>{formatTimeAgo(news.pubDate)}</span>
-                  </div>
-
-                  <h4 className="text-sm font-bold text-[#061b36] line-clamp-2 leading-snug group-hover:text-[#ff5722] transition-colors">
-                    {news.title}
-                  </h4>
-
-                  <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed text-justify font-medium">
-                    {news.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Card Footer */}
-              <div className="px-4 py-3 bg-white/80 border-t border-slate-100 flex items-center justify-between">
-                <button
-                  onClick={() => setActiveFullNews(news)}
-                  className="text-xs font-bold text-[#ff5722] hover:text-orange-700 flex items-center space-x-1 cursor-pointer"
-                >
-                  <span>முழுவதும் படிக்க</span>
-                  <ExternalLink className="w-3 h-3" />
-                </button>
-
-                <button
-                  onClick={() => handleShare(news)}
-                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-emerald-600 transition cursor-pointer"
-                  title="பகிர்க"
-                >
-                  <Share2 className="w-4 h-4" />
-                </button>
-              </div>
+      {/* CONTENT AREA (DISPLAYED ONLY WHEN EYE ICON IS ENABLED) */}
+      {isVisible && (
+        <>
+          {loading ? (
+            <div className="py-16 text-center space-y-3">
+              <div className="w-8 h-8 border-3 border-[#ff5722] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs font-bold text-slate-500">
+                {isTa ? "செய்திகள் ஏற்றப்படுகின்றன..." : "Loading news..."}
+              </p>
             </div>
-          ))}
-        </div>
+          ) : filteredNews.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 text-xs font-medium">
+              {isTa ? "செய்திகள் எதுவும் கிடைக்கவில்லை." : "No news found."}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 animate-fade-in">
+              {filteredNews.slice(0, 6).map((news, idx) => (
+                <div
+                  key={news.id || idx}
+                  className="group flex flex-col justify-between bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-orange-300 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md"
+                >
+                  <div>
+                    {/* News Image */}
+                    {news.imageUrl && (
+                      <div className="relative aspect-video w-full overflow-hidden bg-slate-200">
+                        <img
+                          src={news.imageUrl}
+                          alt={news.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
+                          onClick={() => setFullScreenImage(news.imageUrl)}
+                          loading="lazy"
+                        />
+                        <button
+                          onClick={() => setFullScreenImage(news.imageUrl)}
+                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-black/80 transition"
+                          title="முழுத்திரை"
+                        >
+                          <Maximize2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-black/70 text-white backdrop-blur-xs">
+                          {news.source || "மின்னல் செய்தி"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* News Content */}
+                    <div className="p-4 space-y-2">
+                      <div className="flex items-center space-x-2 text-[11px] text-slate-500 font-semibold">
+                        <Clock className="w-3.5 h-3.5 text-orange-500" />
+                        <span>{formatTimeAgo(news.pubDate)}</span>
+                      </div>
+
+                      <h4 className="text-sm font-bold text-[#061b36] line-clamp-2 leading-snug group-hover:text-[#ff5722] transition-colors">
+                        {news.title}
+                      </h4>
+
+                      <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed text-justify font-medium">
+                        {news.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Card Footer */}
+                  <div className="px-4 py-3 bg-white/80 border-t border-slate-100 flex items-center justify-between">
+                    <button
+                      onClick={() => setActiveFullNews(news)}
+                      className="text-xs font-bold text-[#ff5722] hover:text-orange-700 flex items-center space-x-1 cursor-pointer"
+                    >
+                      <span>முழுவதும் படிக்க</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+
+                    <button
+                      onClick={() => handleShare(news)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-emerald-600 transition cursor-pointer"
+                      title="பகிர்க"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* FULL NEWS MODAL (Inshorts Style Reader) */}
