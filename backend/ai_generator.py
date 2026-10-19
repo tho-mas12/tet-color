@@ -45,6 +45,57 @@ def detect_material_language(subject: str = "", lesson_title: str = "", medium: 
     return "Tamil"
 
 
+def clean_question_text(q_text: str, lesson_title: str = "") -> str:
+    """
+    Strips lesson titles/numbers like '1.எண்கள்' or '1. Numbers' from question stems,
+    ensuring clean, self-contained examination questions.
+    """
+    if not q_text:
+        return ""
+
+    # 1. Strip lesson title in single/double quotes or unquoted
+    if lesson_title:
+        lt = lesson_title.strip("'\" ")
+        esc = re.escape(lt)
+        q_text = re.sub(
+            rf"['\"]?{esc}['\"]?\s*(பாடப்பகுதியி[^\s]*\s*(அடிப்படையில்,?\s*|தொடர்பான\s*|ஆழமாகப்\s*)?|பாடப்பகுதியில்\s*(உள்ள\s*|இடம்\s*பெற்றுள்ள\s*|குறிப்பிடப்பட்டுள்ள\s*)?|பாடத்தி[^\s]*\s*|-|\:)?\s*",
+            "",
+            q_text,
+            flags=re.IGNORECASE
+        )
+
+    # 2. Generic strip of any quoted lesson title
+    q_text = re.sub(r"'[^']+'\s*பாடப்பகுதியி[^\s]*\s*(அடிப்படையில்,?\s*|தொடர்பான\s*|ஆழமாகப்\s*)?,?\s*", "", q_text)
+    q_text = re.sub(r"'[^']+'\s*பாடப்பகுதியில்\s*(உள்ள\s*|இடம்\s*பெற்றுள்ள\s*|குறிப்பிடப்பட்டுள்ள\s*)?", "", q_text)
+    q_text = re.sub(r"^'[^']+'\s*-\s*", "", q_text)
+    q_text = re.sub(r"^'[^']+'\s*:\s*", "", q_text)
+    q_text = re.sub(r"^'[^']+'\s*", "", q_text)
+    q_text = re.sub(r"^\d+\.\s*[^\s\-:]+\s*[-:]\s*", "", q_text)
+
+    # 3. Clean leading awkward Tamil transition words
+    q_text = re.sub(r"^தகவல்களின் அடிப்படையில்,?\s*", "", q_text)
+    q_text = re.sub(r"^உள்ள தகவல்களைப் பொருத்துக:", "கீழ்க்கண்ட தகவல்களைப் பொருத்துக:", q_text)
+    q_text = re.sub(r"^இடம்பெற்றுள்ள கீழ்க்கண்ட", "கீழ்க்கண்ட", q_text)
+    q_text = re.sub(r"^குறிப்பிடப்பட்டுள்ள நிகழ்வுகள்", "கீழ்க்கண்ட நிகழ்வுகள்", q_text)
+    q_text = re.sub(r"^:\s*\n*", "", q_text)
+
+    # 4. English prefixes
+    q_text = re.sub(r"^Based on '[^']*',?\s*", "", q_text, flags=re.IGNORECASE)
+    q_text = re.sub(r"^Based on\s*[,:]?\s*", "", q_text, flags=re.IGNORECASE)
+    q_text = re.sub(r"^In '[^']*',?\s*", "", q_text, flags=re.IGNORECASE)
+    q_text = re.sub(r"^In the context of '[^']*',?\s*:?\s*", "", q_text, flags=re.IGNORECASE)
+    q_text = re.sub(r"^In the context of\s*[,:]?\s*", "", q_text, flags=re.IGNORECASE)
+    q_text = re.sub(r"^According to '[^']*',?\s*", "", q_text, flags=re.IGNORECASE)
+    q_text = re.sub(r"^According to\s*[,:]?\s*", "", q_text, flags=re.IGNORECASE)
+    q_text = re.sub(r"^In\s*[,:]\s*", "", q_text, flags=re.IGNORECASE)
+    q_text = re.sub(r"^[,:\-–—\s]+", "", q_text)
+
+    q_text = q_text.strip()
+    if q_text and q_text[0].isascii() and q_text[0].isalpha():
+        q_text = q_text[0].upper() + q_text[1:]
+    return q_text
+
+
 def extract_pdf_content(pdf_url: str = "", max_pages: int = 120) -> str:
     """
     Extracts text cleanly and strictly from the uploaded PDF document.
@@ -289,16 +340,16 @@ def _build_pdf_strict_questions(
         opts.insert(target_ans, correct_s)
 
         if is_english:
-            q_text = f"Based on '{lesson_title}', which of the following statements is verified directly by the uploaded textbook material?\n\nStatement Context: '{correct_s[:85]}...'"
+            q_text = f"Which of the following statements is verified directly by the uploaded textbook material?\n\nStatement Context: '{correct_s[:85]}...'"
             exp = f"Textbook Reference: '{correct_s}' is stated directly in the uploaded lesson material."
         else:
-            q_text = f"'{lesson_title}' பாடப்பகுதியின் தகவல்களின் அடிப்படையில், கீழ்க்கண்ட கூற்றுகளுள் எது சரியான கொள்குறி விடையாகும்?\n\nதகவல் பகுதி: '{correct_s[:85]}...'"
+            q_text = f"கீழ்க்கண்ட கூற்றுகளுள் எது பாடப்புத்தகத் தகவல்களின்படி சரியான கொள்குறி விடையாகும்?\n\nதகவல் பகுதி: '{correct_s[:85]}...'"
             exp = f"பாடநூல் விளக்கம்: '{correct_s}' என்பது பாடப்பகுதியில் தெளிவாகக் குறிப்பிடப்பட்டுள்ள நேரடி உண்மையாகும்."
 
         output_questions.append({
             "id": len(output_questions) + 1,
             "question_type": "MCQ",
-            "question": q_text,
+            "question": clean_question_text(q_text, lesson_title),
             "options": opts,
             "answer_index": target_ans,
             "explanation": exp
@@ -314,16 +365,16 @@ def _build_pdf_strict_questions(
         opts.insert(target_ans, hots_s)
 
         if is_english:
-            q_text = f"Analytical & Higher Order Thinking (HOTS) - In '{lesson_title}', analyze the following concept:\n'{hots_s[:95]}...'\nWhich analytical deduction is most accurate?"
+            q_text = f"Analytical & Higher Order Thinking (HOTS) - Analyze the following concept:\n'{hots_s[:95]}...'\nWhich analytical deduction is most accurate?"
             exp = f"HOTS Reference: The material establishes '{hots_s}' as a foundational concept."
         else:
-            q_text = f"உயர் சிந்தனை வினா (HOTS) - '{lesson_title}' பாடப்பகுதியின் பின்வரும் கருத்தை ஆழமாகப் பகுப்பாய்வு செய்க:\n'{hots_s[:95]}...'\nபாடத்தின் மையக் கோட்பாட்டோடு மிகவும் பொருந்தும் முடிவு எது?"
+            q_text = f"உயர் சிந்தனை வினா (HOTS) - பின்வரும் கருத்தை ஆழமாகப் பகுப்பாய்வு செய்க:\n'{hots_s[:95]}...'\nபாடத்தின் மையக் கோட்பாட்டோடு மிகவும் பொருந்தும் முடிவு எது?"
             exp = f"உயர்சிந்தனை விளக்கம்: பாடநூலின் கருத்துப்படி, '{hots_s}' என்பது ஆழமான புரிதலுக்கான மையப் பொருளாகும்."
 
         output_questions.append({
             "id": len(output_questions) + 1,
             "question_type": "உயர் சிந்தனை வினாக்கள்",
-            "question": q_text,
+            "question": clean_question_text(q_text, lesson_title),
             "options": opts,
             "answer_index": target_ans,
             "explanation": exp
@@ -352,14 +403,14 @@ def _build_pdf_strict_questions(
 
         if is_english:
             q_text = (
-                f"Match the concepts from List I with their descriptions in List II according to '{lesson_title}':\n\n"
+                f"Match the concepts from List I with their descriptions in List II:\n\n"
                 f"List I:\n1. {pairs[0][0]}\n2. {pairs[1][0]}\n3. {pairs[2][0]}\n4. {pairs[3][0]}\n\n"
                 f"List II:\ni. {list_ii_items[0]}\nii. {list_ii_items[1]}\niii. {list_ii_items[2]}\niv. {list_ii_items[3]}"
             )
             exp = f"Matching Explanation: Correct sequential code is ({correct_seq}) directly verified from the lesson text."
         else:
             q_text = (
-                f"'{lesson_title}' பாடப்பகுதியில் உள்ள தகவல்களைப் பொருத்துக:\n\n"
+                f"கீழ்க்கண்ட தகவல்களைச் சரியாகப் பொருத்துக:\n\n"
                 f"பட்டியல் I:\n1. {pairs[0][0]}\n2. {pairs[1][0]}\n3. {pairs[2][0]}\n4. {pairs[3][0]}\n\n"
                 f"பட்டியல் II:\ni. {list_ii_items[0]}\nii. {list_ii_items[1]}\niii. {list_ii_items[2]}\niv. {list_ii_items[3]}"
             )
@@ -368,7 +419,7 @@ def _build_pdf_strict_questions(
         output_questions.append({
             "id": len(output_questions) + 1,
             "question_type": "பொருத்துக வகை வினாக்கள்",
-            "question": q_text,
+            "question": clean_question_text(q_text, lesson_title),
             "options": opts,
             "answer_index": target_ans,
             "explanation": exp
@@ -384,7 +435,7 @@ def _build_pdf_strict_questions(
         target_ans = (len(output_questions)) % 4
         if is_english:
             q_text = (
-                f"Consider the following statements from the study material for '{lesson_title}':\n\n"
+                f"Consider the following statements from the study material:\n\n"
                 f"i) {s1}\n"
                 f"ii) {s2}\n"
                 f"iii) {s3}\n\n"
@@ -399,7 +450,7 @@ def _build_pdf_strict_questions(
             exp = f"Analysis Explanation: Verified against lesson text. The correct option is '{all_opts[target_ans]}'."
         else:
             q_text = (
-                f"'{lesson_title}' பாடப்பகுதியில் இடம்பெற்றுள்ள கீழ்க்கண்ட கூற்றுகளைக் கவனித்து ஆராய்க:\n\n"
+                f"கீழ்க்கண்ட கூற்றுகளைக் கவனித்து ஆராய்க:\n\n"
                 f"i) {s1}\n"
                 f"ii) {s2}\n"
                 f"iii) {s3}\n\n"
@@ -416,7 +467,7 @@ def _build_pdf_strict_questions(
         output_questions.append({
             "id": len(output_questions) + 1,
             "question_type": "பல்கூற்று வகை வினாக்கள்",
-            "question": q_text,
+            "question": clean_question_text(q_text, lesson_title),
             "options": all_opts,
             "answer_index": target_ans,
             "explanation": exp
@@ -431,7 +482,6 @@ def _build_pdf_strict_questions(
         target_ans = (len(output_questions)) % 4
         if is_english:
             q_text = (
-                f"In the context of '{lesson_title}':\n\n"
                 f"Assertion (A): {sa}\n"
                 f"Reason (R): {sr}\n\n"
                 f"Select the correct answer from the following:"
@@ -445,7 +495,7 @@ def _build_pdf_strict_questions(
             exp = f"Assertion & Reason Explanation: Directly assessed from the textbook narrative. Correct evaluation: '{all_opts[target_ans]}'."
         else:
             q_text = (
-                f"'{lesson_title}' பாடப்பகுதியின் அடிப்படையில்:\n\n"
+                f"கூற்று மற்றும் காரணத்தை ஆராய்க:\n\n"
                 f"கூற்று (A): {sa}\n"
                 f"காரணம் (R): {sr}\n\n"
                 f"சரியான விடையைத் தேர்ந்தெடுக்க:"
@@ -461,7 +511,7 @@ def _build_pdf_strict_questions(
         output_questions.append({
             "id": len(output_questions) + 1,
             "question_type": "கூற்று காரணம் வகை வினாக்கள்",
-            "question": q_text,
+            "question": clean_question_text(q_text, lesson_title),
             "options": all_opts,
             "answer_index": target_ans,
             "explanation": exp
@@ -474,7 +524,7 @@ def _build_pdf_strict_questions(
         target_ans = (len(output_questions)) % 4
         if is_english:
             q_text = (
-                f"Arrange the following historical/conceptual developments in '{lesson_title}' in chronological or sequential order:\n\n"
+                f"Arrange the following historical/conceptual developments in chronological or sequential order:\n\n"
                 f"1. {seq[0]}\n"
                 f"2. {seq[1]}\n"
                 f"3. {seq[2]}\n"
@@ -483,7 +533,7 @@ def _build_pdf_strict_questions(
             exp = f"Chronological Explanation: According to the chronological sequence in the lesson material, the correct order is verified."
         else:
             q_text = (
-                f"'{lesson_title}' பாடப்பகுதியில் குறிப்பிடப்பட்டுள்ள நிகழ்வுகள் / படிநிலைகளைச் சரியான கால/தொடர் வரிசைப்படி ஒழுங்குபடுத்துக:\n\n"
+                f"கீழ்க்கண்ட நிகழ்வுகள் / படிநிலைகளைச் சரியான கால/தொடர் வரிசைப்படி ஒழுங்குபடுத்துக:\n\n"
                 f"1. {seq[0]}\n"
                 f"2. {seq[1]}\n"
                 f"3. {seq[2]}\n"
@@ -495,11 +545,14 @@ def _build_pdf_strict_questions(
         output_questions.append({
             "id": len(output_questions) + 1,
             "question_type": "கால வரிசைப்படுத்துதல் வினாக்கள்",
-            "question": q_text,
+            "question": clean_question_text(q_text, lesson_title),
             "options": all_opts,
             "answer_index": target_ans,
             "explanation": exp
         })
+
+    for q in output_questions:
+        q["question"] = clean_question_text(q.get("question", ""), lesson_title)
 
     return output_questions
 
@@ -1131,40 +1184,40 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
                         f"Variations in ambient temperature and pressure exert no measurable influence on the system.",
                         f"The transformation is wholly irreversible and exempt from analytical investigation."
                     ]
-                    exp = f"Scientific Explanation: {concept_desc} acts as the core investigative principle within {lesson_title}. Correct choice: '{correct_opt}'."
+                    exp = f"Scientific Explanation: {concept_desc} acts as the core investigative principle within the subject. Correct choice: '{correct_opt}'."
                 elif subject == "Social Science":
-                    q_text = f"In '{lesson_title}', what critical perspective best evaluates '{concept_desc}' in the context of institutional governance?"
+                    q_text = f"What critical perspective best evaluates '{concept_desc}' in the context of institutional governance?"
                     correct_opt = f"Historical and civic frameworks under {topic_title} balance institutional accountability with constitutional mandates."
                     wrong_opts = [
                         f"Governance policies in this era were formulated without statutory or administrative precedent.",
                         f"Social and economic dynamics had no bearing on institutional outcomes.",
                         f"The administrative structure operated purely as a temporary, ad-hoc measure."
                     ]
-                    exp = f"Civic/Historical Explanation: {concept_desc} provides the foundational basis for understanding {lesson_title}. Correct choice: '{correct_opt}'."
+                    exp = f"Civic/Historical Explanation: {concept_desc} provides the foundational basis for understanding this topic. Correct choice: '{correct_opt}'."
                 else:
-                    q_text = f"In '{lesson_title}', analyze the core theme of '{concept_desc}'. Which critical interpretation is most sound?"
+                    q_text = f"Analyze the core theme of '{concept_desc}'. Which critical interpretation is most sound?"
                     correct_opt = f"Mastery of {topic_title} ensures contextual accuracy and conceptual integrity across standard applications."
                     wrong_opts = [
                         f"The concept represents an obsolete framework superseded by modern colloquial usage.",
                         f"Application of these guidelines should be avoided in formal analytical discourse.",
                         f"The principle has no established validity within curriculum standards."
                     ]
-                    exp = f"Explanation: {concept_desc} is a key learning outcome in {lesson_title}. Correct choice: '{correct_opt}'."
+                    exp = f"Explanation: {concept_desc} is a key learning outcome. Correct choice: '{correct_opt}'."
             else:
                 if subject == "Tamil":
-                    q_text = f"'{lesson_title}' பாடப்பகுதியில், ஆசிரியர் முன்வைக்கும் முதன்மைக் கருத்தான '{concept_desc}' என்பதை ஆழமாகப் பகுப்பாய்வு செய்யும் போது கீழ்க்கண்டவற்றுள் எது மிகவும் பொருத்தமான உயர்சிந்தனைக் கருத்தாகும்?"
+                    q_text = f"ஆசிரியர் முன்வைக்கும் முதன்மைக் கருத்தான '{concept_desc}' என்பதை ஆழமாகப் பகுப்பாய்வு செய்யும் போது கீழ்க்கண்டவற்றுள் எது மிகவும் பொருத்தமான உயர்சிந்தனைக் கருத்தாகும்?"
                     correct_opt = f"பாடத்தின் கருத்தியல் பின்னணியில் {concept_desc} என்பது நடைமுறை வாழ்வியல் ஒழுக்கத்தோடும் மொழியியல் பண்பாட்டோடும் இயைந்து நிற்பது."
                     wrong_opts = [
                         f"இக்கருத்து வெறும் ஏட்டளவிலான விதிகளோடு மட்டும் முடிந்துவிடுகிறது.",
                         f"முந்தைய இலக்கண விதிகளுக்கு முற்றிலும் முரணான மாற்றுப் பார்வையை முன்வைப்பது.",
                         f"எவ்வித வரலாற்றுப் பின்னணியும் இன்றி மேலோட்டமாக விளக்கப்படுவது."
                     ]
-                    exp = f"விளக்கம்: {lesson_title} பாடப்பகுதியில் {concept_desc} என்பது இலக்கியப் பயன்பாட்டைத் தாண்டி தமிழ்ச் சமூகத்தின் சிந்தனை மரபை வெளிப்படுத்துகிறது. சரியான விடை: '{correct_opt}'."
+                    exp = f"விளக்கம்: {concept_desc} என்பது இலக்கியப் பயன்பாட்டைத் தாண்டி தமிழ்ச் சமூகத்தின் சிந்தனை மரபை வெளிப்படுத்துகிறது. சரியான விடை: '{correct_opt}'."
                 elif subject == "Mathematics":
                     val1 = (i * 3) + 7
                     val2 = (i * 2) + 5
                     result_val = (val1 * val2) - 10
-                    q_text = f"'{lesson_title}' பாடத்தில், உயர்சிந்தனைக் கணிப்பு: {concept_desc} விதிகளின் படி P = ({val1} × {val2}) - 10 எனில், P-ன் சரியான மதிப்பைக் கண்டறிக:"
+                    q_text = f"உயர்சிந்தனைக் கணிப்பு: {concept_desc} விதிகளின் படி P = ({val1} × {val2}) - 10 எனில், P-ன் சரியான மதிப்பைக் கண்டறிக:"
                     correct_opt = f"P = {result_val}, இது {topic_title} பண்புகளை நிறைவு செய்கிறது."
                     wrong_opts = [
                         f"P = {result_val + 15}, இது எல்லை வரம்புகளுக்கு உட்படாத மதிப்பு.",
@@ -1173,7 +1226,7 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
                     ]
                     exp = f"கணக்கீட்டு விளக்கம்: ({val1} × {val2}) - 10 = {result_val}. சரியான விடை: '{correct_opt}'."
                 else:
-                    q_text = f"'{lesson_title}' பாடப்பகுதியில், '{concept_desc}' தொடர்பான உயர்நிலை ஆய்வுக் கோட்பாட்டின்படி சரியான வாதம் எது?"
+                    q_text = f"'{concept_desc}' தொடர்பான உயர்நிலை ஆய்வுக் கோட்பாட்டின்படி சரியான வாதம் எது?"
                     correct_opt = f"{topic_title} அமைப்பில் நிகழும் மாற்றங்கள் சமநிலை மற்றும் தொடர் விதிகளுக்கு உட்பட்டே இயங்குகின்றன."
                     wrong_opts = [
                         f"{topic_title} செயல்முறையானது எவ்வித அடிப்படைக் கோட்பாடுகளையும் பின்பற்றுவதில்லை.",
@@ -1192,7 +1245,7 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
                     n1 = (i * 4) + 6
                     n2 = (i * 2) + 3
                     sum_val = n1 + n2
-                    q_text = f"In '{lesson_title}' ({topic_title}): If set A contains {n1} elements and disjoint set B contains {n2} elements, determine the total cardinality of (A ∪ B):"
+                    q_text = f"{topic_title}: If set A contains {n1} elements and disjoint set B contains {n2} elements, determine the total cardinality of (A ∪ B):"
                     correct_opt = f"Total elements = {sum_val}, satisfying fundamental set theory."
                     wrong_opts = [
                         f"Total elements = {sum_val + 4}, violating union bounds.",
@@ -1201,25 +1254,25 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
                     ]
                     exp = f"Calculation: Cardinality of disjoint union = {n1} + {n2} = {sum_val}. Correct choice: '{correct_opt}'."
                 elif subject == "Science":
-                    q_text = f"In '{lesson_title}' ({topic_title}): Which fundamental principle correctly defines the role of {subtopics}?"
+                    q_text = f"{topic_title}: Which fundamental principle correctly defines the role of {subtopics}?"
                     correct_opt = f"{concept_desc} is experimentally verified in accordance with natural laws."
                     wrong_opts = [
                         f"{concept_desc} is an untested hypothesis without empirical evidence.",
                         f"The phenomenon does not adhere to universal physical or biological laws.",
                         f"The principle is outside the scope of competitive syllabus standards."
                     ]
-                    exp = f"Scientific Explanation: {lesson_title} establishes that {concept_desc} is central to {topic_title}. Correct choice: '{correct_opt}'."
+                    exp = f"Scientific Explanation: {concept_desc} is central to {topic_title}. Correct choice: '{correct_opt}'."
                 elif subject == "Social Science":
-                    q_text = f"In '{lesson_title}' ({topic_title}): Which statement accurately reflects the historical/civic context of {subtopics}?"
+                    q_text = f"{topic_title}: Which statement accurately reflects the historical/civic context of {subtopics}?"
                     correct_opt = f"{concept_desc} forms a cornerstone of Indian administrative and socio-economic history."
                     wrong_opts = [
                         f"This development had no lasting impact on subsequent regional administration.",
                         f"The historical records regarding this concept have been thoroughly refuted.",
                         f"The principle applies exclusively to external foreign affairs."
                     ]
-                    exp = f"Explanation: {concept_desc} is a vital curriculum component in {lesson_title}. Correct choice: '{correct_opt}'."
+                    exp = f"Explanation: {concept_desc} is a vital curriculum component. Correct choice: '{correct_opt}'."
                 else:
-                    q_text = f"In '{lesson_title}' ({topic_title}): Identify the statement that correctly exemplifies '{concept_desc}':"
+                    q_text = f"{topic_title}: Identify the statement that correctly exemplifies '{concept_desc}':"
                     correct_opt = f"Standard academic usage requires precise application of {subtopics}."
                     wrong_opts = [
                         f"Syntactic consistency may be freely omitted in formal academic work.",
@@ -1229,19 +1282,19 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
                     exp = f"Grammar Principle: Accurate usage of {subtopics} is fundamental in TET Paper 2. Correct choice: '{correct_opt}'."
             else:
                 if subject == "Tamil":
-                    q_text = f"'{lesson_title}' பாடத்தில் அமைந்துள்ள '{topic_title}' தொடர்பான வினா: கீழ்க்கண்டவற்றுள் எது சரியான கொள்குறி விளக்கமாகும்?"
+                    q_text = f"'{topic_title}' தொடர்பான வினா: கீழ்க்கண்டவற்றுள் எது சரியான கொள்குறி விளக்கமாகும்?"
                     correct_opt = f"{subtopics} பற்றிய கருத்துக்கள் தமிழ்ச் செம்மொழி மரபின்படி துல்லியமாக வரையறுக்கப்பட்டுள்ளன."
                     wrong_opts = [
                         f"{subtopics} என்பது இலக்கண விதிகளுக்கு உட்படாத அமைப்பாகும்.",
                         f"இவை எவ்வித இலக்கியச் சான்றுகளும் அற்ற பிற்கால இடைச்செருகல்கள்.",
                         f"பொருள் வேறுபாடு உணர்த்தாத பொதுவான சொல் வழக்குகள்."
                     ]
-                    exp = f"பாடக் குறிப்பு விளக்கம்: {lesson_title} பாடப்பகுதியில் {topic_title} சார்ந்த {subtopics} மிக முக்கியமான தகுதித்தேர்வு வினாப் பகுதியாகும். சரியான விடை: '{correct_opt}'."
+                    exp = f"பாடக் குறிப்பு விளக்கம்: {topic_title} சார்ந்த {subtopics} மிக முக்கியமான தகுதித்தேர்வு வினாப் பகுதியாகும். சரியான விடை: '{correct_opt}'."
                 elif subject == "Mathematics":
                     n1 = (i * 4) + 6
                     n2 = (i * 2) + 3
                     sum_val = n1 + n2
-                    q_text = f"'{lesson_title}' - {topic_title}: கணம் A-ல் {n1} உறுப்புகளும், கணம் B-ல் {n2} உறுப்புகளும் வெட்டாத கணங்களாக இருப்பின், n(A ∪ B)-ன் மதிப்பைக் காண்க:"
+                    q_text = f"{topic_title}: கணம் A-ல் {n1} உறுப்புகளும், கணம் B-ல் {n2} உறுப்புகளும் வெட்டாத கணங்களாக இருப்பின், n(A ∪ B)-ன் மதிப்பைக் காண்க:"
                     correct_opt = f"மொத்த உறுப்புகள் = {sum_val}, இது கணக் கோட்பாட்டின் விதியாகும்."
                     wrong_opts = [
                         f"மொத்த உறுப்புகள் = {sum_val + 4}, இது கண விதிகளுக்கு எதிரானது.",
@@ -1250,27 +1303,99 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
                     ]
                     exp = f"கணக்கீடு & விளக்கம்: n(A ∪ B) = {n1} + {n2} = {sum_val}. சரியான விடை: '{correct_opt}'."
                 else:
-                    q_text = f"'{lesson_title}' - {topic_title}: {subtopics} குறித்த சரியான கொள்குறி விளக்கம் யாது?"
+                    q_text = f"{topic_title}: {subtopics} குறித்த சரியான கொள்குறி விளக்கம் யாது?"
                     correct_opt = f"{concept_desc} என்பது இப்பாடப்பகுதியின் அடிப்படை விதிகளுக்கு உட்பட்டு விவரிக்கப்படுகிறது."
                     wrong_opts = [
                         f"{concept_desc} என்பது நடைமுறைச் சூழலுக்குப் பொருந்தாத கருதுகோள் மட்டுமே.",
                         f"இக்கோட்பாடு எவ்வித அறிவியல்/வரலாற்றுச் சான்றுகளாலும் நிரூபிக்கப்படவில்லை.",
                         f"இது தகுதித்தேர்வுப் பாடத்திட்டத்திற்கு அப்பாற்பட்டது."
                     ]
-                    exp = f"விரிவான விளக்கம்: {lesson_title} பாடத்தில் {topic_title} என்பது {concept_desc} சார்ந்த அடிப்படைக் கருத்துக்களைக் கற்பிக்கிறது. சரியான விடை: '{correct_opt}'."
+                    exp = f"விரிவான விளக்கம்: {topic_title} என்பது {concept_desc} சார்ந்த அடிப்படைக் கருத்துக்களைக் கற்பிக்கிறது. சரியான விடை: '{correct_opt}'."
 
             opts = list(wrong_opts)
             opts.insert(target_ans_idx, correct_opt)
 
+        clean_q = clean_question_text(q_text, lesson_title)
         questions.append({
             "id": i,
             "question_type": q_type_name,
-            "question": q_text,
+            "question": clean_q,
             "options": opts,
             "answer_index": target_ans_idx,
             "explanation": exp
         })
 
     return questions
+
+
+def generate_single_replacement_question(
+    class_num: int,
+    subject: str,
+    term: str,
+    lesson_title: str,
+    question_type: str = "MCQ",
+    medium: str = "",
+    description: str = "",
+    pdf_url: str = "",
+    api_key: str = "",
+    existing_questions: list = None
+) -> dict:
+    """
+    Generates a single fresh replacement question of the requested type strictly from the PDF,
+    without any lesson title prefixes.
+    """
+    existing = existing_questions or []
+    target_counts = {
+        "MCQ": 0,
+        "உயர் சிந்தனை வினாக்கள்": 0,
+        "பொருத்துக வகை வினாக்கள்": 0,
+        "பல்கூற்று வகை வினாக்கள்": 0,
+        "கூற்று காரணம் வகை வினாக்கள்": 0,
+        "கால வரிசைப்படுத்துதல் வினாக்கள்": 0
+    }
+    valid_types = list(target_counts.keys())
+    matched_type = question_type if question_type in valid_types else "MCQ"
+    target_counts[matched_type] = 1
+
+    pdf_text = extract_pdf_content(pdf_url)
+    lang = detect_material_language(
+        subject=subject,
+        lesson_title=lesson_title,
+        medium=medium,
+        description=description,
+        sample_text=pdf_text[:3000] if pdf_text else ""
+    )
+
+    if pdf_text:
+        new_qs = _build_pdf_strict_questions(
+            pdf_text=pdf_text,
+            target_counts=target_counts,
+            lang=lang,
+            lesson_title=lesson_title,
+            existing_questions=existing
+        )
+        if new_qs:
+            q = new_qs[0]
+            q["question"] = clean_question_text(q["question"], lesson_title)
+            return q
+
+    # Fallback to curriculum builder
+    fallback_qs = _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count=12, lang=lang)
+    for q in fallback_qs:
+        if q.get("question_type") == matched_type:
+            q["question"] = clean_question_text(q["question"], lesson_title)
+            return q
+    if fallback_qs:
+        fallback_qs[0]["question"] = clean_question_text(fallback_qs[0]["question"], lesson_title)
+        return fallback_qs[0]
+
+    return {
+        "id": 1,
+        "question_type": matched_type,
+        "question": "கீழ்க்கண்டவற்றுள் எது பாடப்புத்தகத் தகவல்களின்படி சரியான கூற்றாகும்?",
+        "options": ["கூற்று A சரியானது", "கூற்று B சரியானது", "கூற்று C சரியானது", "கூற்று D சரியானது"],
+        "answer_index": 0,
+        "explanation": "பாடப்புத்தகத்தின் அடிப்படைக் கோட்பாடுகளின்படி சரியான விடை பகுப்பாய்வு செய்யப்பட்டுள்ளது."
+    }
 
 

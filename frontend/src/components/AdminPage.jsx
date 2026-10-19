@@ -39,12 +39,47 @@ import {
   ChevronRight,
   GraduationCap,
   SlidersHorizontal,
-  LayoutDashboard
+  LayoutDashboard,
+  Save,
+  Check
 } from "lucide-react";
 import { fetchApi, saveUploadedMaterialClient, saveUploadedLessonClient } from "../api";
 import { translations } from "../translations";
 import Toast from "./Toast";
 import { downloadQuizAsPdf } from "../utils/pdfExport";
+
+const cleanQuestionText = (text, lessonTitle = "") => {
+  if (!text) return "";
+  let clean = text;
+  if (lessonTitle) {
+    const escaped = lessonTitle.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    clean = clean.replace(new RegExp(`['"]?${escaped}['"]?\\s*(பாடப்பகுதியி[^\\s]*\\s*(அடிப்படையில்,?\\s*|தொடர்பான\\s*|ஆழமாகப்\\s*)?|பாடப்பகுதியில்\\s*(உள்ள\\s*|இடம்\\s*பெற்றுள்ள\\s*|குறிப்பிடப்பட்டுள்ள\\s*)?|பாடத்தி[^\\s]*\\s*|-|\\:)?\\s*`, 'gi'), '');
+  }
+  clean = clean.replace(/'[^']+'\s*பாடப்பகுதியி[^\s]*\s*(அடிப்படையில்,?\s*|தொடர்பான\s*|ஆழமாகப்\s*)?,?\s*/g, '');
+  clean = clean.replace(/'[^']+'\s*பாடப்பகுதியில்\s*(உள்ள\s*|இடம்\s*பெற்றுள்ள\s*|குறிப்பிடப்பட்டுள்ள\s*)?/g, '');
+  clean = clean.replace(/^'[^']+'\s*[-:]\s*/g, '');
+  clean = clean.replace(/^'[^']+'\s*/g, '');
+  clean = clean.replace(/^\d+\.\s*[^\s\-:]+\s*[-:]\s*/g, '');
+  clean = clean.replace(/^தகவல்களின் அடிப்படையில்,?\s*/g, '');
+  clean = clean.replace(/^உள்ள தகவல்களைப் பொருத்துக:/g, 'கீழ்க்கண்ட தகவல்களைப் பொருத்துக:');
+  clean = clean.replace(/^இடம்பெற்றுள்ள கீழ்க்கண்ட/g, 'கீழ்க்கண்ட');
+  clean = clean.replace(/^குறிப்பிடப்பட்டுள்ள நிகழ்வுகள்/g, 'கீழ்க்கண்ட நிகழ்வுகள்');
+  clean = clean.replace(/^:\s*\n*/g, '');
+  clean = clean.replace(/^Based on '[^']*',?\s*/gi, '');
+  clean = clean.replace(/^Based on\s*[,:]?\s*/gi, '');
+  clean = clean.replace(/^In '[^']*',?\s*/gi, '');
+  clean = clean.replace(/^In the context of '[^']*',?\s*:?\s*/gi, '');
+  clean = clean.replace(/^In the context of\s*[,:]?\s*/gi, '');
+  clean = clean.replace(/^According to '[^']*',?\s*/gi, '');
+  clean = clean.replace(/^According to\s*[,:]?\s*/gi, '');
+  clean = clean.replace(/^In\s*[,:]\s*/gi, '');
+  clean = clean.replace(/^[,:\-–—\s]+/g, '');
+  clean = clean.trim();
+  if (clean && /^[a-z]/.test(clean)) {
+    clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+  return clean;
+};
 
 export default function AdminPage({ user, lang = "en" }) {
   const [activeTab, setActiveTab] = useState("stats");
@@ -103,6 +138,12 @@ export default function AdminPage({ user, lang = "en" }) {
   const [generatingQuizKey, setGeneratingQuizKey] = useState(null);
   const [manualQuizModal, setManualQuizModal] = useState(null); // { lesson, quiz_type, questions }
   const [viewQuizModal, setViewQuizModal] = useState(null); // { lesson, quiz_type, questions }
+  const [selectedQuizAnswers, setSelectedQuizAnswers] = useState({}); // { [qIdx]: selectedOption }
+  const [editingQuizQuestionIdx, setEditingQuizQuestionIdx] = useState(null);
+  const [editingQuestionForm, setEditingQuestionForm] = useState(null);
+  const [regeneratingQuizQuestionIdx, setRegeneratingQuizQuestionIdx] = useState(null);
+  const [savingQuizModal, setSavingQuizModal] = useState(false);
+  const [revealedExplanations, setRevealedExplanations] = useState({});
   const [savingManualQuiz, setSavingManualQuiz] = useState(false);
 
   // Live Meetings State
@@ -784,11 +825,21 @@ export default function AdminPage({ user, lang = "en" }) {
   const handleViewQuiz = async (lesson, quizType) => {
     try {
       const res = await fetchApi(`/admin/lessons/${lesson.id}/quiz/${quizType}`);
-      const questions = res && res.questions ? res.questions : [];
+      let questions = res && res.questions ? res.questions : [];
       if (!questions || questions.length === 0) {
         showToast("No questions generated or added for this quiz yet. Please click 'AI Generate' first.", "info");
         return;
       }
+      // Sanitize questions client-side to guarantee lesson titles are not shown
+      questions = questions.map((q, i) => ({
+        ...q,
+        id: i + 1,
+        question: cleanQuestionText(q.question, lesson.title)
+      }));
+      setSelectedQuizAnswers({});
+      setEditingQuizQuestionIdx(null);
+      setEditingQuestionForm(null);
+      setRevealedExplanations({});
       setViewQuizModal({
         lesson,
         quiz_type: quizType,
@@ -796,6 +847,169 @@ export default function AdminPage({ user, lang = "en" }) {
       });
     } catch (err) {
       showToast("Could not load quiz questions.", "error");
+    }
+  };
+
+  const handleSelectQuizOption = (qIdx, opt) => {
+    setSelectedQuizAnswers(prev => ({
+      ...prev,
+      [qIdx]: opt
+    }));
+  };
+
+  const handleToggleRevealExplanation = (qIdx) => {
+    setRevealedExplanations(prev => ({
+      ...prev,
+      [qIdx]: !prev[qIdx]
+    }));
+  };
+
+  const handleStartEditQuestion = (idx) => {
+    const q = viewQuizModal.questions[idx];
+    setEditingQuizQuestionIdx(idx);
+    setEditingQuestionForm({
+      question: cleanQuestionText(q.question, viewQuizModal.lesson?.title),
+      options: q.options ? [...q.options] : ["", "", "", ""],
+      answer: q.answer || (typeof q.answer_index === "number" ? q.options?.[q.answer_index] : "A"),
+      explanation: q.explanation || "",
+      question_type: q.question_type || "MCQ"
+    });
+  };
+
+  const handleCancelEditQuestion = () => {
+    setEditingQuizQuestionIdx(null);
+    setEditingQuestionForm(null);
+  };
+
+  const handleSaveEditQuestion = () => {
+    if (!editingQuestionForm) return;
+    const updated = [...viewQuizModal.questions];
+    let ansIdx = updated[editingQuizQuestionIdx]?.answer_index ?? 0;
+    const matchOptIdx = editingQuestionForm.options.findIndex(o => o.trim() === editingQuestionForm.answer?.trim());
+    if (matchOptIdx >= 0) {
+      ansIdx = matchOptIdx;
+    } else if (["A", "B", "C", "D"].includes(editingQuestionForm.answer?.trim())) {
+      ansIdx = { A: 0, B: 1, C: 2, D: 3 }[editingQuestionForm.answer.trim()];
+    }
+
+    updated[editingQuizQuestionIdx] = {
+      ...updated[editingQuizQuestionIdx],
+      question: cleanQuestionText(editingQuestionForm.question, viewQuizModal.lesson?.title),
+      options: editingQuestionForm.options,
+      answer: editingQuestionForm.answer,
+      answer_index: ansIdx,
+      explanation: editingQuestionForm.explanation,
+      question_type: editingQuestionForm.question_type || updated[editingQuizQuestionIdx]?.question_type
+    };
+
+    setViewQuizModal(prev => ({
+      ...prev,
+      questions: updated
+    }));
+    setEditingQuizQuestionIdx(null);
+    setEditingQuestionForm(null);
+    showToast(`Question #${editingQuizQuestionIdx + 1} updated! Click 'Save Changes' to persist to database.`, "success");
+  };
+
+  const handleDeleteQuizQuestion = (idx) => {
+    if (!window.confirm(`Are you sure you want to delete Question #${idx + 1}?`)) return;
+    const filtered = viewQuizModal.questions.filter((_, i) => i !== idx).map((q, i) => ({
+      ...q,
+      id: i + 1
+    }));
+    setViewQuizModal(prev => ({
+      ...prev,
+      questions: filtered
+    }));
+    setSelectedQuizAnswers(prev => {
+      const next = {};
+      Object.keys(prev).forEach(k => {
+        const ki = parseInt(k, 10);
+        if (ki < idx) next[ki] = prev[ki];
+        else if (ki > idx) next[ki - 1] = prev[ki];
+      });
+      return next;
+    });
+    if (editingQuizQuestionIdx === idx) {
+      setEditingQuizQuestionIdx(null);
+      setEditingQuestionForm(null);
+    }
+    showToast(`Question #${idx + 1} deleted. Remember to click 'Save Changes' to update server.`, "info");
+  };
+
+  const handleRegenerateSingleQuestion = async (idx) => {
+    const q = viewQuizModal.questions[idx];
+    setRegeneratingQuizQuestionIdx(idx);
+    try {
+      const res = await fetchApi(`/admin/lessons/${viewQuizModal.lesson.id}/quiz/${viewQuizModal.quiz_type}/regenerate-question`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_index: idx,
+          question_type: q.question_type || "MCQ"
+        })
+      });
+      if (res && res.question) {
+        const cleanQ = {
+          ...res.question,
+          id: idx + 1,
+          question: cleanQuestionText(res.question.question, viewQuizModal.lesson?.title)
+        };
+        const updated = [...viewQuizModal.questions];
+        updated[idx] = cleanQ;
+        setViewQuizModal(prev => ({
+          ...prev,
+          questions: updated
+        }));
+        setSelectedQuizAnswers(prev => {
+          const next = { ...prev };
+          delete next[idx];
+          return next;
+        });
+        showToast(`Question #${idx + 1} regenerated successfully from textbook PDF!`, "success");
+      } else {
+        showToast("Could not regenerate question.", "error");
+      }
+    } catch (err) {
+      showToast("Failed to regenerate question from PDF.", "error");
+    } finally {
+      setRegeneratingQuizQuestionIdx(null);
+    }
+  };
+
+  const handleSaveQuizModalChanges = async () => {
+    if (!viewQuizModal) return;
+    setSavingQuizModal(true);
+    try {
+      const sanitized = viewQuizModal.questions.map((q, i) => ({
+        ...q,
+        id: i + 1,
+        question: cleanQuestionText(q.question, viewQuizModal.lesson?.title)
+      }));
+      await fetchApi(`/admin/lessons/${viewQuizModal.lesson.id}/quiz/${viewQuizModal.quiz_type}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questions: sanitized })
+      });
+      setViewQuizModal(prev => ({
+        ...prev,
+        questions: sanitized
+      }));
+      setLessons(prev => prev.map(l => {
+        if (l.id === viewQuizModal.lesson.id) {
+          if (viewQuizModal.quiz_type === "type2") {
+            return { ...l, quiz_type2_count: sanitized.length, has_quiz_type2: sanitized.length > 0 };
+          } else {
+            return { ...l, quiz_type1_count: sanitized.length, has_quiz_type1: sanitized.length > 0 };
+          }
+        }
+        return l;
+      }));
+      showToast(`Quiz ${viewQuizModal.quiz_type.toUpperCase()} saved with ${sanitized.length} questions!`, "success");
+    } catch (err) {
+      showToast(err.message || "Failed to save quiz changes.", "error");
+    } finally {
+      setSavingQuizModal(false);
     }
   };
 
@@ -3901,28 +4115,44 @@ export default function AdminPage({ user, lang = "en" }) {
         </div>
       )}
 
-      {/* ================= MODAL 3: VIEW QUIZ QUESTIONS ================= */}
+      {/* ================= MODAL 3: VIEW & MANAGE QUIZ QUESTIONS ================= */}
       {viewQuizModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-3xl bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="relative w-full max-w-4xl bg-white border border-slate-200 rounded-3xl p-5 sm:p-7 shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
             
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            {/* Modal Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-3 shrink-0">
               <div>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${viewQuizModal.quiz_type === "type2" ? "bg-purple-100 text-purple-700" : "bg-sky-100 text-[#0284C7]"}`}>
-                    {viewQuizModal.quiz_type.toUpperCase()} QUIZ PREVIEW
+                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                  <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                    viewQuizModal.quiz_type === "type2" ? "bg-purple-100 text-purple-700" : "bg-sky-100 text-[#0284C7]"
+                  }`}>
+                    {viewQuizModal.quiz_type.toUpperCase()} QUIZ MANAGER
                   </span>
                   <h3 className="text-base font-black text-[#1E3A8A]">
                     {viewQuizModal.lesson.title}
                   </h3>
                 </div>
-                <span className="text-xs text-slate-500 font-medium">
-                  Total Questions: {viewQuizModal.questions.length}
-                </span>
+                <div className="flex items-center space-x-3 text-xs text-slate-500 font-medium mt-0.5">
+                  <span>Total Questions: <strong>{viewQuizModal.questions.length}</strong></span>
+                  <span>•</span>
+                  <span className="text-emerald-700 font-semibold">Strict Textbook PDF Sourced</span>
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                 <button
+                  type="button"
+                  onClick={handleSaveQuizModalChanges}
+                  disabled={savingQuizModal}
+                  className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold cursor-pointer transition shadow-xs disabled:opacity-50"
+                  title="Save all edits and question changes to database"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{savingQuizModal ? "Saving..." : "Save Changes"}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleDownloadAdminQuiz(viewQuizModal.lesson, viewQuizModal.quiz_type, viewQuizModal.questions)}
                   className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold hover:bg-emerald-100 cursor-pointer transition"
                 >
@@ -3930,60 +4160,312 @@ export default function AdminPage({ user, lang = "en" }) {
                   <span>Download PDF</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setViewQuizModal(null)}
-                  className="p-1 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="space-y-4">
-              {viewQuizModal.questions.map((q, idx) => (
-                <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                  <h4 className="text-xs font-bold text-[#1E3A8A]">
-                    Q{idx + 1}. {q.question}
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                    {q.options && q.options.map((opt, optIdx) => {
-                      const letter = String.fromCharCode(65 + optIdx);
-                      const isCorrect = q.answer === letter || q.answer === opt;
-                      return (
-                        <div
-                          key={optIdx}
-                          className={`p-2 rounded-xl text-xs flex items-center space-x-2 font-medium ${
-                            isCorrect
-                              ? "bg-emerald-50 border border-emerald-300 text-emerald-900 font-bold"
-                              : "bg-white border border-slate-200 text-slate-700"
-                          }`}
-                        >
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${isCorrect ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-700"}`}>
-                            {letter}
-                          </span>
-                          <span>{opt}</span>
-                          {isCorrect && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 ml-auto" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {q.explanation && (
-                    <div className="p-2.5 rounded-xl bg-blue-50/70 text-[11px] text-[#0284C7] font-medium border border-blue-100">
-                      <strong>Explanation:</strong> {q.explanation}
-                    </div>
-                  )}
+            {/* Questions Scrollable List */}
+            <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+              {viewQuizModal.questions.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-sm">
+                  No questions in this quiz. Click 'AI Generate' to generate questions.
                 </div>
-              ))}
+              ) : (
+                viewQuizModal.questions.map((q, idx) => {
+                  const isEditingThis = editingQuizQuestionIdx === idx;
+                  const isRegeneratingThis = regeneratingQuizQuestionIdx === idx;
+                  const opts = q.options || [];
+                  const userSelectedOpt = selectedQuizAnswers[idx];
+                  const hasAnswered = userSelectedOpt !== undefined;
+                  const isExplanationRevealed = hasAnswered || !!revealedExplanations[idx];
+
+                  // Determine correct answer index and value
+                  const mapLetterToIdx = { A: 0, B: 1, C: 2, D: 3 };
+                  const ansStr = typeof q.answer === "string" ? q.answer.trim().toUpperCase() : "";
+                  const correctIdx = typeof q.answer_index === "number" && q.answer_index >= 0
+                    ? q.answer_index
+                    : ["A", "B", "C", "D"].includes(ansStr)
+                    ? mapLetterToIdx[ansStr]
+                    : opts.findIndex(o => o.trim() === q.answer?.trim());
+
+                  const displayQuestion = cleanQuestionText(q.question, viewQuizModal.lesson?.title);
+
+                  return (
+                    <div
+                      key={idx}
+                      className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 transition hover:border-slate-300"
+                    >
+                      {/* Top Bar with Question Type & Actions */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <span className="w-6 h-6 rounded-lg bg-[#0284C7] text-white font-black text-xs flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          {q.question_type && (
+                            <span className="px-2 py-0.5 rounded-md bg-blue-100 text-[#0284C7] text-[10px] font-bold">
+                              {q.question_type}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Question Action Buttons: Regenerate, Edit, Delete */}
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleRegenerateSingleQuestion(idx)}
+                            disabled={isRegeneratingThis}
+                            className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-300 text-[11px] font-bold hover:bg-amber-100 cursor-pointer transition disabled:opacity-50"
+                            title="Regenerate this question strictly from textbook PDF"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${isRegeneratingThis ? "animate-spin text-amber-600" : ""}`} />
+                            <span>{isRegeneratingThis ? "Regenerating..." : "Regenerate"}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => isEditingThis ? handleCancelEditQuestion() : handleStartEditQuestion(idx)}
+                            className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition border ${
+                              isEditingThis 
+                                ? "bg-slate-200 text-slate-800 border-slate-300"
+                                : "bg-sky-50 text-[#0284C7] border-sky-300 hover:bg-sky-100"
+                            }`}
+                            title="Edit question text, options, and explanation"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>{isEditingThis ? "Cancel" : "Edit"}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteQuizQuestion(idx)}
+                            className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold hover:bg-rose-100 cursor-pointer transition"
+                            title="Delete this question"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Editing Mode Form */}
+                      {isEditingThis && editingQuestionForm ? (
+                        <div className="p-4 rounded-xl bg-white border border-sky-200 space-y-3 animate-fade-in">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Question Text:
+                            </label>
+                            <textarea
+                              rows={3}
+                              className="w-full p-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 font-medium focus:ring-2 focus:ring-[#0284C7] focus:outline-hidden"
+                              value={editingQuestionForm.question}
+                              onChange={(e) => setEditingQuestionForm({ ...editingQuestionForm, question: e.target.value })}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {editingQuestionForm.options.map((optVal, optIdx) => {
+                              const letter = String.fromCharCode(65 + optIdx);
+                              return (
+                                <div key={optIdx}>
+                                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                    Option {letter}:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="w-full p-2 rounded-lg border border-slate-300 text-xs text-slate-900 font-medium focus:ring-2 focus:ring-[#0284C7] focus:outline-hidden"
+                                    value={optVal}
+                                    onChange={(e) => {
+                                      const nextOpts = [...editingQuestionForm.options];
+                                      nextOpts[optIdx] = e.target.value;
+                                      setEditingQuestionForm({ ...editingQuestionForm, options: nextOpts });
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Correct Answer:
+                              </label>
+                              <select
+                                className="w-full p-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-800 bg-white"
+                                value={editingQuestionForm.answer}
+                                onChange={(e) => setEditingQuestionForm({ ...editingQuestionForm, answer: e.target.value })}
+                              >
+                                {["A", "B", "C", "D"].map((letter, optIdx) => (
+                                  <option key={letter} value={letter}>
+                                    Option {letter} {editingQuestionForm.options[optIdx] ? `(${editingQuestionForm.options[optIdx].slice(0, 35)}...)` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Question Type:
+                              </label>
+                              <select
+                                className="w-full p-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-800 bg-white"
+                                value={editingQuestionForm.question_type}
+                                onChange={(e) => setEditingQuestionForm({ ...editingQuestionForm, question_type: e.target.value })}
+                              >
+                                <option value="MCQ">MCQ</option>
+                                <option value="உயர் சிந்தனை வினாக்கள்">உயர் சிந்தனை வினாக்கள் (HOTS)</option>
+                                <option value="பொருத்துக வகை வினாக்கள்">பொருத்துக வகை வினாக்கள்</option>
+                                <option value="பல்கூற்று வகை வினாக்கள்">பல்கூற்று வகை வினாக்கள்</option>
+                                <option value="கூற்று காரணம் வகை வினாக்கள்">கூற்று காரணம் வகை வினாக்கள்</option>
+                                <option value="கால வரிசைப்படுத்துதல் வினாக்கள்">கால வரிசைப்படுத்துதல் வினாக்கள்</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Explanation (Revealed after answer selection):
+                            </label>
+                            <textarea
+                              rows={2}
+                              className="w-full p-2 rounded-lg border border-slate-300 text-xs text-slate-900 font-medium focus:ring-2 focus:ring-[#0284C7] focus:outline-hidden"
+                              value={editingQuestionForm.explanation}
+                              onChange={(e) => setEditingQuestionForm({ ...editingQuestionForm, explanation: e.target.value })}
+                            />
+                          </div>
+
+                          <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                            <button
+                              type="button"
+                              onClick={handleCancelEditQuestion}
+                              className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-100 cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveEditQuestion}
+                              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition shadow-xs"
+                            >
+                              Update Question
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Normal Question Display */
+                        <>
+                          {/* Question Stem without Lesson Title */}
+                          <h4 className="text-xs sm:text-sm font-bold text-[#1E3A8A] leading-relaxed whitespace-pre-line">
+                            {displayQuestion}
+                          </h4>
+
+                          {/* Interactive Options - Click to select answer */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                            {opts.map((opt, optIdx) => {
+                              const letter = String.fromCharCode(65 + optIdx);
+                              const isThisCorrect = optIdx === correctIdx || q.answer === letter || q.answer === opt;
+                              const isSelected = userSelectedOpt === opt || userSelectedOpt === letter;
+
+                              let optStyles = "bg-white border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300";
+                              if (hasAnswered) {
+                                if (isThisCorrect) {
+                                  optStyles = "bg-emerald-50 border-emerald-400 text-emerald-950 font-bold ring-1 ring-emerald-300";
+                                } else if (isSelected) {
+                                  optStyles = "bg-rose-50 border-rose-300 text-rose-900 font-medium";
+                                } else {
+                                  optStyles = "bg-slate-50 border-slate-200 text-slate-400 opacity-70";
+                                }
+                              }
+
+                              return (
+                                <button
+                                  type="button"
+                                  key={optIdx}
+                                  onClick={() => handleSelectQuizOption(idx, opt)}
+                                  className={`p-2.5 rounded-xl text-xs flex items-center space-x-2 text-left font-medium border transition cursor-pointer ${optStyles}`}
+                                >
+                                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                    hasAnswered && isThisCorrect
+                                      ? "bg-emerald-600 text-white"
+                                      : hasAnswered && isSelected
+                                      ? "bg-rose-600 text-white"
+                                      : "bg-slate-200 text-slate-700"
+                                  }`}>
+                                    {letter}
+                                  </span>
+                                  <span className="flex-1">{opt}</span>
+                                  {hasAnswered && isThisCorrect && (
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 ml-1" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Explanation: ONLY revealed after selecting answer (or peek preview) */}
+                          {isExplanationRevealed && q.explanation ? (
+                            <div className="p-3 rounded-xl bg-blue-50/90 border border-blue-200 text-xs text-[#0369a1] space-y-1 animate-fade-in">
+                              <div className="font-bold flex items-center space-x-1.5 text-[#0284C7]">
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>விளக்கம் (Explanation):</span>
+                              </div>
+                              <p className="font-medium text-slate-800 leading-relaxed pl-5">
+                                {q.explanation}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[11px] text-slate-400 italic">
+                                Click any option to test answer and reveal explanation.
+                              </span>
+                              {q.explanation && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleRevealExplanation(idx)}
+                                  className="text-[11px] font-bold text-[#0284C7] hover:underline cursor-pointer"
+                                >
+                                  👁️ Peek Explanation
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
 
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setViewQuizModal(null)}
-                className="px-5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold cursor-pointer"
-              >
-                Close Preview
-              </button>
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 shrink-0">
+              <span className="text-xs text-slate-500 font-medium">
+                {viewQuizModal.questions.length} Questions • TN TET Paper 2 Standard
+              </span>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleSaveQuizModalChanges}
+                  disabled={savingQuizModal}
+                  className="px-5 py-2 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold cursor-pointer transition shadow-xs disabled:opacity-50 flex items-center space-x-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{savingQuizModal ? "Saving Changes..." : "Save All Changes"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewQuizModal(null)}
+                  className="px-5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold cursor-pointer transition"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
           </div>

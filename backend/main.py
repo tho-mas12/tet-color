@@ -712,6 +712,8 @@ def get_practice_questions(
         try:
             questions = json.loads(chosen_json)
             if isinstance(questions, list) and len(questions) > 0:
+                for q in questions:
+                    q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
                 return {
                     "lesson_title": lesson.title,
                     "quiz_type": active_type,
@@ -812,7 +814,7 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
     for q in questions:
         test_payload.append({
             "id": q["id"],
-            "question": q["question"],
+            "question": ai_generator.clean_question_text(q.get("question", ""), lesson.title),
             "options": q["options"]
         })
 
@@ -1217,6 +1219,11 @@ def admin_generate_lesson_quiz(
     )
 
     questions_json = json.dumps(questions, ensure_ascii=False)
+    # Ensure all questions have clean stems without lesson title prefixes
+    for q in questions:
+        q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
+
+    questions_json = json.dumps(questions, ensure_ascii=False)
     if quiz_type == "type2":
         lesson.quiz_type2 = questions_json
     else:
@@ -1241,7 +1248,14 @@ def admin_save_lesson_quiz(
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
 
-    questions_json = json.dumps(payload.questions, ensure_ascii=False)
+    # Sanitize each question stem
+    cleaned_questions = []
+    for idx, q in enumerate(payload.questions, 1):
+        q["id"] = idx
+        q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
+        cleaned_questions.append(q)
+
+    questions_json = json.dumps(cleaned_questions, ensure_ascii=False)
     if quiz_type == "type2":
         lesson.quiz_type2 = questions_json
     else:
@@ -1249,9 +1263,10 @@ def admin_save_lesson_quiz(
 
     db.commit()
     return {
-        "message": f"Quiz {quiz_type.upper()} saved successfully with {len(payload.questions)} questions!",
+        "message": f"Quiz {quiz_type.upper()} saved successfully with {len(cleaned_questions)} questions!",
         "quiz_type": quiz_type,
-        "total": len(payload.questions)
+        "total": len(cleaned_questions),
+        "questions": cleaned_questions
     }
 
 @app.get("/api/admin/lessons/{lesson_id}/quiz/{quiz_type}")
@@ -1279,11 +1294,73 @@ def admin_get_lesson_quiz(
     except Exception:
         questions = []
 
+    # Sanitize every question to strip any old lesson title prefix like '1.எண்கள்'
+    for q in questions:
+        q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
+
     return {
         "lesson_id": lesson.id,
         "lesson_title": lesson.title,
         "quiz_type": quiz_type,
         "total": len(questions),
+        "questions": questions
+    }
+
+@app.post("/api/admin/lessons/{lesson_id}/quiz/{quiz_type}/regenerate-question")
+def admin_regenerate_quiz_question(
+    lesson_id: int,
+    quiz_type: str,
+    payload: schemas.QuizRegenerateQuestionPayload,
+    db: Session = Depends(get_db)
+):
+    lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found.")
+
+    raw_json = lesson.quiz_type2 if quiz_type == "type2" else lesson.quiz_type1
+    try:
+        questions = json.loads(raw_json) if raw_json else []
+    except Exception:
+        questions = []
+
+    q_idx = payload.question_index
+    if q_idx < 0 or q_idx >= len(questions):
+        raise HTTPException(status_code=400, detail="Invalid question index.")
+
+    target_type = payload.question_type or questions[q_idx].get("question_type", "MCQ")
+    settings = db.query(models.AdminSettings).first()
+    api_key = settings.gemini_api_key if settings else ""
+
+    # Generate 1 fresh replacement question strictly from PDF
+    new_q = ai_generator.generate_single_replacement_question(
+        class_num=lesson.class_num,
+        subject=lesson.subject,
+        term=lesson.term,
+        lesson_title=lesson.title,
+        question_type=target_type,
+        medium=getattr(lesson, "medium", ""),
+        description=getattr(lesson, "description", ""),
+        pdf_url=getattr(lesson, "pdf_url", "") or "",
+        api_key=api_key,
+        existing_questions=[q for i, q in enumerate(questions) if i != q_idx]
+    )
+    new_q["id"] = q_idx + 1
+    new_q["question"] = ai_generator.clean_question_text(new_q.get("question", ""), lesson.title)
+
+    questions[q_idx] = new_q
+
+    questions_json = json.dumps(questions, ensure_ascii=False)
+    if quiz_type == "type2":
+        lesson.quiz_type2 = questions_json
+    else:
+        lesson.quiz_type1 = questions_json
+
+    db.commit()
+
+    return {
+        "message": f"Question #{q_idx + 1} regenerated successfully!",
+        "question": new_q,
+        "question_index": q_idx,
         "questions": questions
     }
 

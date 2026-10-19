@@ -143,6 +143,10 @@ class LessonUpdate(BaseModel):
 class QuizSavePayload(BaseModel):
     questions: List[dict]
 
+class QuizRegenerateQuestionPayload(BaseModel):
+    question_index: int
+    question_type: Optional[str] = "MCQ"
+
 class LiveMeetingCreate(BaseModel):
     title: str
     meeting_link: Optional[str] = None
