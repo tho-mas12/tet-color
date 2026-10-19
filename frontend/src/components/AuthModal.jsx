@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   X, 
   User, 
@@ -10,10 +10,13 @@ import {
   KeyRound, 
   CheckCircle2, 
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Loader2
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
+
+const GOOGLE_CLIENT_ID = "32539783138-d31vusgaqtqejk481q542k1qfc77jn01.apps.googleusercontent.com";
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -38,11 +41,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" 
   const [isGoogleModal, setIsGoogleModal] = useState(false);
   const [googleEmail, setGoogleEmail] = useState("");
   const [googleName, setGoogleName] = useState("");
+  const [googleSdkReady, setGoogleSdkReady] = useState(false);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  if (!isOpen) return null;
+  const googleBtnContainerRef = useRef(null);
 
   const t = translations[lang] || translations.en;
   const isTa = lang === "ta";
@@ -80,7 +83,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" 
     }
   };
 
-  // Google Sign-in submit handler
+  // Google Sign-in manual submit handler (fallback)
   const handleGoogleSubmit = async (e) => {
     e.preventDefault();
     if (!googleEmail || !googleEmail.includes("@")) {
@@ -103,6 +106,126 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" 
       setError(err.message || (isTa ? "கூகிள் உள்நுழைவு தோல்வியடைந்தது." : "Google sign-in failed. Please try again."));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Google Identity Services Credential Handler
+  const handleGoogleCredentialResponse = async (response) => {
+    if (!response?.credential) {
+      setError(isTa ? "கூகிள் அனுமதி கிடைக்கவில்லை." : "Failed to obtain Google login credential.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      let extractedEmail = "";
+      let extractedName = "";
+      try {
+        const parts = response.credential.split(".");
+        if (parts.length >= 2) {
+          const base64Url = parts[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+              .join("")
+          );
+          const parsed = JSON.parse(jsonPayload);
+          extractedEmail = parsed.email || "";
+          extractedName = parsed.name || parsed.given_name || "";
+        }
+      } catch (parseErr) {
+        console.warn("Client JWT decode note:", parseErr);
+      }
+
+      const user = await fetchApi("/auth/google", {
+        method: "POST",
+        body: JSON.stringify({
+          credential: response.credential,
+          email: extractedEmail,
+          name: extractedName
+        })
+      });
+
+      onAuthSuccess(user);
+      if (onClose) onClose();
+    } catch (err) {
+      setError(err.message || (isTa ? "கூகிள் உள்நுழைவு தோல்வியடைந்தது." : "Google sign-in failed. Please try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initialize Google Identity Services when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let checkInterval = null;
+    let attempts = 0;
+
+    const setupGoogleGsi = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+          setGoogleSdkReady(true);
+
+          // Render official Google button into container if present
+          if (googleBtnContainerRef.current) {
+            googleBtnContainerRef.current.innerHTML = "";
+            window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
+              theme: "outline",
+              size: "large",
+              type: "standard",
+              text: "continue_with",
+              shape: "rectangular",
+              logo_alignment: "left",
+              width: 340
+            });
+          }
+          if (checkInterval) clearInterval(checkInterval);
+        } catch (e) {
+          console.error("Error setting up Google GSI:", e);
+        }
+      }
+    };
+
+    setupGoogleGsi();
+
+    if (!window.google?.accounts?.id) {
+      checkInterval = setInterval(() => {
+        attempts += 1;
+        if (window.google?.accounts?.id) {
+          setupGoogleGsi();
+        } else if (attempts > 20) {
+          clearInterval(checkInterval);
+        }
+      }, 300);
+    }
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+    };
+  }, [isOpen, isLogin, isForgotPassword, isGoogleModal]);
+
+  const triggerGooglePrompt = () => {
+    if (window.google?.accounts?.id) {
+      try {
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            setIsGoogleModal(true);
+          }
+        });
+      } catch (err) {
+        setIsGoogleModal(true);
+      }
+    } else {
+      setIsGoogleModal(true);
     }
   };
 
@@ -483,36 +606,41 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" 
               </button>
             </div>
 
-            {/* SIGN IN WITH GOOGLE BUTTON */}
+            {/* OFFICIAL GOOGLE IDENTITY SERVICES BUTTON (Like izon.frontierwox.in) */}
             <div className="mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsGoogleModal(true);
-                  setError("");
-                }}
-                className="w-full flex items-center justify-center space-x-2.5 py-2.5 px-4 rounded-xl bg-white border border-slate-200/90 hover:bg-slate-50 hover:border-slate-300 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs transition-all cursor-pointer group active:scale-98"
-              >
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-                <span>{isTa ? "Google மூலம் தொடர்க" : "Continue with Google"}</span>
-              </button>
+              <div 
+                ref={googleBtnContainerRef}
+                className="flex justify-center items-center w-full min-h-[44px] overflow-hidden rounded-xl"
+              ></div>
+
+              {/* Instant click fallback if official GSI iframe is still loading or blocked */}
+              {!googleSdkReady && (
+                <button
+                  type="button"
+                  onClick={triggerGooglePrompt}
+                  className="w-full flex items-center justify-center space-x-2.5 py-2.5 px-4 rounded-xl bg-white border border-slate-200/90 hover:bg-slate-50 hover:border-slate-300 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs transition-all cursor-pointer group active:scale-98"
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span>{isTa ? "Google மூலம் தொடர்க" : "Continue with Google"}</span>
+                </button>
+              )}
             </div>
 
             {/* SUBTLE DIVIDER */}
