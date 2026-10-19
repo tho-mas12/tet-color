@@ -1147,15 +1147,15 @@ export default function AdminPage({ user, lang = "en" }) {
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         
         {/* LEFT SIDEBAR NAVIGATION MENU (FWT iZON Style) */}
-        <aside className={`${isSidebarCollapsed ? "w-full lg:w-20" : "w-full lg:w-64"} shrink-0 bg-white border border-slate-200/90 rounded-2xl p-2.5 shadow-xs space-y-1 sticky top-6 transition-all duration-200`}>
+        <aside className={`${isSidebarCollapsed ? "w-full lg:w-20" : "w-full lg:w-72 xl:w-80"} shrink-0 bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xs space-y-1 sticky top-6 transition-all duration-200`}>
           {!isSidebarCollapsed && (
-            <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
-              <span>Navigation</span>
-              <ShieldCheck className="w-3.5 h-3.5 text-[#0055ff]" />
+            <div className="px-3.5 py-2.5 text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
+              <span>Admin Navigation</span>
+              <ShieldCheck className="w-4 h-4 text-[#0055ff]" />
             </div>
           )}
 
-          <nav className="space-y-1 pt-1">
+          <nav className="space-y-1.5 pt-2">
             {navTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -1164,20 +1164,20 @@ export default function AdminPage({ user, lang = "en" }) {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   title={tab.label}
-                  className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2.5" : "justify-between px-3 py-2.5"} rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-3" : "justify-between px-4 py-3.5"} rounded-xl text-sm font-bold transition-all cursor-pointer ${
                     isActive
-                      ? "bg-[#0055ff]/10 text-[#0055ff] font-black border border-[#0055ff]/20 shadow-2xs"
+                      ? "bg-[#0055ff]/10 text-[#0055ff] font-black border border-[#0055ff]/25 shadow-xs"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <div className={`flex items-center ${isSidebarCollapsed ? "" : "space-x-3"} truncate`}>
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[#0055ff]" : "text-slate-400"}`} />
-                    {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
+                  <div className={`flex items-center ${isSidebarCollapsed ? "" : "space-x-3.5"} truncate`}>
+                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? "text-[#0055ff]" : "text-slate-400"}`} />
+                    {!isSidebarCollapsed && <span className="truncate text-sm tracking-tight">{tab.label}</span>}
                   </div>
 
                   {!isSidebarCollapsed && tab.badge !== null && tab.badge !== undefined && (
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-black shrink-0 ${
                         tab.badge === "LIVE"
                           ? "bg-red-500 text-white animate-pulse"
                           : tab.badge === "New"
