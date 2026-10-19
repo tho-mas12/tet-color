@@ -11,7 +11,8 @@ import {
   Video,
   Radio,
   FileText,
-  Clock
+  Clock,
+  Sparkles
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
