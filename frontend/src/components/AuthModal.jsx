@@ -16,8 +16,8 @@ import {
 import { fetchApi } from "../api";
 import { translations } from "../translations";
 
-// Frontierwox Google OAuth Client ID
-const GOOGLE_CLIENT_ID = "332539783138-d31vusgaqtqejk481q542k1qfc77jn01.apps.googleusercontent.com";
+// Official Google OAuth Client ID for TN Teacher Portal
+const GOOGLE_CLIENT_ID = "942723196487-6jri08rmrd4g4ri3kn7a297hbatfov7p.apps.googleusercontent.com";
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" }) {
   const [isLogin, setIsLogin] = useState(true);
