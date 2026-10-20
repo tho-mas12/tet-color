@@ -101,6 +101,11 @@ class AdminSettings(Base):
     stage4_count_multi_stmt = Column(Integer, default=5)
     stage4_count_assertion = Column(Integer, default=5)
     stage4_count_chronological = Column(Integer, default=5)
+    enable_material_download = Column(Boolean, default=True)
+    enable_quiz_download = Column(Boolean, default=True)
+    razorpay_key_id = Column(String(255), default="")
+    razorpay_key_secret = Column(String(255), default="")
+    course_price = Column(Integer, default=999)
 
 class TETCard(Base):
     __tablename__ = "tet_cards"
@@ -167,3 +172,22 @@ class DashboardContainer(Base):
     order_index = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class Enrollment(Base):
+    __tablename__ = "enrollments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    name = Column(String(255))
+    mobile = Column(String(50))
+    email = Column(String(255), index=True)
+    designation = Column(String(100), default="Aspirant") # SGT, B.T. Assistant, PG Assistant, Aspirant, etc.
+    course_name = Column(String(150), default="TET Combo (TET 1, TET 2 & Live Class)")
+    amount = Column(Integer, default=999)
+    status = Column(String(50), default="active") # "active", "pending", "admin_free", "cancelled"
+    payment_id = Column(String(255), nullable=True)
+    order_id = Column(String(255), nullable=True)
+    payment_method = Column(String(50), default="admin_free") # "razorpay", "admin_free", "manual"
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

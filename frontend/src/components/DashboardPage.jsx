@@ -26,13 +26,15 @@ import {
   ChevronRight,
   Tv,
   Check,
-  Share2
+  Share2,
+  Lock
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
 import DailyPracticeModal from "./DailyPracticeModal";
 import NewsSection from "./NewsSection";
 import MinnalNewsMobile from "./MinnalNewsMobile";
+import EnrollmentModal from "./EnrollmentModal";
 
 export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, lang = "en" }) {
   const [dashboardData, setDashboardData] = useState(null);
@@ -43,6 +45,9 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [selectedTetPaper, setSelectedTetPaper] = useState("paper1"); // "paper1" (TET 1) or "paper2" (TET 2)
   const [activeModal, setActiveModal] = useState(null); // "tamil_reading", "english_reading", "online_class", "nmms", "treast", "news"
+  const [isEnrolled, setIsEnrolled] = useState(user?.role === "admin");
+  const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
+  const [publicSettings, setPublicSettings] = useState({ course_price: 999, razorpay_key_id: "" });
   const [showNewsFeed, setShowNewsFeed] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -53,7 +58,31 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
     loadContainers();
     loadDailyPractices();
     loadActiveMeetings();
+    checkEnrollmentStatus();
   }, [user]);
+
+  const checkEnrollmentStatus = async () => {
+    if (user?.role === "admin") {
+      setIsEnrolled(true);
+      return;
+    }
+    if (user?.email) {
+      try {
+        const res = await fetchApi(`/enrollments/my-status?email=${encodeURIComponent(user.email)}`);
+        if (res && res.is_enrolled) {
+          setIsEnrolled(true);
+        } else {
+          setIsEnrolled(false);
+        }
+      } catch (e) {
+        setIsEnrolled(false);
+      }
+    }
+    try {
+      const settings = await fetchApi("/public-settings");
+      if (settings) setPublicSettings(settings);
+    } catch (e) {}
+  };
 
   const loadContainers = async () => {
     try {
@@ -256,6 +285,14 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
   const handleContainerAction = (c) => {
     const key = c.container_key || c.category;
+    const LOCKED_KEYS = ["tet_1", "tet_2", "online_class"];
+
+    // Check if module is locked
+    if (LOCKED_KEYS.includes(key) && !isEnrolled && user?.role !== "admin") {
+      setIsEnrollmentModalOpen(true);
+      return;
+    }
+
     if (key === "tet_1") {
       onNavigateToLearning("paper1", 1);
     } else if (key === "tet_2") {
@@ -263,7 +300,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
     } else if (key === "textbooks") {
       if (onNavigateToMaterials) onNavigateToMaterials();
     } else if (key === "news") {
-      setActiveModal("news");
+      window.open("/news", "_blank");
     } else if (key === "online_class") {
       if (currentLiveMeeting && currentLiveMeeting.meeting_link) {
         window.open(currentLiveMeeting.meeting_link, "_blank");
@@ -595,12 +632,16 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
             const isTet2 = key === "tet_2";
             const isOnlineClass = key === "online_class";
             const hasLiveAlert = isOnlineClass && Boolean(currentLiveMeeting);
+            const LOCKED_KEYS = ["tet_1", "tet_2", "online_class"];
+            const isLocked = LOCKED_KEYS.includes(key) && !isEnrolled && user?.role !== "admin";
 
             return (
               <div
                 key={c.id || c.container_key}
                 className={`bg-white border rounded-3xl p-5 sm:p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 relative ${
-                  hasLiveAlert 
+                  isLocked
+                    ? "border-amber-200/90 hover:border-amber-400/80 bg-gradient-to-b from-white to-amber-50/20"
+                    : hasLiveAlert 
                     ? "border-rose-400 ring-2 ring-rose-200/70" 
                     : isTet1 || isTet2 
                     ? "border-slate-200/90 hover:border-[#0055ff]/50" 
@@ -611,12 +652,21 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                 <div className="space-y-2.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center space-x-2.5">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center p-2 shadow-2xs ${
-                        hasLiveAlert 
-                          ? "bg-rose-50 border border-rose-200" 
-                          : "bg-blue-50 border border-blue-200/70"
-                      }`}>
-                        {renderIcon(c.icon_name)}
+                      <div className="relative">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center p-2 shadow-2xs ${
+                          isLocked
+                            ? "bg-amber-50 border border-amber-200 text-amber-700"
+                            : hasLiveAlert 
+                            ? "bg-rose-50 border border-rose-200" 
+                            : "bg-blue-50 border border-blue-200/70"
+                        }`}>
+                          {renderIcon(c.icon_name)}
+                        </div>
+                        {isLocked && (
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-600 text-white flex items-center justify-center shadow-xs">
+                            <Lock className="w-2.5 h-2.5" />
+                          </div>
+                        )}
                       </div>
                       <div>
                         <h2 className="text-lg sm:text-xl font-black text-[#061b36] tracking-tight">
@@ -631,7 +681,17 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                     </div>
 
                     {/* Badge */}
-                    {hasLiveAlert ? (
+                    {isLocked ? (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1 shadow-xs">
+                        <Lock className="w-3 h-3 text-amber-700" />
+                        <span>LOCKED</span>
+                      </span>
+                    ) : LOCKED_KEYS.includes(key) && isEnrolled ? (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1 shadow-xs">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>UNLOCKED</span>
+                      </span>
+                    ) : hasLiveAlert ? (
                       <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-rose-600 text-white flex items-center space-x-1 animate-pulse shadow-xs">
                         <Radio className="w-3 h-3 animate-ping" />
                         <span>LIVE NOW</span>
@@ -675,8 +735,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                   )}
 
                   {/* EMBEDDED DAILY TASK COMPLETION STATUS FOR TET 1 & TET 2 */}
-                  {isTet1 && renderDailyTaskPanel(selectedTetPaper === "paper1", "paper1")}
-                  {isTet2 && renderDailyTaskPanel(selectedTetPaper === "paper2", "paper2")}
+                  {!isLocked && isTet1 && renderDailyTaskPanel(selectedTetPaper === "paper1", "paper1")}
+                  {!isLocked && isTet2 && renderDailyTaskPanel(selectedTetPaper === "paper2", "paper2")}
 
                   {/* SPECIAL NEWS PREVIEW WHEN NEWS CONTAINER */}
                   {key === "news" && (
@@ -694,21 +754,33 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
                 {/* Container Action Button */}
                 <div className="pt-3 border-t border-slate-100">
-                  <button
-                    onClick={() => handleContainerAction(c)}
-                    className={`w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 shadow-2xs flex items-center justify-center space-x-2 cursor-pointer group min-h-[44px] ${
-                      hasLiveAlert
-                        ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200"
-                        : "bg-slate-50 hover:bg-[#0055ff] text-[#061b36] hover:text-white border border-slate-200/90 hover:border-[#0055ff]"
-                    }`}
-                  >
-                    <span>
-                      {hasLiveAlert 
-                        ? "JOIN LIVE CLASS NOW ↗" 
-                        : (c.button_text || `OPEN ${c.title} →`)}
-                    </span>
-                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                  </button>
+                  {isLocked ? (
+                    <button
+                      onClick={() => setIsEnrollmentModalOpen(true)}
+                      className="w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 shadow-md flex items-center justify-center space-x-2 cursor-pointer group min-h-[44px] bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>UNLOCK (TET 1, 2 & LIVE) 🔒</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleContainerAction(c)}
+                      className={`w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 shadow-2xs flex items-center justify-center space-x-2 cursor-pointer group min-h-[44px] ${
+                        hasLiveAlert
+                          ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200"
+                          : "bg-slate-50 hover:bg-[#0055ff] text-[#061b36] hover:text-white border border-slate-200/90 hover:border-[#0055ff]"
+                      }`}
+                    >
+                      <span>
+                        {hasLiveAlert 
+                          ? "JOIN LIVE CLASS NOW ↗" 
+                          : key === "news" 
+                          ? "OPEN NEWS (NEW TAB) ↗" 
+                          : (c.button_text || `OPEN ${c.title} →`)}
+                      </span>
+                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -716,30 +788,19 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         </div>
       </div>
 
-      {/* ================= EMBEDDED NEWS SECTION (EXPANDABLE FROM NEWS CONTAINER) ================= */}
-      {showNewsFeed && (
-        <div className="p-4 sm:p-6 bg-white rounded-3xl border border-sky-200 shadow-sm space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center space-x-2">
-              <Newspaper className="w-5 h-5 text-sky-600" />
-              <h3 className="text-base sm:text-lg font-black text-[#061b36]">
-                Educational News & Circulars (கல்விச் செய்திகள்)
-              </h3>
-            </div>
-            <button
-              onClick={() => setShowNewsFeed(false)}
-              className="text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 cursor-pointer"
-            >
-              Close Feed ✕
-            </button>
-          </div>
-          <NewsSection lang={lang} />
-        </div>
-      )}
-
-      {/* ================= MODAL: MINNAL NEWS MOBILE (INSHORTS-STYLE) ================= */}
-      {activeModal === "news" && (
-        <MinnalNewsMobile onClose={() => setActiveModal(null)} isModal={true} lang={lang} />
+      {/* ================= ENROLLMENT & PAYMENT MODAL ================= */}
+      {isEnrollmentModalOpen && (
+        <EnrollmentModal
+          isOpen={isEnrollmentModalOpen}
+          onClose={() => setIsEnrollmentModalOpen(false)}
+          user={user}
+          coursePrice={publicSettings.course_price || 999}
+          razorpayKey={publicSettings.razorpay_key_id || ""}
+          lang={lang}
+          onEnrollmentSuccess={() => {
+            setIsEnrolled(true);
+          }}
+        />
       )}
 
       {/* ================= MODAL: TAMIL READING ================= */}

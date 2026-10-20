@@ -30,6 +30,17 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
   const [examAnswers, setExamAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [examResult, setExamResult] = useState(null);
+  const [canDownloadQuiz, setCanDownloadQuiz] = useState(true);
+
+  useEffect(() => {
+    fetchApi("/public-settings")
+      .then((settings) => {
+        if (settings && typeof settings.enable_quiz_download === "boolean") {
+          setCanDownloadQuiz(settings.enable_quiz_download);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (practiceId) {
@@ -314,7 +325,7 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
                   </p>
                 </div>
 
-                {questions.length > 0 && (
+                {canDownloadQuiz && questions.length > 0 && (
                   <button
                     onClick={() => {
                       downloadQuizAsPdf({

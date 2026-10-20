@@ -94,60 +94,9 @@ export default function Navbar({
                   <Layers className="w-3.5 h-3.5" />
                   <span>{t.materials}</span>
                 </button>
-
-                <button
-                  onClick={() => handleNav("/news", "news")}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
-                    activeTab === "news"
-                      ? "bg-[#ff5722] text-white shadow-xs"
-                      : "text-amber-200 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  <Zap className="w-3.5 h-3.5 fill-[#ff5722] text-[#ff5722]" />
-                  <span>{lang === "ta" ? "மின்னல் செய்திகள்" : "Live News"}</span>
-                </button>
               </>
             )
-          ) : (
-            /* Public Visitor Tabs */
-            <>
-              <button
-                onClick={() => handleNav("/", "home")}
-                className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                  activeTab === "home"
-                    ? "bg-[#0055ff] text-white shadow-sm"
-                    : "text-sky-100 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>{lang === "ta" ? "முகப்பு" : "Home"}</span>
-              </button>
-
-              <button
-                onClick={() => handleNav("/materials", "materials")}
-                className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                  activeTab === "materials"
-                    ? "bg-[#0055ff] text-white shadow-sm"
-                    : "text-sky-100 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>{lang === "ta" ? "பாடப்புத்தகங்கள் (1–12)" : "Textbooks Explorer"}</span>
-              </button>
-
-              <button
-                onClick={() => handleNav("/news", "news")}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
-                  activeTab === "news"
-                    ? "bg-[#ff5722] text-white shadow-xs"
-                    : "text-amber-200 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5 fill-[#ff5722] text-[#ff5722]" />
-                <span>{lang === "ta" ? "மின்னல் செய்திகள்" : "Live News"}</span>
-              </button>
-            </>
-          )}
+          ) : null}
         </nav>
 
         {/* User Info & Actions */}
@@ -258,65 +207,16 @@ export default function Navbar({
                 <span>{t.materials}</span>
               </button>
 
-              <button
-                onClick={() => handleNav("/news", "news")}
-                className={`flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
-                  activeTab === "news"
-                    ? "text-white bg-[#ff5722] shadow-xs"
-                    : "text-amber-200 hover:text-white"
-                }`}
-              >
-                <Zap className="w-5 h-5 mb-0.5 fill-[#ff5722] text-[#ff5722]" />
-                <span>{lang === "ta" ? "செய்திகள்" : "News"}</span>
-              </button>
             </>
           )
         ) : (
-          <>
-            <button
-              onClick={() => handleNav("/", "home")}
-              className={`flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
-                activeTab === "home"
-                  ? "text-white bg-[#0055ff] shadow-xs"
-                  : "text-slate-300 hover:text-white"
-              }`}
-            >
-              <BookOpen className="w-5 h-5 mb-0.5" />
-              <span>{lang === "ta" ? "முகப்பு" : "Home"}</span>
-            </button>
-
-            <button
-              onClick={() => handleNav("/materials", "materials")}
-              className={`flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
-                activeTab === "materials"
-                  ? "text-white bg-[#0055ff] shadow-xs"
-                  : "text-slate-300 hover:text-white"
-              }`}
-            >
-              <Layers className="w-5 h-5 mb-0.5" />
-              <span>{lang === "ta" ? "பாடப்புத்தகங்கள்" : "Textbooks"}</span>
-            </button>
-
-            <button
-              onClick={() => handleNav("/news", "news")}
-              className={`flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
-                activeTab === "news"
-                  ? "text-white bg-[#ff5722] shadow-xs"
-                  : "text-amber-200 hover:text-white"
-              }`}
-            >
-              <Zap className="w-5 h-5 mb-0.5 fill-[#ff5722] text-[#ff5722]" />
-              <span>{lang === "ta" ? "செய்திகள்" : "News"}</span>
-            </button>
-
-            <button
-              onClick={onOpenAuth}
-              className="flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold text-sky-200 hover:text-white min-h-[48px] justify-center cursor-pointer"
-            >
-              <LogIn className="w-5 h-5 mb-0.5 text-[#0055ff]" />
-              <span>{t.login}</span>
-            </button>
-          </>
+          <button
+            onClick={onOpenAuth}
+            className="flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold text-sky-200 hover:text-white min-h-[48px] justify-center cursor-pointer"
+          >
+            <LogIn className="w-5 h-5 mb-0.5 text-[#0055ff]" />
+            <span>{t.login}</span>
+          </button>
         )}
       </nav>
     </header>

@@ -3,7 +3,7 @@ import re
 import shutil
 import datetime
 import json
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -39,6 +39,19 @@ def run_sqlite_migrations():
         pcols = [row[1] for row in cursor.fetchall()]
         if pcols and "has_failed_test" not in pcols:
             cursor.execute("ALTER TABLE lesson_progress ADD COLUMN has_failed_test BOOLEAN DEFAULT 0")
+
+        cursor.execute("PRAGMA table_info(admin_settings)")
+        as_cols = [row[1] for row in cursor.fetchall()]
+        if as_cols and "enable_material_download" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN enable_material_download BOOLEAN DEFAULT 1")
+        if as_cols and "enable_quiz_download" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN enable_quiz_download BOOLEAN DEFAULT 1")
+        if as_cols and "razorpay_key_id" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN razorpay_key_id TEXT DEFAULT ''")
+        if as_cols and "razorpay_key_secret" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN razorpay_key_secret TEXT DEFAULT ''")
+        if as_cols and "course_price" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN course_price INTEGER DEFAULT 999")
 
         conn.commit()
         conn.close()
@@ -1848,10 +1861,25 @@ def update_admin_settings(new_settings: schemas.AdminSettingsSchema, db: Session
     if getattr(new_settings, "stage4_count_multi_stmt", None) is not None: settings.stage4_count_multi_stmt = new_settings.stage4_count_multi_stmt
     if getattr(new_settings, "stage4_count_assertion", None) is not None: settings.stage4_count_assertion = new_settings.stage4_count_assertion
     if getattr(new_settings, "stage4_count_chronological", None) is not None: settings.stage4_count_chronological = new_settings.stage4_count_chronological
+    if getattr(new_settings, "enable_material_download", None) is not None: settings.enable_material_download = new_settings.enable_material_download
+    if getattr(new_settings, "enable_quiz_download", None) is not None: settings.enable_quiz_download = new_settings.enable_quiz_download
+    if getattr(new_settings, "razorpay_key_id", None) is not None: settings.razorpay_key_id = new_settings.razorpay_key_id
+    if getattr(new_settings, "razorpay_key_secret", None) is not None: settings.razorpay_key_secret = new_settings.razorpay_key_secret
+    if getattr(new_settings, "course_price", None) is not None: settings.course_price = new_settings.course_price
 
     db.commit()
     db.refresh(settings)
     return settings
+
+@app.get("/api/public-settings", response_model=schemas.PublicSettingsSchema)
+def get_public_settings(db: Session = Depends(get_db)):
+    settings = db.query(models.AdminSettings).first()
+    return schemas.PublicSettingsSchema(
+        enable_material_download=getattr(settings, "enable_material_download", True) if settings else True,
+        enable_quiz_download=getattr(settings, "enable_quiz_download", True) if settings else True,
+        razorpay_key_id=getattr(settings, "razorpay_key_id", "") if settings else "",
+        course_price=getattr(settings, "course_price", 999) if settings else 999
+    )
 
 @app.get("/api/admin/announcements")
 def get_admin_announcements(db: Session = Depends(get_db)):
@@ -2412,6 +2440,174 @@ def get_ai_live_news(db: Session = Depends(get_db)):
         }
     ]
     return {"ok": True, "news": live_items}
+
+# ================= ENROLLMENTS & SUBSCRIPTION ENDPOINTS =================
+
+@app.post("/api/enrollments/register")
+def register_enrollment_lead(data: schemas.EnrollmentCreate, db: Session = Depends(get_db)):
+    # Check if existing enrollment for this email
+    clean_email = data.email.strip().lower()
+    existing = db.query(models.Enrollment).filter(models.Enrollment.email == clean_email).first()
+    if existing and existing.status in ["active", "admin_free", "paid"]:
+        return {
+            "ok": True,
+            "already_active": True,
+            "message": "User is already active and enrolled!",
+            "enrollment_id": existing.id
+        }
+
+    user = db.query(models.User).filter(models.User.email == clean_email).first()
+    settings = db.query(models.AdminSettings).first()
+    
+    amount = data.amount or (settings.course_price if settings and settings.course_price else 999)
+    enrollment = models.Enrollment(
+        user_id=user.id if user else None,
+        name=data.name.strip(),
+        mobile=data.mobile.strip(),
+        email=clean_email,
+        designation=data.designation or "Aspirant",
+        course_name=data.course_name or "TET Combo (TET 1, TET 2 & Live Class)",
+        amount=amount,
+        status="pending",
+        payment_method="razorpay"
+    )
+    db.add(enrollment)
+    db.commit()
+    db.refresh(enrollment)
+
+    razorpay_key = settings.razorpay_key_id if settings and settings.razorpay_key_id else ""
+    return {
+        "ok": True,
+        "enrollment_id": enrollment.id,
+        "amount": amount,
+        "currency": "INR",
+        "razorpay_key": razorpay_key,
+        "name": enrollment.name,
+        "email": enrollment.email,
+        "mobile": enrollment.mobile,
+        "course_name": enrollment.course_name
+    }
+
+@app.post("/api/enrollments/verify-payment")
+def verify_enrollment_payment(data: schemas.EnrollmentVerifyPayment, db: Session = Depends(get_db)):
+    enrollment = db.query(models.Enrollment).filter(models.Enrollment.id == data.enrollment_id).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+
+    enrollment.payment_id = data.payment_id
+    enrollment.order_id = data.order_id
+    enrollment.status = "active"
+    enrollment.payment_method = "razorpay"
+
+    # Link user if exists
+    if not enrollment.user_id:
+        user = db.query(models.User).filter(models.User.email == enrollment.email).first()
+        if user:
+            enrollment.user_id = user.id
+
+    db.commit()
+    db.refresh(enrollment)
+    return {
+        "ok": True,
+        "message": "Payment verified and complete course access activated!",
+        "enrollment_id": enrollment.id,
+        "status": enrollment.status
+    }
+
+@app.get("/api/enrollments/my-status")
+def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depends(get_db)):
+    if not email:
+        return {"is_enrolled": False, "reason": "No email provided"}
+
+    email_clean = email.strip().lower()
+
+    # Check if user is admin
+    user = db.query(models.User).filter(models.User.email == email_clean).first()
+    if user and user.role == "admin":
+        return {
+            "is_enrolled": True,
+            "role": "admin",
+            "message": "Admin has full access to all modules."
+        }
+
+    # Check enrollment table for active status
+    enrollment = db.query(models.Enrollment).filter(
+        models.Enrollment.email == email_clean,
+        models.Enrollment.status.in_(["active", "admin_free", "paid"])
+    ).order_by(models.Enrollment.created_at.desc()).first()
+
+    if enrollment:
+        return {
+            "is_enrolled": True,
+            "role": "student",
+            "enrollment": {
+                "id": enrollment.id,
+                "name": enrollment.name,
+                "email": enrollment.email,
+                "designation": enrollment.designation,
+                "status": enrollment.status,
+                "course_name": enrollment.course_name,
+                "created_at": enrollment.created_at.isoformat() if enrollment.created_at else None
+            }
+        }
+
+    return {"is_enrolled": False, "role": "student"}
+
+@app.get("/api/admin/enrollments", response_model=List[schemas.EnrollmentOut])
+def get_admin_enrollments(db: Session = Depends(get_db)):
+    return db.query(models.Enrollment).order_by(models.Enrollment.created_at.desc()).all()
+
+@app.post("/api/admin/enrollments/manual", response_model=schemas.EnrollmentOut)
+def manual_free_enroll(data: schemas.EnrollmentManualCreate, db: Session = Depends(get_db)):
+    clean_email = data.email.strip().lower()
+    user = db.query(models.User).filter(models.User.email == clean_email).first()
+    existing = db.query(models.Enrollment).filter(models.Enrollment.email == clean_email).first()
+    
+    if existing:
+        existing.status = "active"
+        existing.payment_method = "admin_free"
+        existing.notes = data.notes or "Free enrollment granted by admin"
+        if data.name: existing.name = data.name.strip()
+        if data.mobile: existing.mobile = data.mobile.strip()
+        if data.designation: existing.designation = data.designation
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    new_enrollment = models.Enrollment(
+        user_id=user.id if user else None,
+        name=data.name.strip(),
+        mobile=data.mobile.strip(),
+        email=clean_email,
+        designation=data.designation or "Aspirant",
+        course_name=data.course_name or "TET Combo (TET 1, TET 2 & Live Class)",
+        amount=0,
+        status="active",
+        payment_method="admin_free",
+        notes=data.notes or "Free enrollment granted by admin"
+    )
+    db.add(new_enrollment)
+    db.commit()
+    db.refresh(new_enrollment)
+    return new_enrollment
+
+@app.put("/api/admin/enrollments/{enrollment_id}/status")
+def update_enrollment_status(enrollment_id: int, status: str = Body(..., embed=True), db: Session = Depends(get_db)):
+    enrollment = db.query(models.Enrollment).filter(models.Enrollment.id == enrollment_id).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+    enrollment.status = status
+    db.commit()
+    return {"ok": True, "enrollment_id": enrollment.id, "status": enrollment.status}
+
+@app.delete("/api/admin/enrollments/{enrollment_id}")
+def delete_enrollment(enrollment_id: int, db: Session = Depends(get_db)):
+    enrollment = db.query(models.Enrollment).filter(models.Enrollment.id == enrollment_id).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+    db.delete(enrollment)
+    db.commit()
+    return {"ok": True, "message": "Enrollment deleted successfully"}
 
 if __name__ == "__main__":
     import uvicorn

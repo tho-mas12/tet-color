@@ -41,8 +41,19 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const [testResult, setTestResult] = useState(null);
   const [showDetailedReview, setShowDetailedReview] = useState(false);
   const [countdownStr, setCountdownStr] = useState("");
+  const [canDownloadQuiz, setCanDownloadQuiz] = useState(true);
 
   const t = translations[lang] || translations.en;
+
+  useEffect(() => {
+    fetchApi("/public-settings")
+      .then((data) => {
+        if (data && typeof data.enable_quiz_download === "boolean") {
+          setCanDownloadQuiz(data.enable_quiz_download);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const cleanQuestionStem = (text) => {
     if (!text) return "";
@@ -554,7 +565,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
               </div>
 
               <div className="flex items-center space-x-2.5">
-                {questionsData.length > 0 && (
+                {canDownloadQuiz && questionsData.length > 0 && (
                   <button
                     onClick={handleDownloadQuiz}
                     className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-[#061b36] text-xs sm:text-sm font-bold border border-slate-200 shadow-2xs cursor-pointer min-h-[42px]"

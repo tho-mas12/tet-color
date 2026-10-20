@@ -48,7 +48,9 @@ import {
   Library,
   Newspaper,
   BookCheck,
-  Languages
+  Languages,
+  CreditCard,
+  Lock
 } from "lucide-react";
 import { fetchApi, saveUploadedMaterialClient, saveUploadedLessonClient } from "../api";
 import { translations } from "../translations";
@@ -469,6 +471,25 @@ export default function AdminPage({ user, lang = "en" }) {
   const [stage4CountAssertion, setStage4CountAssertion] = useState(5);
   const [stage4CountChronological, setStage4CountChronological] = useState(5);
 
+  // Download Permissions & Razorpay State
+  const [enableMaterialDownload, setEnableMaterialDownload] = useState(true);
+  const [enableQuizDownload, setEnableQuizDownload] = useState(true);
+  const [razorpayKeyId, setRazorpayKeyId] = useState("");
+  const [razorpayKeySecret, setRazorpayKeySecret] = useState("");
+  const [coursePrice, setCoursePrice] = useState(999);
+
+  // Enrollments & Student Access Management State
+  const [enrollmentsList, setEnrollmentsList] = useState([]);
+  const [enrollmentSearch, setEnrollmentSearch] = useState("");
+  const [enrollmentStatusFilter, setEnrollmentStatusFilter] = useState("all");
+  const [isManualEnrollModalOpen, setIsManualEnrollModalOpen] = useState(false);
+  const [manualEnrollName, setManualEnrollName] = useState("");
+  const [manualEnrollMobile, setManualEnrollMobile] = useState("");
+  const [manualEnrollEmail, setManualEnrollEmail] = useState("");
+  const [manualEnrollDesignation, setManualEnrollDesignation] = useState("TET Aspirant");
+  const [manualEnrollNotes, setManualEnrollNotes] = useState("");
+  const [submittingManualEnroll, setSubmittingManualEnroll] = useState(false);
+
   const [savingSettings, setSavingSettings] = useState(false);
 
   const [usersList, setUsersList] = useState([]);
@@ -585,6 +606,7 @@ export default function AdminPage({ user, lang = "en" }) {
     loadContainers();
     loadMeetings();
     loadDailyPractices();
+    loadEnrollments();
   }, []);
 
   const loadDailyPractices = async () => {
@@ -967,8 +989,24 @@ export default function AdminPage({ user, lang = "en" }) {
       setStage4CountMultiStmt(data.stage4_count_multi_stmt !== undefined ? data.stage4_count_multi_stmt : 5);
       setStage4CountAssertion(data.stage4_count_assertion !== undefined ? data.stage4_count_assertion : 5);
       setStage4CountChronological(data.stage4_count_chronological !== undefined ? data.stage4_count_chronological : 5);
+
+      setEnableMaterialDownload(data.enable_material_download !== undefined ? data.enable_material_download : true);
+      setEnableQuizDownload(data.enable_quiz_download !== undefined ? data.enable_quiz_download : true);
+      setRazorpayKeyId(data.razorpay_key_id || "");
+      setRazorpayKeySecret(data.razorpay_key_secret || "");
+      setCoursePrice(data.course_price !== undefined ? data.course_price : 999);
     } catch (err) {
       console.error("Settings load error:", err);
+    }
+  };
+
+  const loadEnrollments = async () => {
+    try {
+      const data = await fetchApi("/admin/enrollments");
+      setEnrollmentsList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Enrollments load error:", err);
+      setEnrollmentsList([]);
     }
   };
 
@@ -1623,14 +1661,77 @@ export default function AdminPage({ user, lang = "en" }) {
           stage4_count_match: Number(stage4CountMatch || 0),
           stage4_count_multi_stmt: Number(stage4CountMultiStmt || 0),
           stage4_count_assertion: Number(stage4CountAssertion || 0),
-          stage4_count_chronological: Number(stage4CountChronological || 0)
+          stage4_count_chronological: Number(stage4CountChronological || 0),
+          enable_material_download: Boolean(enableMaterialDownload),
+          enable_quiz_download: Boolean(enableQuizDownload),
+          razorpay_key_id: razorpayKeyId.trim(),
+          razorpay_key_secret: razorpayKeySecret.trim(),
+          course_price: Number(coursePrice || 999)
         })
       });
-      showToast("Admin & Gemini AI Settings saved successfully!");
+      showToast("Admin, Downloads & Razorpay Settings saved successfully!");
     } catch (err) {
-      showToast("Gemini AI settings updated!");
+      showToast("Settings updated!");
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleManualFreeEnroll = async (e) => {
+    e.preventDefault();
+    if (!manualEnrollName.trim() || !manualEnrollMobile.trim() || !manualEnrollEmail.trim()) {
+      return showToast("Please fill in Student Name, Mobile Number, and Email.", "error");
+    }
+    setSubmittingManualEnroll(true);
+    try {
+      await fetchApi("/admin/enrollments/manual", {
+        method: "POST",
+        body: JSON.stringify({
+          name: manualEnrollName.trim(),
+          mobile: manualEnrollMobile.trim(),
+          email: manualEnrollEmail.trim().toLowerCase(),
+          designation: manualEnrollDesignation,
+          notes: manualEnrollNotes.trim() || "Free enrollment added by Administrator",
+          course_name: "TET Combo (TET 1, TET 2 & Live Class)"
+        })
+      });
+      showToast(`Student ${manualEnrollName} successfully enrolled for FREE with full access!`, "success");
+      setManualEnrollName("");
+      setManualEnrollMobile("");
+      setManualEnrollEmail("");
+      setManualEnrollNotes("");
+      setIsManualEnrollModalOpen(false);
+      loadEnrollments();
+      loadStats();
+    } catch (err) {
+      showToast(err.message || "Failed to enroll user.", "error");
+    } finally {
+      setSubmittingManualEnroll(false);
+    }
+  };
+
+  const handleToggleEnrollmentStatus = async (id, currentStatus) => {
+    const nextStatus = currentStatus === "active" ? "cancelled" : "active";
+    try {
+      await fetchApi(`/admin/enrollments/${id}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status: nextStatus })
+      });
+      showToast(`Enrollment status updated to ${nextStatus.toUpperCase()}!`, "success");
+      loadEnrollments();
+    } catch (err) {
+      showToast("Failed to update status", "error");
+    }
+  };
+
+  const handleDeleteEnrollment = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this enrollment record?")) return;
+    try {
+      await fetchApi(`/admin/enrollments/${id}`, { method: "DELETE" });
+      showToast("Enrollment deleted successfully!");
+      loadEnrollments();
+    } catch (err) {
+      showToast("Failed to delete enrollment", "error");
     }
   };
 
@@ -1793,6 +1894,7 @@ export default function AdminPage({ user, lang = "en" }) {
   // Nav Tabs configuration for Left Sidebar (Dashboard First)
   const navTabs = [
     { id: "stats", label: "Dashboard", icon: LayoutDashboard, badge: null },
+    { id: "enrollments", label: "Student Enrollments", icon: CreditCard, badge: Array.isArray(enrollmentsList) ? enrollmentsList.length : 0 },
     { id: "les_upload", label: "Courses & Lessons", icon: BookOpen, badge: Array.isArray(lessonsList) ? lessonsList.length : 0 },
     { id: "quiz_manager", label: "Quizzes & Tests", icon: FileText, badge: "New" },
     { id: "meetings", label: "Live Classes", icon: Video, badge: Array.isArray(meetingsList) && meetingsList.filter(m => m.is_live).length > 0 ? "LIVE" : null },
@@ -2089,6 +2191,358 @@ export default function AdminPage({ user, lang = "en" }) {
                   )}
                 </div>
               </div>
+
+            </div>
+          )}
+
+          {/* ================= TAB: ENROLLMENTS & ACCESS MANAGEMENT ================= */}
+          {activeTab === "enrollments" && (
+            <div className="space-y-6">
+              
+              {/* Header Banner */}
+              <div className="bg-white border border-blue-200/90 rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center space-x-2 text-[#0055ff] mb-1 font-extrabold text-xs uppercase tracking-wider">
+                    <CreditCard className="w-4 h-4" />
+                    <span>Student Subscriptions & Payment Access</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#061b36] tracking-tight">
+                    Student Course Enrollments (மாணவர் சேர்க்கை மேலாண்மை)
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed max-w-2xl">
+                    Manage all online student course inquiries and Razorpay transactions. Paying for any one module grants complete access to all 3 locked categories: TET-1, TET-2, and Online Live Classes. You can also grant free access manually to any candidate from here.
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-2 shrink-0">
+                  <button
+                    onClick={() => setIsManualEnrollModalOpen(true)}
+                    className="flex items-center space-x-2 px-5 py-3 rounded-2xl bg-[#0055ff] hover:bg-blue-700 text-white font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Enroll Candidate Free</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 KPI Metric Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                    TOTAL LEADS & ORDERS
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900">
+                    {enrollmentsList.length}
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-semibold block mt-1">Total inquiries & subscribers</span>
+                </div>
+
+                <div className="bg-white border border-emerald-200 rounded-2xl p-5 shadow-xs bg-emerald-50/20">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 block mb-1">
+                    ACTIVE ACCESS
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-600">
+                    {enrollmentsList.filter(e => e.status === "active").length}
+                  </div>
+                  <span className="text-[11px] text-emerald-600/90 font-semibold block mt-1">Unlocked course learners</span>
+                </div>
+
+                <div className="bg-white border border-blue-200 rounded-2xl p-5 shadow-xs bg-blue-50/20">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-700 block mb-1">
+                    ADMIN FREE ENROLLED
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-[#0055ff]">
+                    {enrollmentsList.filter(e => e.payment_method === "admin_free").length}
+                  </div>
+                  <span className="text-[11px] text-blue-600/90 font-semibold block mt-1">Enrolled without payment</span>
+                </div>
+
+                <div className="bg-white border border-amber-200 rounded-2xl p-5 shadow-xs bg-amber-50/20">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 block mb-1">
+                    PENDING PAYMENTS
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-amber-600">
+                    {enrollmentsList.filter(e => e.status === "pending").length}
+                  </div>
+                  <span className="text-[11px] text-amber-700/90 font-semibold block mt-1">Awaiting online checkout</span>
+                </div>
+              </div>
+
+              {/* Search & Filter Controls */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, mobile, email..."
+                    value={enrollmentSearch}
+                    onChange={(e) => setEnrollmentSearch(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2 w-full sm:w-auto">
+                  <select
+                    value={enrollmentStatusFilter}
+                    onChange={(e) => setEnrollmentStatusFilter(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 focus:outline-none focus:border-[#0055ff]"
+                  >
+                    <option value="all">All Statuses ({enrollmentsList.length})</option>
+                    <option value="active">Active Access Only</option>
+                    <option value="pending">Pending Payment</option>
+                    <option value="admin_free">Admin Free Enrolled</option>
+                    <option value="cancelled">Cancelled / Inactive</option>
+                  </select>
+
+                  <button
+                    onClick={loadEnrollments}
+                    title="Refresh List"
+                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Enrollments Table */}
+              <div className="bg-white border border-slate-200/90 rounded-3xl overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-black uppercase tracking-wider text-slate-500">
+                        <th className="py-3.5 px-4 sm:px-6">Candidate</th>
+                        <th className="py-3.5 px-4">Contact</th>
+                        <th className="py-3.5 px-4">Designation</th>
+                        <th className="py-3.5 px-4">Course Package</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4">Method / Amount</th>
+                        <th className="py-3.5 px-4">Date</th>
+                        <th className="py-3.5 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                      {(() => {
+                        const filtered = enrollmentsList.filter((e) => {
+                          const q = enrollmentSearch.toLowerCase().trim();
+                          const matchesQuery = !q || 
+                            (e.name || "").toLowerCase().includes(q) ||
+                            (e.email || "").toLowerCase().includes(q) ||
+                            (e.mobile || "").toLowerCase().includes(q) ||
+                            (e.designation || "").toLowerCase().includes(q);
+
+                          const matchesStatus = enrollmentStatusFilter === "all" ||
+                            (enrollmentStatusFilter === "admin_free" ? e.payment_method === "admin_free" : e.status === enrollmentStatusFilter);
+
+                          return matchesQuery && matchesStatus;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan="8" className="py-12 text-center text-slate-400 font-medium">
+                                <CreditCard className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                                <span>No candidate enrollments found matching criteria.</span>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filtered.map((e) => {
+                          const isActive = e.status === "active";
+                          const isFree = e.payment_method === "admin_free";
+
+                          return (
+                            <tr key={e.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-3.5 px-4 sm:px-6">
+                                <div className="font-black text-[#061b36]">{e.name}</div>
+                                <span className="text-[10px] text-slate-400 block">{e.email}</span>
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                <span className="font-bold text-slate-900">{e.mobile || "—"}</span>
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold">
+                                  {e.designation || "Aspirant"}
+                                </span>
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                <span className="text-slate-800 font-bold block">{e.course_name}</span>
+                                <span className="text-[10px] text-emerald-600 font-extrabold">TET 1 + TET 2 + Live Class</span>
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase inline-flex items-center space-x-1 ${
+                                  isActive
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                    : e.status === "pending"
+                                    ? "bg-amber-100 text-amber-800 border border-amber-300"
+                                    : "bg-rose-100 text-rose-800 border border-rose-300"
+                                }`}>
+                                  {isActive ? "ACTIVE ✓" : e.status === "pending" ? "PENDING" : "INACTIVE"}
+                                </span>
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                <div className="font-black text-slate-900">
+                                  {isFree ? "FREE (₹0)" : `₹${e.amount}`}
+                                </div>
+                                <span className="text-[10px] text-slate-400 block uppercase font-bold">
+                                  {e.payment_method || "manual"}
+                                </span>
+                              </td>
+
+                              <td className="py-3.5 px-4 text-[11px] text-slate-500">
+                                {e.created_at ? new Date(e.created_at).toLocaleDateString() : "Recent"}
+                              </td>
+
+                              <td className="py-3.5 px-4 text-right">
+                                <div className="flex items-center justify-end space-x-1.5">
+                                  <button
+                                    onClick={() => handleToggleEnrollmentStatus(e.id, e.status)}
+                                    title={isActive ? "Deactivate Access" : "Activate Access"}
+                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition cursor-pointer ${
+                                      isActive 
+                                        ? "bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700" 
+                                        : "bg-emerald-500 hover:bg-emerald-600 text-white"
+                                    }`}
+                                  >
+                                    {isActive ? "Revoke" : "Activate"}
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteEnrollment(e.id)}
+                                    title="Delete Record"
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* MODAL: MANUAL FREE ENROLLMENT */}
+              {isManualEnrollModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+                  <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <div className="flex items-center space-x-2">
+                        <div className="p-2 rounded-xl bg-blue-50 text-[#0055ff]">
+                          <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-black text-[#061b36]">
+                            Enroll Candidate Free (Admin Access)
+                          </h4>
+                          <span className="text-xs text-slate-500 font-medium">
+                            Grant instant access to TET 1, TET 2, and Live Classes without payment
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setIsManualEnrollModalOpen(false)}
+                        className="text-slate-400 hover:text-slate-700 font-bold p-1 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleManualFreeEnroll} className="space-y-3.5">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Student Full Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={manualEnrollName}
+                          onChange={(e) => setManualEnrollName(e.target.value)}
+                          placeholder="e.g. K. Saravanan"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Number *</label>
+                          <input
+                            type="tel"
+                            required
+                            maxLength={10}
+                            value={manualEnrollMobile}
+                            onChange={(e) => setManualEnrollMobile(e.target.value)}
+                            placeholder="9876543210"
+                            className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Email Address *</label>
+                          <input
+                            type="email"
+                            required
+                            value={manualEnrollEmail}
+                            onChange={(e) => setManualEnrollEmail(e.target.value)}
+                            placeholder="saravanan@gmail.com"
+                            className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Designation / Role</label>
+                        <select
+                          value={manualEnrollDesignation}
+                          onChange={(e) => setManualEnrollDesignation(e.target.value)}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0055ff] bg-white"
+                        >
+                          <option value="TET Aspirant">TET Aspirant / B.Ed Candidate</option>
+                          <option value="Secondary Grade Teacher (SGT)">Secondary Grade Teacher (SGT)</option>
+                          <option value="B.T. Assistant Teacher">B.T. Assistant Teacher</option>
+                          <option value="Post Graduate Teacher (PG)">Post Graduate Teacher (PG)</option>
+                          <option value="Private School Teacher">Private School Teacher</option>
+                          <option value="Other">Other / Special Candidate</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Notes / Authority Remark</label>
+                        <input
+                          type="text"
+                          value={manualEnrollNotes}
+                          onChange={(e) => setManualEnrollNotes(e.target.value)}
+                          placeholder="e.g. Free admission approved by Administration / Offline cash"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                        />
+                      </div>
+
+                      <div className="pt-2 flex items-center justify-end space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsManualEnrollModalOpen(false)}
+                          className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingManualEnroll}
+                          className="px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs font-black shadow-xs cursor-pointer disabled:opacity-50"
+                        >
+                          {submittingManualEnroll ? "Enrolling..." : "Grant Free Full Access ✓"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
 
             </div>
           )}
@@ -3888,6 +4342,120 @@ export default function AdminPage({ user, lang = "en" }) {
                     </div>
                   );
                 })()}
+
+                {/* ================= STUDENT PDF DOWNLOAD CONTROLS ================= */}
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                  <div className="flex items-center space-x-2 border-b border-slate-200/80 pb-2.5">
+                    <Download className="w-4 h-4 text-[#0055ff]" />
+                    <h4 className="text-xs font-black text-[#061b36] uppercase tracking-wider">
+                      Student PDF Download Permissions (பதிவிறக்கக் கட்டுப்பாடு)
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Control whether students can download study material PDFs and practice quiz test PDFs to their devices. Whenever necessary, these buttons can be enabled or disabled instantly.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    {/* Toggle: Materials PDF Download */}
+                    <div className="p-4 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="w-4 h-4 text-[#0055ff]" />
+                          <span className="text-xs font-black text-[#061b36]">Material PDF Downloads</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Allow students to download textbook study PDFs
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setEnableMaterialDownload(!enableMaterialDownload)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                          enableMaterialDownload 
+                            ? "bg-emerald-600 text-white shadow-xs" 
+                            : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                        }`}
+                      >
+                        {enableMaterialDownload ? "ENABLED ✓" : "DISABLED ✕"}
+                      </button>
+                    </div>
+
+                    {/* Toggle: Quiz PDF Download */}
+                    <div className="p-4 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center space-x-2">
+                          <CheckSquare className="w-4 h-4 text-purple-600" />
+                          <span className="text-xs font-black text-[#061b36]">Quiz & Test PDF Downloads</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Allow students to download practice quiz PDFs
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setEnableQuizDownload(!enableQuizDownload)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                          enableQuizDownload 
+                            ? "bg-emerald-600 text-white shadow-xs" 
+                            : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                        }`}
+                      >
+                        {enableQuizDownload ? "ENABLED ✓" : "DISABLED ✕"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ================= RAZORPAY PAYMENT GATEWAY CONFIGURATION ================= */}
+                <div className="p-5 rounded-2xl bg-blue-50/50 border border-blue-200/80 space-y-4">
+                  <div className="flex items-center space-x-2 border-b border-blue-200/80 pb-2.5">
+                    <CreditCard className="w-4 h-4 text-[#0055ff]" />
+                    <h4 className="text-xs font-black text-[#061b36] uppercase tracking-wider">
+                      Razorpay Payment Gateway & Course Pricing
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-600 font-medium">
+                    Configure your Razorpay API Key ID and Key Secret to accept secure student payments for TET Paper 1, TET Paper 2, and Live Classes. When a user pays for any one, all 3 locked categories are unlocked automatically.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                    <div>
+                      <label className="block text-xs font-bold text-[#061b36] mb-1">Razorpay Key ID</label>
+                      <input
+                        type="text"
+                        placeholder="rzp_live_xxxxxxxx or rzp_test_xxxxxxxx"
+                        value={razorpayKeyId}
+                        onChange={(e) => setRazorpayKeyId(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#061b36] mb-1">Razorpay Key Secret</label>
+                      <input
+                        type="password"
+                        placeholder="••••••••••••••••••••"
+                        value={razorpayKeySecret}
+                        onChange={(e) => setRazorpayKeySecret(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#061b36] mb-1">Combo Course Fee (₹ INR)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="999"
+                        value={coursePrice}
+                        onChange={(e) => setCoursePrice(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-black text-[#0055ff] focus:outline-none focus:border-[#0055ff]"
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <button
                   type="submit"

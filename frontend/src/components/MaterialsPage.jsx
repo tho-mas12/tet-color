@@ -31,8 +31,19 @@ export default function MaterialsPage({ lang = "en", onShare }) {
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activePdfModal, setActivePdfModal] = useState(null);
+  const [canDownload, setCanDownload] = useState(true);
 
   const t = translations[lang] || translations.en;
+
+  useEffect(() => {
+    fetchApi("/public-settings")
+      .then((data) => {
+        if (data && typeof data.enable_material_download === "boolean") {
+          setCanDownload(data.enable_material_download);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Sync selectedClass to URL query param
   useEffect(() => {
@@ -349,13 +360,15 @@ export default function MaterialsPage({ lang = "en", onShare }) {
                         <span>{t.viewPdfBtn}</span>
                       </button>
 
-                      <button
-                        onClick={() => handleDownload(mat)}
-                        className="flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs transition cursor-pointer min-h-[42px]"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>{t.downloadPdfBtn}</span>
-                      </button>
+                      {canDownload && (
+                        <button
+                          onClick={() => handleDownload(mat)}
+                          className="flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs transition cursor-pointer min-h-[42px]"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>{t.downloadPdfBtn}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -383,13 +396,15 @@ export default function MaterialsPage({ lang = "en", onShare }) {
               </div>
 
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleDownload(activePdfModal)}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold transition"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{t.downloadPdfBtn}</span>
-                </button>
+                {canDownload && (
+                  <button
+                    onClick={() => handleDownload(activePdfModal)}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold transition"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{t.downloadPdfBtn}</span>
+                  </button>
+                )}
 
                 <button
                   onClick={() => setActivePdfModal(null)}

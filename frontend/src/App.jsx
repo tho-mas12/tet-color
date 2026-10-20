@@ -347,19 +347,26 @@ export default function App() {
       localStorage.setItem("tet_user", JSON.stringify(u));
     } catch (e) {}
 
+    // When admin signs in, redirect directly only to https://tnteachers.in/admin
+    if (u && u.role === "admin") {
+      sessionStorage.removeItem("intended_redirect");
+      if (window.location.hostname.includes("tnteachers.in")) {
+        window.location.href = "https://tnteachers.in/admin";
+      } else {
+        window.location.href = "/admin";
+      }
+      return;
+    }
+
     // Check if user came from a shared URL
     const intended = sessionStorage.getItem("intended_redirect");
     sessionStorage.removeItem("intended_redirect");
 
-    if (intended && intended !== "/" && intended !== "/home") {
+    if (intended && intended !== "/" && intended !== "/home" && intended !== "/admin") {
       showToast(lang === "ta" ? "பகிரப்பட்ட பக்கத்திற்கு செல்கிறது..." : "Redirecting to shared page...");
       navigateTo(intended, true);
     } else {
-      if (u && u.role === "admin") {
-        navigateTo("/admin", true);
-      } else {
-        navigateTo("/student", true);
-      }
+      navigateTo("/student", true);
     }
   };
 

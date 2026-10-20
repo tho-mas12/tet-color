@@ -100,6 +100,11 @@ class AdminSettingsSchema(BaseModel):
     stage4_count_multi_stmt: Optional[int] = 5
     stage4_count_assertion: Optional[int] = 5
     stage4_count_chronological: Optional[int] = 5
+    enable_material_download: Optional[bool] = True
+    enable_quiz_download: Optional[bool] = True
+    razorpay_key_id: Optional[str] = ""
+    razorpay_key_secret: Optional[str] = ""
+    course_price: Optional[int] = 999
 
 class AnnouncementCreate(BaseModel):
     title: str
@@ -278,6 +283,54 @@ class DashboardContainerOut(DashboardContainerBase):
 
     class Config:
         from_attributes = True
+
+class PublicSettingsSchema(BaseModel):
+    enable_material_download: bool = True
+    enable_quiz_download: bool = True
+    razorpay_key_id: str = ""
+    course_price: int = 999
+
+class EnrollmentCreate(BaseModel):
+    name: str
+    mobile: str
+    email: str
+    designation: Optional[str] = "Aspirant"
+    course_name: Optional[str] = "TET Combo (TET 1, TET 2 & Live Class)"
+    amount: Optional[int] = 999
+
+class EnrollmentManualCreate(BaseModel):
+    name: str
+    mobile: str
+    email: str
+    designation: Optional[str] = "Aspirant"
+    notes: Optional[str] = None
+    course_name: Optional[str] = "TET Combo (TET 1, TET 2 & Live Class)"
+
+class EnrollmentVerifyPayment(BaseModel):
+    enrollment_id: int
+    payment_id: str
+    order_id: Optional[str] = None
+    signature: Optional[str] = None
+
+class EnrollmentOut(BaseModel):
+    id: int
+    user_id: Optional[int] = None
+    name: str
+    mobile: str
+    email: str
+    designation: str
+    course_name: str
+    amount: int
+    status: str
+    payment_id: Optional[str] = None
+    order_id: Optional[str] = None
+    payment_method: str
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 
 
 
