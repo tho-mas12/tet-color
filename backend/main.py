@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import datetime
 import json
@@ -81,37 +82,45 @@ def seed_initial_data(db: Session):
         settings.pass_percentage = 80
         db.commit()
 
-    admin = db.query(models.User).filter(models.User.email == "admin@tet.com").first()
-    if not admin:
-        admin = models.User(
-            name="Platform Administrator",
-            email="admin@tet.com",
-            password_hash="admin123",
-            role="admin",
-            streak_count=50
-        )
-        db.add(admin)
-        db.commit()
+    try:
+        admin = db.query(models.User).filter(models.User.email == "admin@tet.com").first()
+        if not admin:
+            admin = models.User(
+                name="Platform Administrator",
+                email="admin@tet.com",
+                password_hash="admin123",
+                role="admin",
+                streak_count=50
+            )
+            db.add(admin)
+            db.commit()
+    except Exception:
+        db.rollback()
 
-    candidate = db.query(models.User).filter(models.User.email == "candidate@tet.com").first()
-    if not candidate:
-        candidate = models.User(
-            name="Teacher Candidate",
-            email="candidate@tet.com",
-            password_hash="candidate123",
-            role="student",
-            streak_count=14,
-            daily_tasks_done=1,
-            daily_tasks_total=4
-        )
-        db.add(candidate)
-        db.commit()
+    try:
+        candidate = db.query(models.User).filter(models.User.email == "candidate@tet.com").first()
+        if not candidate:
+            candidate = models.User(
+                name="Teacher Candidate",
+                email="candidate@tet.com",
+                password_hash="candidate123",
+                role="student",
+                streak_count=14,
+                daily_tasks_done=1,
+                daily_tasks_total=4
+            )
+            db.add(candidate)
+            db.commit()
+    except Exception:
+        db.rollback()
 
-    # Purge any dummy student data
-    dummy_student = db.query(models.User).filter(models.User.email == "student@tet.com").first()
-    if dummy_student:
-        db.delete(dummy_student)
-        db.commit()
+    try:
+        dummy_student = db.query(models.User).filter(models.User.email == "student@tet.com").first()
+        if dummy_student:
+            db.delete(dummy_student)
+            db.commit()
+    except Exception:
+        db.rollback()
 
     if db.query(models.Announcement).count() == 0:
         ann = models.Announcement(
@@ -150,31 +159,131 @@ def seed_initial_data(db: Session):
         db.add_all([card1, card2])
         db.commit()
 
-    # Seed Live Meeting if none exists
-    now = datetime.datetime.now()
-    now_iso = now.strftime("%Y-%m-%dT%H:%M")
-    if db.query(models.LiveMeeting).count() == 0:
-        start_iso = (now - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
-        end_iso = (now + datetime.timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
-        meeting = models.LiveMeeting(
-            title="TN TET Paper-2 Live Science & Social Science Special Class",
-            meeting_link="https://meet.google.com/abc-defg-hij",
-            start_time=start_iso,
-            end_time=end_iso,
-            description="Live interactive coaching, question paper blueprint analysis & doubt clearing session. Join with the Google Meet link.",
-            is_active=True
-        )
-        db.add(meeting)
+    if db.query(models.DashboardContainer).count() == 0:
+        default_containers = [
+            models.DashboardContainer(
+                container_key="tet_1",
+                title="TET - 1",
+                subtitle="Classes 1–8 | தாள் - 1",
+                category="tet",
+                description="1 முதல் 8 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு & தினசரி பயிற்சிகள்",
+                badge_text="Classes 1-8",
+                button_text="OPEN TET-1 →",
+                action_url="tet_1",
+                icon_name="GraduationCap",
+                order_index=1,
+                is_active=True
+            ),
+            models.DashboardContainer(
+                container_key="tet_2",
+                title="TET - 2",
+                subtitle="Classes 6–12 | தாள் - 2",
+                category="tet",
+                description="6 முதல் 12 ஆம் வகுப்பு வரை பாடவாரியான முழுமையான தேர்வு தயாரிப்பு & மாதிரி தேர்வுகள்",
+                badge_text="Classes 6-12",
+                button_text="OPEN TET-2 →",
+                action_url="tet_2",
+                icon_name="BookOpen",
+                order_index=2,
+                is_active=True
+            ),
+            models.DashboardContainer(
+                container_key="textbooks",
+                title="TN Textbooks",
+                subtitle="Class 1 to 12 School Books",
+                category="textbooks",
+                description="தமிழ்நாடு அரசு பாடநூல் கழகத்தின் 1 முதல் 12 ஆம் வகுப்பு அனைத்துப் பாடப் புத்தகங்கள் (PDF) & கையேடுகள்",
+                badge_text="Official Books",
+                button_text="EXPLORE BOOKS →",
+                action_url="textbooks",
+                icon_name="Library",
+                order_index=3,
+                is_active=True
+            ),
+            models.DashboardContainer(
+                container_key="news",
+                title="News",
+                subtitle="கல்வி மற்றும் தேர்வு செய்திகள்",
+                category="news",
+                description="TNTET, TRB, அரசுத் தேர்வுகள், பள்ளிக் கல்வித்துறை முக்கிய சுற்றறிக்கைகள் & கல்வி செய்திகள்",
+                badge_text="Latest News",
+                button_text="VIEW NEWS →",
+                action_url="news",
+                icon_name="Newspaper",
+                order_index=4,
+                is_active=True
+            ),
+            models.DashboardContainer(
+                container_key="tamil_reading",
+                title="Tamil Reading",
+                subtitle="தமிழ் வாசிப்பு & இலக்கணம்",
+                category="tamil_reading",
+                description="செய்யுள் நயம், உரைநடை, இலக்கண விதிகள், பொருள் அறிதல் & சொல்லகராதி பயிற்சிகள்",
+                badge_text="தமிழ் மொழி",
+                button_text="START READING →",
+                action_url="tamil_reading",
+                icon_name="BookCheck",
+                order_index=5,
+                is_active=True
+            ),
+            models.DashboardContainer(
+                container_key="english_reading",
+                title="English Reading",
+                subtitle="Comprehension & Vocabulary",
+                category="english_reading",
+                description="Daily English comprehension passages, grammar guides, vocabulary exercises & practice tests",
+                badge_text="English",
+                button_text="START READING →",
+                action_url="english_reading",
+                icon_name="Languages",
+                order_index=6,
+                is_active=True
+            ),
+            models.DashboardContainer(
+                container_key="online_class",
+                title="Online Class",
+                subtitle="நேரலை வகுப்புகள் & பதிவுகள்",
+                category="online_class",
+                description="சிறப்பு பயிற்றுநர்களின் நேரலை வகுப்புகள், கலந்துரையாடல் மற்றும் முந்தைய வகுப்பு காணொளிகள்",
+                badge_text="Live Meeting",
+                button_text="JOIN CLASS →",
+                action_url="online_class",
+                icon_name="Video",
+                order_index=7,
+                is_active=True
+            ),
+            models.DashboardContainer(
+                container_key="nmms",
+                title="NMMS",
+                subtitle="தேசிய வருவாய் வழி மற்றும் திறன் தேர்வு",
+                category="nmms",
+                description="8-ஆம் வகுப்பு மாணவர்களுக்கான NMMS உதவித்தொகைத் தேர்வு MAT & SAT பாடக்குறிப்புகள் மற்றும் மாதிரி தேர்வுகள்",
+                badge_text="Scholarship",
+                button_text="OPEN NMMS →",
+                action_url="nmms",
+                icon_name="Award",
+                order_index=8,
+                is_active=True
+            ),
+            models.DashboardContainer(
+                container_key="treast",
+                title="TREAST",
+                subtitle="ஊரகத் திறனாய்வுத் தேர்வு (TRUST / TREAST)",
+                category="treast",
+                description="கிராமப்புற மாணவர்களுக்கான திறனாய்வுத் தேர்வு வழிகாட்டி, வினா-விடை வங்கி மற்றும் பயிற்சித் தேர்வுகள்",
+                badge_text="Talent Search",
+                button_text="OPEN TREAST →",
+                action_url="treast",
+                icon_name="Sparkles",
+                order_index=9,
+                is_active=True
+            )
+        ]
+        db.add_all(default_containers)
         db.commit()
-    else:
-        active_live = db.query(models.LiveMeeting).filter(models.LiveMeeting.end_time > now_iso, models.LiveMeeting.is_active == True).first()
-        if not active_live:
-            first_m = db.query(models.LiveMeeting).first()
-            if first_m:
-                first_m.start_time = (now - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
-                first_m.end_time = (now + datetime.timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
-                first_m.is_active = True
-                db.commit()
+
+    # Live meetings should only be created when scheduled by an administrator.
+    pass
 
 
 @app.on_event("startup")
@@ -675,6 +784,141 @@ def complete_stage(lesson_id: int, stage_num: int, user_email: str = "student@te
     db.commit()
     return {"message": f"Stage {stage_num} marked as done successfully!"}
 
+def normalize_stem(text: str) -> str:
+    if not text:
+        return ""
+    t = ai_generator.clean_question_text(text)
+    t = re.sub(r'^(?:Q\d+[\.\:\s]*|\d+[\.\:\s]+|[A-Za-z]\s*[\.\:\)]\s*)', '', t.strip(), flags=re.IGNORECASE)
+    t = re.sub(r'\s+', ' ', t).strip().lower()
+    return t
+
+def get_stage3_practice_questions(lesson: models.Lesson, settings: Optional[models.AdminSettings] = None, user_email: str = "student@tet.com", quiz_type: Optional[str] = None, db: Optional[Session] = None):
+    use_type2 = False
+    if quiz_type == "type2":
+        use_type2 = True
+    elif quiz_type == "type1":
+        use_type2 = False
+    elif db and user_email:
+        user = db.query(models.User).filter(models.User.email == user_email).first()
+        if user:
+            prog = db.query(models.LessonProgress).filter(
+                models.LessonProgress.user_id == user.id,
+                models.LessonProgress.lesson_id == lesson.id
+            ).first()
+            if prog and prog.has_failed_test and lesson.quiz_type2:
+                use_type2 = True
+
+    raw = lesson.quiz_type2 if (use_type2 and lesson.quiz_type2) else lesson.quiz_type1
+    if not raw and lesson.quiz_type1:
+        raw = lesson.quiz_type1
+        use_type2 = False
+
+    pool = []
+    if raw:
+        try:
+            pool = json.loads(raw)
+        except Exception as e:
+            print(f"[Stage 3 Load Error] {e}")
+            pool = []
+
+    for q in pool:
+        q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
+        q["options"] = [ai_generator.sanitize_tamil_text(o) for o in q.get("options", [])]
+        if q.get("explanation"):
+            q["explanation"] = ai_generator.sanitize_tamil_text(q.get("explanation", ""))
+
+    total_len = len(pool)
+    if total_len > 0:
+        practice_target = getattr(settings, "practice_question_count", 100) or 100
+        practice_cap = min(total_len, practice_target)
+        practice_questions = pool[:practice_cap]
+    else:
+        practice_questions = []
+
+    for idx, q in enumerate(practice_questions, 1):
+        q["id"] = idx
+
+    return practice_questions, use_type2
+
+def get_stage4_exam_questions(lesson: models.Lesson, settings: Optional[models.AdminSettings] = None, user_email: str = "student@tet.com", db: Optional[Session] = None):
+    # 1. Obtain Stage 3 practice questions
+    stage3_questions, _ = get_stage3_practice_questions(lesson, settings, user_email, db=db)
+    stage3_stems = set(normalize_stem(q.get("question", "")) for q in stage3_questions if q.get("question"))
+
+    # 2. Collect candidate questions: prioritize dedicated quiz_type2, or remaining pool of quiz_type1
+    q1 = []
+    if lesson.quiz_type1:
+        try:
+            q1 = json.loads(lesson.quiz_type1)
+        except Exception:
+            q1 = []
+    q2 = []
+    if lesson.quiz_type2:
+        try:
+            q2 = json.loads(lesson.quiz_type2)
+        except Exception:
+            q2 = []
+
+    for q in q1 + q2:
+        q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
+        q["options"] = [ai_generator.sanitize_tamil_text(o) for o in q.get("options", [])]
+        if q.get("explanation"):
+            q["explanation"] = ai_generator.sanitize_tamil_text(q.get("explanation", ""))
+
+    stage3_count = len(stage3_questions)
+    candidates = q2 if q2 else q1[stage3_count:]
+
+    # 3. Strictly filter out any question matching Stage 3 (ZERO REPETITION GUARANTEED)
+    test_questions = []
+    seen_stems = set()
+    for q in candidates:
+        stem = normalize_stem(q.get("question", ""))
+        if not stem:
+            continue
+        # ZERO OVERLAP:
+        if stem in stage3_stems:
+            continue
+        if stem in seen_stems:
+            continue
+        seen_stems.add(stem)
+        test_questions.append(q)
+
+    # 4. Fallback generation if no pre-generated questions remain
+    if not test_questions:
+        api_key = settings.gemini_api_key if settings else ""
+        test_count = getattr(settings, "test_question_count", 50) or 50
+        type_counts = {
+            "count_mcq": getattr(settings, "stage4_count_mcq", 20) or 20,
+            "count_hots": getattr(settings, "stage4_count_hots", 10) or 10,
+            "count_match": getattr(settings, "stage4_count_match", 5) or 5,
+            "count_multi_stmt": getattr(settings, "stage4_count_multi_stmt", 5) or 5,
+            "count_assertion": getattr(settings, "stage4_count_assertion", 5) or 5,
+            "count_chronological": getattr(settings, "stage4_count_chronological", 5) or 5,
+        }
+        test_questions = ai_generator.generate_test_questions(
+            class_num=lesson.class_num,
+            subject=lesson.subject,
+            term=lesson.term,
+            lesson_title=lesson.title,
+            count=test_count,
+            api_key=api_key,
+            medium=getattr(lesson, "medium", ""),
+            description=getattr(lesson, "description", ""),
+            pdf_url=getattr(lesson, "pdf_url", "") or "",
+            type_counts=type_counts,
+            avoid_stems=stage3_stems
+        )
+        test_questions = [q for q in test_questions if normalize_stem(q.get("question", "")) not in stage3_stems]
+
+    test_count = getattr(settings, "test_question_count", 50) or 50
+    if test_count and test_count > 0:
+        test_questions = test_questions[:test_count]
+
+    for idx, q in enumerate(test_questions, 1):
+        q["id"] = idx
+
+    return test_questions
+
 @app.get("/api/learning/lesson/{lesson_id}/questions")
 def get_practice_questions(
     lesson_id: int,
@@ -687,78 +931,24 @@ def get_practice_questions(
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
 
-    user = db.query(models.User).filter(models.User.email == user_email).first()
-    prog = None
-    if user:
-        prog = db.query(models.LessonProgress).filter(
-            models.LessonProgress.user_id == user.id,
-            models.LessonProgress.lesson_id == lesson_id
-        ).first()
-
-    # Determine which quiz to load:
-    # If explicitly requested, use it; otherwise, if user failed Stage 4 test, use Type 2!
-    use_type2 = False
-    if quiz_type == "type2":
-        use_type2 = True
-    elif quiz_type == "type1":
-        use_type2 = False
-    elif prog and prog.has_failed_test:
-        use_type2 = True
-
-    chosen_json = lesson.quiz_type2 if (use_type2 and lesson.quiz_type2) else lesson.quiz_type1
-    active_type = "type2" if (use_type2 and lesson.quiz_type2) else "type1"
-
-    if chosen_json:
-        try:
-            questions = json.loads(chosen_json)
-            if isinstance(questions, list) and len(questions) > 0:
-                for q in questions:
-                    q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
-                return {
-                    "lesson_title": lesson.title,
-                    "quiz_type": active_type,
-                    "is_type2": (active_type == "type2"),
-                    "total": len(questions),
-                    "questions": questions
-                }
-        except Exception as e:
-            print(f"[Quiz Parse Error] {e}")
-
-    # Fallback to predefined/generated questions if admin has not generated yet
     settings = db.query(models.AdminSettings).first()
-    api_key = settings.gemini_api_key if settings else ""
-    target_count = settings.practice_question_count if settings else count
-    type_counts = {
-        "count_mcq": getattr(settings, "count_mcq", 40) if settings else 40,
-        "count_hots": getattr(settings, "count_hots", 30) if settings else 30,
-        "count_match": getattr(settings, "count_match", 30) if settings else 30,
-        "count_multi_stmt": getattr(settings, "count_multi_stmt", 40) if settings else 40,
-        "count_assertion": getattr(settings, "count_assertion", 30) if settings else 30,
-        "count_chronological": getattr(settings, "count_chronological", 30) if settings else 30,
-    }
+    questions, use_type2 = get_stage3_practice_questions(lesson, settings, user_email, quiz_type, db=db)
+    active_type = "type2" if use_type2 else "type1"
 
-    questions = ai_generator.generate_practice_questions(
-        class_num=lesson.class_num,
-        subject=lesson.subject,
-        term=lesson.term,
-        lesson_title=lesson.title,
-        count=target_count or 200,
-        api_key=api_key,
-        medium=getattr(lesson, "medium", ""),
-        description=getattr(lesson, "description", ""),
-        pdf_url=getattr(lesson, "pdf_url", "") or "",
-        type_counts=type_counts
-    )
     return {
         "lesson_title": lesson.title,
-        "quiz_type": "type1",
-        "is_type2": False,
+        "quiz_type": active_type,
+        "is_type2": use_type2,
         "total": len(questions),
         "questions": questions
     }
 
 @app.post("/api/learning/lesson/{lesson_id}/generate-test")
-def generate_test(lesson_id: int, db: Session = Depends(get_db)):
+def generate_test(
+    lesson_id: int,
+    user_email: str = "student@tet.com",
+    db: Session = Depends(get_db)
+):
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
@@ -772,46 +962,13 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
         )
 
     settings = db.query(models.AdminSettings).first()
-    api_key = settings.gemini_api_key if settings else ""
-    test_count = settings.test_question_count if settings else 100
     time_limit = settings.test_time_limit_mins if settings else 60
 
-    # Pick 100 questions from pre-generated 200 quiz pool if available
-    questions = []
-    if lesson.quiz_type1:
-        try:
-            pool = json.loads(lesson.quiz_type1)
-            if isinstance(pool, list) and len(pool) > 0:
-                questions = pool[:test_count]
-                for idx, q in enumerate(questions, 1):
-                    q["id"] = idx
-        except Exception as e:
-            print(f"[Test Pool Error] {e}")
-
-    if not questions:
-        type_counts = {
-            "count_mcq": getattr(settings, "count_mcq", 40) if settings else 40,
-            "count_hots": getattr(settings, "count_hots", 30) if settings else 30,
-            "count_match": getattr(settings, "count_match", 30) if settings else 30,
-            "count_multi_stmt": getattr(settings, "count_multi_stmt", 40) if settings else 40,
-            "count_assertion": getattr(settings, "count_assertion", 30) if settings else 30,
-            "count_chronological": getattr(settings, "count_chronological", 30) if settings else 30,
-        }
-        questions = ai_generator.generate_test_questions(
-            class_num=lesson.class_num,
-            subject=lesson.subject,
-            term=lesson.term,
-            lesson_title=lesson.title,
-            count=test_count,
-            api_key=api_key,
-            medium=getattr(lesson, "medium", ""),
-            description=getattr(lesson, "description", ""),
-            pdf_url=getattr(lesson, "pdf_url", "") or "",
-            type_counts=type_counts
-        )
+    # Retrieve Stage 4 exam questions strictly disjoint from Stage 3
+    exam_questions = get_stage4_exam_questions(lesson, settings, user_email, db=db)
 
     test_payload = []
-    for q in questions:
+    for q in exam_questions:
         test_payload.append({
             "id": q["id"],
             "question": ai_generator.clean_question_text(q.get("question", ""), lesson.title),
@@ -823,7 +980,7 @@ def generate_test(lesson_id: int, db: Session = Depends(get_db)):
         "lesson_title": lesson.title,
         "time_limit_mins": time_limit,
         "pass_percentage": settings.pass_percentage if settings else 80,
-        "total_questions": len(questions),
+        "total_questions": len(exam_questions),
         "questions": test_payload
     }
 
@@ -840,19 +997,10 @@ def submit_test(
 
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     settings = db.query(models.AdminSettings).first()
-    test_count = settings.test_question_count if settings else 100
     pass_mark = settings.pass_percentage if settings and settings.pass_percentage else 80
 
-    ref_questions = []
-    if lesson.quiz_type1:
-        try:
-            pool = json.loads(lesson.quiz_type1)
-            if isinstance(pool, list) and len(pool) > 0:
-                ref_questions = pool[:test_count]
-                for idx, q in enumerate(ref_questions, 1):
-                    q["id"] = idx
-        except Exception:
-            pass
+    # Grade against the exact same Stage 4 exam questions
+    ref_questions = get_stage4_exam_questions(lesson, settings, user_email, db=db)
 
     if not ref_questions:
         type_counts = {
@@ -1177,6 +1325,10 @@ def admin_delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
     les = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     if not les:
         raise HTTPException(status_code=404, detail="Lesson module not found.")
+    
+    # Cascade delete any associated student progress records first
+    db.query(models.LessonProgress).filter(models.LessonProgress.lesson_id == lesson_id).delete()
+    
     db.delete(les)
     db.commit()
     return {"message": "Lesson module deleted successfully."}
@@ -1186,7 +1338,7 @@ def admin_delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
 def admin_generate_lesson_quiz(
     lesson_id: int,
     quiz_type: str, # "type1" or "type2"
-    count: Optional[int] = 200,
+    count: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
@@ -1195,31 +1347,53 @@ def admin_generate_lesson_quiz(
 
     settings = db.query(models.AdminSettings).first()
     api_key = settings.gemini_api_key if settings else ""
-    type_counts = {
-        "count_mcq": getattr(settings, "count_mcq", 40) if settings else 40,
-        "count_hots": getattr(settings, "count_hots", 30) if settings else 30,
-        "count_match": getattr(settings, "count_match", 30) if settings else 30,
-        "count_multi_stmt": getattr(settings, "count_multi_stmt", 40) if settings else 40,
-        "count_assertion": getattr(settings, "count_assertion", 30) if settings else 30,
-        "count_chronological": getattr(settings, "count_chronological", 30) if settings else 30,
-    }
 
-    # Generate questions strictly from uploaded PDF via ai_generator
+    avoid_stems = set()
+    if quiz_type == "type2":
+        type_counts = {
+            "count_mcq": getattr(settings, "stage4_count_mcq", 20) or 20,
+            "count_hots": getattr(settings, "stage4_count_hots", 10) or 10,
+            "count_match": getattr(settings, "stage4_count_match", 5) or 5,
+            "count_multi_stmt": getattr(settings, "stage4_count_multi_stmt", 5) or 5,
+            "count_assertion": getattr(settings, "stage4_count_assertion", 5) or 5,
+            "count_chronological": getattr(settings, "stage4_count_chronological", 5) or 5,
+        }
+        target_count = sum(type_counts.values()) or count or getattr(settings, "test_question_count", 50) or 50
+        if lesson.quiz_type1:
+            try:
+                q1 = json.loads(lesson.quiz_type1)
+                for q in q1:
+                    s = normalize_stem(q.get("question", ""))
+                    if s:
+                        avoid_stems.add(s)
+            except Exception:
+                pass
+    else:
+        type_counts = {
+            "count_mcq": getattr(settings, "count_mcq", 40) or 40,
+            "count_hots": getattr(settings, "count_hots", 20) or 20,
+            "count_match": getattr(settings, "count_match", 10) or 10,
+            "count_multi_stmt": getattr(settings, "count_multi_stmt", 10) or 10,
+            "count_assertion": getattr(settings, "count_assertion", 10) or 10,
+            "count_chronological": getattr(settings, "count_chronological", 10) or 10,
+        }
+        target_count = sum(type_counts.values()) or count or getattr(settings, "practice_question_count", 100) or 100
+
+    # Generate questions strictly from uploaded PDF via ai_generator adhering to TNTET Paper 2 prompt rules
     questions = ai_generator.generate_practice_questions(
         class_num=lesson.class_num,
         subject=lesson.subject,
         term=lesson.term,
         lesson_title=lesson.title,
-        count=count or getattr(settings, "practice_question_count", 200) or 200,
+        count=target_count,
         api_key=api_key,
         medium=getattr(lesson, "medium", ""),
         description=getattr(lesson, "description", ""),
         pdf_url=getattr(lesson, "pdf_url", "") or "",
-        type_counts=type_counts
+        type_counts=type_counts,
+        avoid_stems=avoid_stems
     )
 
-    questions_json = json.dumps(questions, ensure_ascii=False)
-    # Ensure all questions have clean stems without lesson title prefixes
     for q in questions:
         q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
 
@@ -1235,6 +1409,82 @@ def admin_generate_lesson_quiz(
         "quiz_type": quiz_type,
         "total": len(questions),
         "questions": questions
+    }
+
+@app.post("/api/admin/lessons/{lesson_id}/quiz/{quiz_type}/upload-pdf")
+def admin_upload_quiz_pdf(
+    lesson_id: int,
+    quiz_type: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found.")
+
+    settings = db.query(models.AdminSettings).first()
+    api_key = settings.gemini_api_key if settings else ""
+
+    # Save uploaded question paper file
+    safe_name = re.sub(r'[^a-zA-Z0-9_\.-]', '_', file.filename)
+    ts = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    saved_filename = f"quiz_{lesson_id}_{quiz_type}_{ts}_{safe_name}"
+    saved_path = os.path.join(UPLOAD_DIR, saved_filename)
+    with open(saved_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Extract text from PDF
+    pdf_text = ""
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(saved_path)
+        pages_text = [p.extract_text() for p in reader.pages if p.extract_text()]
+        pdf_text = "\n\n".join(pages_text)
+    except Exception as e:
+        print(f"[Upload Quiz PDF] pypdf error: {e}")
+
+    if not pdf_text:
+        try:
+            import fitz
+            doc = fitz.open(saved_path)
+            pages_text = [page.get_text() for page in doc if page.get_text().strip()]
+            pdf_text = "\n\n".join(pages_text)
+            doc.close()
+        except Exception as e:
+            print(f"[Upload Quiz PDF] fitz error: {e}")
+
+    if not pdf_text or len(pdf_text.strip()) < 20:
+        raise HTTPException(status_code=400, detail="Could not extract readable text from the uploaded PDF. Please make sure the PDF has selectable text.")
+
+    # Call AI extractor to parse questions, choices, answers, and explanations
+    extracted_questions = ai_generator.extract_quiz_from_pdf_text(
+        pdf_text=pdf_text,
+        lesson_title=lesson.title,
+        api_key=api_key,
+        subject=lesson.subject,
+        medium=getattr(lesson, "medium", "")
+    )
+
+    if not extracted_questions:
+        raise HTTPException(status_code=422, detail="No questions could be parsed from the uploaded PDF. Ensure the PDF contains numbered multiple-choice questions.")
+
+    for idx, q in enumerate(extracted_questions, 1):
+        q["id"] = idx
+        q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
+
+    questions_json = json.dumps(extracted_questions, ensure_ascii=False)
+    if quiz_type == "type2":
+        lesson.quiz_type2 = questions_json
+    else:
+        lesson.quiz_type1 = questions_json
+
+    db.commit()
+
+    return {
+        "message": f"Successfully extracted and saved {len(extracted_questions)} questions from {file.filename}!",
+        "quiz_type": quiz_type,
+        "total": len(extracted_questions),
+        "questions": extracted_questions
     }
 
 @app.post("/api/admin/lessons/{lesson_id}/quiz/{quiz_type}/save")
@@ -1592,6 +1842,12 @@ def update_admin_settings(new_settings: schemas.AdminSettingsSchema, db: Session
     if new_settings.count_multi_stmt is not None: settings.count_multi_stmt = new_settings.count_multi_stmt
     if new_settings.count_assertion is not None: settings.count_assertion = new_settings.count_assertion
     if new_settings.count_chronological is not None: settings.count_chronological = new_settings.count_chronological
+    if getattr(new_settings, "stage4_count_mcq", None) is not None: settings.stage4_count_mcq = new_settings.stage4_count_mcq
+    if getattr(new_settings, "stage4_count_hots", None) is not None: settings.stage4_count_hots = new_settings.stage4_count_hots
+    if getattr(new_settings, "stage4_count_match", None) is not None: settings.stage4_count_match = new_settings.stage4_count_match
+    if getattr(new_settings, "stage4_count_multi_stmt", None) is not None: settings.stage4_count_multi_stmt = new_settings.stage4_count_multi_stmt
+    if getattr(new_settings, "stage4_count_assertion", None) is not None: settings.stage4_count_assertion = new_settings.stage4_count_assertion
+    if getattr(new_settings, "stage4_count_chronological", None) is not None: settings.stage4_count_chronological = new_settings.stage4_count_chronological
 
     db.commit()
     db.refresh(settings)
@@ -1692,6 +1948,98 @@ def delete_tet_card(card_id: str, db: Session = Depends(get_db)):
     db.delete(card)
     db.commit()
     return {"message": "TET Card deleted successfully!"}
+
+# --- DASHBOARD CONTAINERS CRUD & PUBLIC ENDPOINTS ---
+
+@app.get("/api/dashboard-containers", response_model=List[schemas.DashboardContainerOut])
+def get_dashboard_containers(db: Session = Depends(get_db)):
+    containers = db.query(models.DashboardContainer).filter(models.DashboardContainer.is_active == True).order_by(models.DashboardContainer.order_index.asc(), models.DashboardContainer.id.asc()).all()
+    
+    # Check if there's any active live meeting for the online_class container notification
+    active_meetings = db.query(models.LiveMeeting).filter(models.LiveMeeting.is_active == True).all()
+    now_iso = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M")
+    active_meeting_info = None
+    for m in active_meetings:
+        if m.end_time and m.end_time < now_iso:
+            continue
+        is_live = False
+        if m.start_time and m.end_time:
+            is_live = bool(m.start_time <= now_iso <= m.end_time)
+        elif m.start_time:
+            is_live = bool(m.start_time <= now_iso)
+        
+        meeting_data = {
+            "id": m.id,
+            "title": m.title,
+            "meeting_link": m.meeting_link,
+            "start_time": m.start_time,
+            "end_time": m.end_time,
+            "description": m.description,
+            "is_live": is_live
+        }
+        if is_live:
+            active_meeting_info = meeting_data
+            break
+        elif not active_meeting_info:
+            active_meeting_info = meeting_data
+
+    results = []
+    for c in containers:
+        c_dict = schemas.DashboardContainerOut.from_orm(c)
+        if c.container_key == "online_class" or c.category == "online_class":
+            c_dict.active_meeting = active_meeting_info
+        results.append(c_dict)
+    return results
+
+@app.get("/api/admin/dashboard-containers", response_model=List[schemas.DashboardContainerOut])
+def get_admin_dashboard_containers(db: Session = Depends(get_db)):
+    return db.query(models.DashboardContainer).order_by(models.DashboardContainer.order_index.asc(), models.DashboardContainer.id.asc()).all()
+
+@app.post("/api/admin/dashboard-containers", response_model=schemas.DashboardContainerOut)
+def create_or_update_dashboard_container(data: schemas.DashboardContainerCreate, db: Session = Depends(get_db)):
+    existing = db.query(models.DashboardContainer).filter(models.DashboardContainer.container_key == data.container_key).first()
+    if existing:
+        for k, v in data.dict(exclude_unset=True).items():
+            setattr(existing, k, v)
+        db.commit()
+        db.refresh(existing)
+        return existing
+    
+    new_c = models.DashboardContainer(**data.dict())
+    db.add(new_c)
+    db.commit()
+    db.refresh(new_c)
+    return new_c
+
+@app.put("/api/admin/dashboard-containers/{container_id}", response_model=schemas.DashboardContainerOut)
+def update_dashboard_container(container_id: int, data: schemas.DashboardContainerUpdate, db: Session = Depends(get_db)):
+    c = db.query(models.DashboardContainer).filter(models.DashboardContainer.id == container_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Container not found.")
+    for k, v in data.dict(exclude_unset=True).items():
+        if v is not None:
+            setattr(c, k, v)
+    db.commit()
+    db.refresh(c)
+    return c
+
+@app.delete("/api/admin/dashboard-containers/{container_id}")
+def delete_dashboard_container(container_id: int, db: Session = Depends(get_db)):
+    c = db.query(models.DashboardContainer).filter(models.DashboardContainer.id == container_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Container not found.")
+    db.delete(c)
+    db.commit()
+    return {"message": "Container deleted successfully!"}
+
+@app.post("/api/admin/dashboard-containers/{container_id}/toggle")
+def toggle_dashboard_container(container_id: int, db: Session = Depends(get_db)):
+    c = db.query(models.DashboardContainer).filter(models.DashboardContainer.id == container_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Container not found.")
+    c.is_active = not c.is_active
+    db.commit()
+    return {"message": f"Container status updated to {'active' if c.is_active else 'inactive'}", "is_active": c.is_active}
 
 # --- STAGE 4 UNLOCK CONTROLS (DEFAULT 8:00 PM WITH MANUAL ADMIN OVERRIDE) ---
 

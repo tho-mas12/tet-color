@@ -18,18 +18,30 @@ import {
   Flame,
   Radio,
   Video,
-  ExternalLink
+  ExternalLink,
+  Share2
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
 import LessonStudyView from "./LessonStudyView";
 
-export default function LearningPage({ user, lang = "en" }) {
+export default function LearningPage({ user, lang = "en", onShare, directLesson, onClearDirectLesson }) {
   const [tetPaper, setTetPaper] = useState(() => {
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes("tet-2") || path.includes("tet2")) return "paper2";
+    if (path.includes("tet-1") || path.includes("tet1")) return "paper1";
     return localStorage.getItem("tet_paper_choice") || "paper1";
   });
 
   const [selectedClass, setSelectedClass] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get("class");
+      if (q) {
+        const parsed = parseInt(q, 10);
+        if (parsed >= 1 && parsed <= 12) return parsed;
+      }
+    } catch (e) {}
     const saved = localStorage.getItem("tet_selected_class");
     if (saved) {
       const parsed = parseInt(saved, 10);
@@ -43,9 +55,15 @@ export default function LearningPage({ user, lang = "en" }) {
   const [selectedMedium, setSelectedMedium] = useState("Tamil Medium");
   const [learningStructure, setLearningStructure] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [activeLessonId, setActiveLessonId] = useState(null);
+  const [activeLessonId, setActiveLessonId] = useState(directLesson?.lessonId || null);
   const [streakCount, setStreakCount] = useState(user?.streak_count || 0);
   const [liveMeetings, setLiveMeetings] = useState([]);
+
+  useEffect(() => {
+    if (directLesson && directLesson.lessonId) {
+      setActiveLessonId(directLesson.lessonId);
+    }
+  }, [directLesson]);
 
   const t = translations[lang] || translations.en;
 
@@ -81,15 +99,23 @@ export default function LearningPage({ user, lang = "en" }) {
     ? baseSubjects 
     : ["Tamil", "English", ...higherSubjects];
 
-  // Store paper choice & adjust selected class to stay within valid range
+  // Store paper choice & adjust selected class to stay within valid range and sync URL
   useEffect(() => {
     localStorage.setItem("tet_paper_choice", tetPaper);
+    let validClass = selectedClass;
     if (tetPaper === "paper1" && selectedClass > 8) {
+      validClass = 1;
       setSelectedClass(1);
     } else if (tetPaper === "paper2" && selectedClass < 6) {
+      validClass = 6;
       setSelectedClass(6);
     }
-  }, [tetPaper]);
+    localStorage.setItem("tet_selected_class", validClass.toString());
+    try {
+      const paperSlug = tetPaper === "paper2" ? "tet-2" : "tet-1";
+      window.history.replaceState(null, "", `/course/${paperSlug}?class=${validClass}`);
+    } catch (e) {}
+  }, [tetPaper, selectedClass]);
 
   useEffect(() => {
     loadUserStreak();
@@ -140,9 +166,15 @@ export default function LearningPage({ user, lang = "en" }) {
 
   const loadLiveMeetings = async () => {
     try {
+      try {
+        localStorage.removeItem("tet_stored_meetings");
+      } catch (e) {}
       const meetings = await fetchApi("/meetings/active");
       if (Array.isArray(meetings)) {
-        setLiveMeetings(meetings);
+        const genuineMeetings = meetings.filter(
+          m => !m.title?.includes("TN TET Paper-2 Live Science & Social Science Special Class")
+        );
+        setLiveMeetings(genuineMeetings);
       }
     } catch (err) {
       console.error("Live Meetings error in LearningPage:", err);
@@ -238,8 +270,10 @@ export default function LearningPage({ user, lang = "en" }) {
         lessonId={activeLessonId}
         user={user}
         lang={lang}
+        initialStage={directLesson?.stage || 1}
         onBack={() => {
           setActiveLessonId(null);
+          if (onClearDirectLesson) onClearDirectLesson();
           loadStructure();
         }}
       />
@@ -265,36 +299,49 @@ export default function LearningPage({ user, lang = "en" }) {
             </p>
           </div>
 
-          {/* TET-1 vs TET-2 Interactive Switcher */}
-          <div className="flex items-center p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80 w-full sm:w-auto shadow-2xs">
-            <button
-              onClick={() => {
-                setTetPaper("paper1");
-                setSelectedClass(1);
-              }}
-              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-2 ${
-                tetPaper === "paper1"
-                  ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
-                  : "text-[#061b36] hover:bg-slate-200/70"
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>TET-1 (Classes 1–8)</span>
-            </button>
-            <button
-              onClick={() => {
-                setTetPaper("paper2");
-                setSelectedClass(6);
-              }}
-              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-2 ${
-                tetPaper === "paper2"
-                  ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
-                  : "text-[#061b36] hover:bg-slate-200/70"
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              <span>TET-2 (Classes 6–12)</span>
-            </button>
+          {/* TET-1 vs TET-2 Interactive Switcher & Share */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80 w-full sm:w-auto shadow-2xs">
+              <button
+                onClick={() => {
+                  setTetPaper("paper1");
+                  setSelectedClass(1);
+                }}
+                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-2 ${
+                  tetPaper === "paper1"
+                    ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
+                    : "text-[#061b36] hover:bg-slate-200/70"
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>TET-1 (Classes 1–8)</span>
+              </button>
+              <button
+                onClick={() => {
+                  setTetPaper("paper2");
+                  setSelectedClass(6);
+                }}
+                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-2 ${
+                  tetPaper === "paper2"
+                    ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
+                    : "text-[#061b36] hover:bg-slate-200/70"
+                }`}
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span>TET-2 (Classes 6–12)</span>
+              </button>
+            </div>
+
+            {onShare && (
+              <button
+                onClick={onShare}
+                className="px-3.5 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] border border-blue-200 font-extrabold text-xs flex items-center space-x-2 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                title="Share Course Link"
+              >
+                <Share2 className="w-4 h-4 text-[#0055ff]" />
+                <span className="hidden sm:inline">{lang === "ta" ? "பகிர்க" : "Share"}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

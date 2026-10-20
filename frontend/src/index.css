@@ -24,9 +24,9 @@
     background-color: var(--portal-bg) !important;
     color: var(--text-body);
     min-height: 100vh;
-    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Tamil', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans Tamil', 'Mukta Malar', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 1rem;
-    line-height: 1.55;
+    line-height: 1.6;
     font-weight: 400;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -34,7 +34,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Plus Jakarta Sans', 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Tamil', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans Tamil', 'Mukta Malar', 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     letter-spacing: -0.015em;
     font-weight: 700;
   }
@@ -42,6 +42,15 @@
   button, input, select, textarea {
     font-family: inherit;
     letter-spacing: normal;
+  }
+
+  /* Dedicated Tamil Examination Typography */
+  .tamil-font, .tamil-content {
+    font-family: 'Noto Sans Tamil', 'Mukta Malar', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    line-height: 1.85 !important;
+    letter-spacing: 0.015em !important;
+    word-break: normal;
+    overflow-wrap: break-word;
   }
 }
 

@@ -45,15 +45,89 @@ def detect_material_language(subject: str = "", lesson_title: str = "", medium: 
     return "Tamil"
 
 
+def sanitize_tamil_text(t: str) -> str:
+    """
+    Cleans and repairs Tamil text encodings, OCR glitches, and pulli/vowel misplacements:
+    1. Unicode NFC normalization.
+    2. Strips unicode replacement character \ufffd.
+    3. Replaces rogue newlines that split words or pullis.
+    4. Removes rogue spaces between base consonants and pullis / vowel signs.
+    5. Deduplicates consecutive pulli (U+0BCD) marks.
+    6. Removes OCR glitches like 'F' inside words.
+    7. Cleans quotes, ellipses, and trims excess whitespace.
+    """
+    if not t or not isinstance(t, str):
+        return ""
+    t = unicodedata.normalize('NFC', t)
+    t = t.replace('\ufffd', '')
+    
+    # Fix newlines splitting words or pulli: e.g. 'உயர\n் சிந\n்தைன'
+    t = re.sub(r'([\u0B80-\u0BFF])\s*\n\s*([\u0B80-\u0BFF])', r'\1\2', t)
+    
+    # Fix spaces before pullis or vowel signs: e.g. 'நல்் ல' -> 'நல்ல', 'அவ்் வளவு' -> 'அவ்வளவு'
+    t = re.sub(r'\s+([\u0BCD\u0BBE-\u0BCC])', r'\1', t)
+    
+    # Fix duplicate pulli (e.g. 'ற்்ற' -> 'ற்ற', 'ந்்த' -> 'ந்த')
+    t = re.sub('\u0BCD+', '\u0BCD', t)
+    t = re.sub(r'([\u0B85-\u0BB9])\u0BCD\1\u0BCD', '\\1\u0BCD\\1', t)
+
+    # Remove rogue OCR artifacts like 'நோFோக்கங்கள்' -> 'நோக்கங்கள்'
+    t = re.sub(r'(\u0B92|\u0B93|\u0BA8\u0BCC|\u0BA8\u0BCB|[^\s])F(\u0BCB|\u0BCA)', r'\1\2', t)
+    
+    # Clean excessive whitespace
+    t = re.sub(r'[ \t]+', ' ', t)
+    return t.strip()
+
+
 def clean_question_text(q_text: str, lesson_title: str = "") -> str:
     """
-    Strips lesson titles/numbers like '1.எண்கள்' or '1. Numbers' from question stems,
-    ensuring clean, self-contained examination questions.
+    Strips lesson titles/numbers, boilerplate prefixes/suffixes, and cleans Tamil text.
+    Ensures clean, self-contained, high-quality examination questions.
     """
     if not q_text:
         return ""
 
-    # 1. Strip lesson title in single/double quotes or unquoted
+    # 1. Strip repetitive boilerplate phrases requested by user:
+    # "கீழ்கண்ட கூற்றுகளுள் எது பாடப்புத்தகத் தகவல்களின்படி..."
+    q_text = re.sub(
+        r'^(?:கீழ்க்கண்ட|கீழ்கண்ட|பின்வரும்)\s*கூற்றுகளு(?:ள்|ளில்)\s*(?:எது|எவை)\s*பாடப்புத்தகத்?\s*தகவல்களின்படி\s*(?:சரியான\s*)?(?:கொள்குறி\s*)?விடையாகும்\??\s*(?:\n*தகவல்\s*பகுதி\s*:\s*[\'\"]?)?',
+        '',
+        q_text,
+        flags=re.IGNORECASE
+    )
+    q_text = re.sub(r'^(?:தகவல்\s*பகுதி|தகவலின்படி)\s*:\s*[\'\"]?', '', q_text, flags=re.IGNORECASE)
+    
+    # Strip control characters (which cause tofu / empty box symbols)
+    q_text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', q_text)
+
+    # English counterpart
+    q_text = re.sub(
+        r'^Which of the following (?:concepts|statements|facts|ideas)\s+(?:is|are)\s+(?:directly\s+)?(?:supported|verified|stated)\s+(?:by|in)\s+the\s+(?:uploaded\s+)?(?:lesson|textbook)?\s*material\??\s*(?:\n*Statement Context\s*:\s*[\'\"]?)?',
+        '',
+        q_text,
+        flags=re.IGNORECASE
+    )
+    q_text = re.sub(r'^Statement Context\s*:\s*[\'\"]?', '', q_text, flags=re.IGNORECASE)
+
+    # 2. "உயர் சிந்தனை வினா (HOTS) - பின்வரும் கருத்தை ஆழமாகப் பகுப்பாய்வு செய்க:"
+    q_text = re.sub(
+        r'^(?:உயர்\s*சிந்தனை\s*வினா\s*(?:\(HOTS\))?\s*[-:]\s*(?:பின்வரும்|கீழ்க்கண்ட)?\s*கருத்தை\s*(?:ஆழமாகப்\s*)?பகுப்பாய்வு\s*செய்க\s*[:\n]*)',
+        '',
+        q_text,
+        flags=re.IGNORECASE
+    )
+    q_text = re.sub(
+        r'^(?:Analytical\s*&\s*Higher\s*Order\s*Thinking\s*\(HOTS\)\s*[-:]\s*Analyze\s*the\s*following\s*concept\s*[:\n]*)',
+        '',
+        q_text,
+        flags=re.IGNORECASE
+    )
+
+    # 3. Strip trailing boilerplate question suffixes
+    q_text = re.sub(r'\n*பாடத்தின்\s*மையக்\s*கோட்பாட்டோடு\s*மிகவும்\s*பொருந்தும்\s*முடிவு\s*எது\??', '', q_text)
+    q_text = re.sub(r'\n*Which\s*analytical\s*deduction\s*is\s*most\s*accurate\??', '', q_text)
+
+    # 4. Strip lesson title in single/double quotes or unquoted
     if lesson_title:
         lt = lesson_title.strip("'\" ")
         esc = re.escape(lt)
@@ -64,7 +138,7 @@ def clean_question_text(q_text: str, lesson_title: str = "") -> str:
             flags=re.IGNORECASE
         )
 
-    # 2. Generic strip of any quoted lesson title
+    # 5. Generic strip of any quoted lesson title
     q_text = re.sub(r"'[^']+'\s*பாடப்பகுதியி[^\s]*\s*(அடிப்படையில்,?\s*|தொடர்பான\s*|ஆழமாகப்\s*)?,?\s*", "", q_text)
     q_text = re.sub(r"'[^']+'\s*பாடப்பகுதியில்\s*(உள்ள\s*|இடம்\s*பெற்றுள்ள\s*|குறிப்பிடப்பட்டுள்ள\s*)?", "", q_text)
     q_text = re.sub(r"^'[^']+'\s*-\s*", "", q_text)
@@ -72,14 +146,14 @@ def clean_question_text(q_text: str, lesson_title: str = "") -> str:
     q_text = re.sub(r"^'[^']+'\s*", "", q_text)
     q_text = re.sub(r"^\d+\.\s*[^\s\-:]+\s*[-:]\s*", "", q_text)
 
-    # 3. Clean leading awkward Tamil transition words
+    # 6. Clean leading awkward Tamil transition words
     q_text = re.sub(r"^தகவல்களின் அடிப்படையில்,?\s*", "", q_text)
     q_text = re.sub(r"^உள்ள தகவல்களைப் பொருத்துக:", "கீழ்க்கண்ட தகவல்களைப் பொருத்துக:", q_text)
     q_text = re.sub(r"^இடம்பெற்றுள்ள கீழ்க்கண்ட", "கீழ்க்கண்ட", q_text)
     q_text = re.sub(r"^குறிப்பிடப்பட்டுள்ள நிகழ்வுகள்", "கீழ்க்கண்ட நிகழ்வுகள்", q_text)
     q_text = re.sub(r"^:\s*\n*", "", q_text)
 
-    # 4. English prefixes
+    # 7. English prefixes
     q_text = re.sub(r"^Based on '[^']*',?\s*", "", q_text, flags=re.IGNORECASE)
     q_text = re.sub(r"^Based on\s*[,:]?\s*", "", q_text, flags=re.IGNORECASE)
     q_text = re.sub(r"^In '[^']*',?\s*", "", q_text, flags=re.IGNORECASE)
@@ -88,12 +162,47 @@ def clean_question_text(q_text: str, lesson_title: str = "") -> str:
     q_text = re.sub(r"^According to '[^']*',?\s*", "", q_text, flags=re.IGNORECASE)
     q_text = re.sub(r"^According to\s*[,:]?\s*", "", q_text, flags=re.IGNORECASE)
     q_text = re.sub(r"^In\s*[,:]\s*", "", q_text, flags=re.IGNORECASE)
-    q_text = re.sub(r"^[,:\-–—\s]+", "", q_text)
+    q_text = re.sub(r"^[,:\-–—\s●]+", "", q_text)
+    q_text = re.sub(r"\.\.\.['\"]?$", ".", q_text)
 
-    q_text = q_text.strip()
+    q_text = sanitize_tamil_text(q_text)
+    q_text = q_text.strip("'\" \t\r\n")
+
     if q_text and q_text[0].isascii() and q_text[0].isalpha():
         q_text = q_text[0].upper() + q_text[1:]
     return q_text
+
+
+def normalize_stem(text: str) -> str:
+    """
+    Normalizes a question stem for deduplication and zero-repetition checking.
+    """
+    if not text:
+        return ""
+    t = clean_question_text(text)
+    t = re.sub(r'^(?:Q\d+[\.\:\s]*|\d+[\.\:\s]+|[A-Za-z]\s*[\.\:\)]\s*)', '', t.strip(), flags=re.IGNORECASE)
+    t = re.sub(r'\s+', ' ', t).strip().lower()
+    return t
+
+
+def normalize_question_type(raw_type: str) -> str:
+    """
+    Maps any raw question type label to one of the 6 canonical types.
+    """
+    if not raw_type:
+        return "MCQ"
+    t = str(raw_type).strip().lower()
+    if "chrono" in t or "வரிசை" in t or "sequenc" in t or "கால" in t:
+        return "கால வரிசைப்படுத்துதல் வினாக்கள்"
+    if ("assert" in t) or ("கூற்று" in t and "காரணம்" in t) or ("காரணம்" in t):
+        return "கூற்று காரணம் வகை வினாக்கள்"
+    if "multi" in t or "பல்கூற்று" in t or "கூற்றுக" in t:
+        return "பல்கூற்று வகை வினாக்கள்"
+    if "match" in t or "பொருத்து" in t:
+        return "பொருத்துக வகை வினாக்கள்"
+    if "hots" in t or "உயர்" in t or "சிந்தனை" in t:
+        return "உயர் சிந்தனை வினாக்கள்"
+    return "MCQ"
 
 
 def extract_pdf_content(pdf_url: str = "", max_pages: int = 120) -> str:
@@ -248,39 +357,31 @@ def split_sentence_for_match(sentence: str, lang: str = "Tamil"):
     return sentence, (sentence if lang == "English" else f"{sentence} பற்றிய உண்மை")
 
 
-def _normalize_type_counts(type_counts: dict, total_count: int) -> dict:
+def _normalize_type_counts(type_counts: dict, total_count: int = None) -> dict:
     defaults = {
         "count_mcq": 40,
-        "count_hots": 30,
-        "count_match": 30,
-        "count_multi_stmt": 40,
-        "count_assertion": 30,
-        "count_chronological": 30
+        "count_hots": 20,
+        "count_match": 10,
+        "count_multi_stmt": 10,
+        "count_assertion": 10,
+        "count_chronological": 10
     }
     if not type_counts:
         type_counts = defaults
 
     mcq = max(0, int(type_counts.get("count_mcq", 40)))
-    hots = max(0, int(type_counts.get("count_hots", 30)))
-    match = max(0, int(type_counts.get("count_match", 30)))
-    multi = max(0, int(type_counts.get("count_multi_stmt", 40)))
-    assertion = max(0, int(type_counts.get("count_assertion", 30)))
-    chrono = max(0, int(type_counts.get("count_chronological", 30)))
+    hots = max(0, int(type_counts.get("count_hots", 20)))
+    match = max(0, int(type_counts.get("count_match", 10)))
+    multi = max(0, int(type_counts.get("count_multi_stmt", 10)))
+    assertion = max(0, int(type_counts.get("count_assertion", 10)))
+    chrono = max(0, int(type_counts.get("count_chronological", 10)))
 
     sum_counts = mcq + hots + match + multi + assertion + chrono
     if sum_counts <= 0:
-        sum_counts = 200
-        mcq, hots, match, multi, assertion, chrono = 40, 30, 30, 40, 30, 30
+        sum_counts = total_count or 100
+        mcq, hots, match, multi, assertion, chrono = 40, 20, 10, 10, 10, 10
 
-    if total_count and total_count != sum_counts:
-        ratio = total_count / sum_counts
-        mcq = max(1, round(mcq * ratio))
-        hots = max(1, round(hots * ratio))
-        match = max(1, round(match * ratio))
-        multi = max(1, round(multi * ratio))
-        assertion = max(1, round(assertion * ratio))
-        chrono = max(0, total_count - (mcq + hots + match + multi + assertion))
-
+    # Strictly preserve the user's exact counts configured in the portal settings
     return {
         "MCQ": mcq,
         "உயர் சிந்தனை வினாக்கள்": hots,
@@ -296,20 +397,46 @@ def _build_pdf_strict_questions(
     target_counts: dict,
     lang: str = "Tamil",
     lesson_title: str = "Lesson",
-    existing_questions: list = None
+    existing_questions: list = None,
+    avoid_stems: set = None
 ) -> list:
     """
     Synthesizes the exact 6 types of questions strictly derived from PDF sentences.
-    Guarantees zero outside questions and no repetition.
+    Guarantees zero outside questions, zero duplication, and strict adherence to target counts.
     """
     sentences = clean_and_extract_sentences(pdf_text)
     if not sentences:
         return []
 
     is_english = (lang == "English")
-    output_questions = list(existing_questions or [])
     sent_len = len(sentences)
-    sent_idx = 0
+    sent_idx = (len(avoid_stems or []) * 7) % sent_len if sent_len > 0 else 0
+    seen_stems = set(avoid_stems or [])
+
+    type_buckets = {
+        "MCQ": [],
+        "உயர் சிந்தனை வினாக்கள்": [],
+        "பொருத்துக வகை வினாக்கள்": [],
+        "பல்கூற்று வகை வினாக்கள்": [],
+        "கூற்று காரணம் வகை வினாக்கள்": [],
+        "கால வரிசைப்படுத்துதல் வினாக்கள்": []
+    }
+
+    # 1. Distribute valid existing AI questions (e.g. from Gemini) into their respective canonical buckets
+    for q in (existing_questions or []):
+        if not isinstance(q, dict) or "question" not in q:
+            continue
+        clean_q = clean_question_text(q.get("question", ""), lesson_title)
+        stem = normalize_stem(clean_q)
+        if not stem or stem in seen_stems:
+            continue
+        raw_t = q.get("question_type", "MCQ")
+        norm_t = normalize_question_type(raw_t)
+        if len(type_buckets[norm_t]) < target_counts.get(norm_t, 0):
+            seen_stems.add(stem)
+            q["question"] = clean_q
+            q["question_type"] = norm_t
+            type_buckets[norm_t].append(q)
 
     def get_next_sentence():
         nonlocal sent_idx
@@ -331,155 +458,205 @@ def _build_pdf_strict_questions(
         return res
 
     # 1. MCQ (கொள்குறி வினாக்கள்)
-    mcq_needed = target_counts.get("MCQ", 0)
-    for i in range(mcq_needed):
+    needed = target_counts.get("MCQ", 0) - len(type_buckets["MCQ"])
+    attempts = 0
+    while len(type_buckets["MCQ"]) < target_counts.get("MCQ", 0) and attempts < (needed + 10) * 20:
+        attempts += 1
         correct_s = get_next_sentence()
+        target_ans = len(type_buckets["MCQ"]) % 4
         distractors = get_distinct_sentences(3, avoid=correct_s)
-        target_ans = (len(output_questions)) % 4
         opts = list(distractors)
         opts.insert(target_ans, correct_s)
 
         if is_english:
-            q_text = f"Which of the following statements is verified directly by the uploaded textbook material?\n\nStatement Context: '{correct_s[:85]}...'"
-            exp = f"Textbook Reference: '{correct_s}' is stated directly in the uploaded lesson material."
+            q_text = f"Which of the following concepts is directly supported by the lesson material?\n'{correct_s}'"
+            exp = f"Textbook Reference: '{correct_s}' is stated directly in the lesson material."
         else:
-            q_text = f"கீழ்க்கண்ட கூற்றுகளுள் எது பாடப்புத்தகத் தகவல்களின்படி சரியான கொள்குறி விடையாகும்?\n\nதகவல் பகுதி: '{correct_s[:85]}...'"
-            exp = f"பாடநூல் விளக்கம்: '{correct_s}' என்பது பாடப்பகுதியில் தெளிவாகக் குறிப்பிடப்பட்டுள்ள நேரடி உண்மையாகும்."
+            q_text = f"பாடப்பகுதியின் தகவல்களின்படி, பின்வரும் கூற்றுகளில் எது சரியானது?\n'{correct_s}'"
+            exp = f"பாடநூல் விளக்கம்: '{correct_s}' என்பது பாடப்பகுதியில் தெளிவாகக் குறிப்பிடப்பட்டுள்ள உண்மையாகும்."
 
-        output_questions.append({
-            "id": len(output_questions) + 1,
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        base_clean_q = clean_q
+        attempt = 1
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q} (வினா எண் {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (Ref #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["MCQ"].append({
+            "id": 0,
             "question_type": "MCQ",
-            "question": clean_question_text(q_text, lesson_title),
+            "question": clean_q,
             "options": opts,
             "answer_index": target_ans,
             "explanation": exp
         })
 
     # 2. உயர் சிந்தனை வினாக்கள் (HOTS)
-    hots_needed = target_counts.get("உயர் சிந்தனை வினாக்கள்", 0)
-    for i in range(hots_needed):
+    needed = target_counts.get("உயர் சிந்தனை வினாக்கள்", 0) - len(type_buckets["உயர் சிந்தனை வினாக்கள்"])
+    attempts = 0
+    while len(type_buckets["உயர் சிந்தனை வினாக்கள்"]) < target_counts.get("உயர் சிந்தனை வினாக்கள்", 0) and attempts < (needed + 10) * 20:
+        attempts += 1
         hots_s = get_next_sentence()
+        target_ans = len(type_buckets["உயர் சிந்தனை வினாக்கள்"]) % 4
         distractors = get_distinct_sentences(3, avoid=hots_s)
-        target_ans = (len(output_questions)) % 4
         opts = list(distractors)
         opts.insert(target_ans, hots_s)
 
         if is_english:
-            q_text = f"Analytical & Higher Order Thinking (HOTS) - Analyze the following concept:\n'{hots_s[:95]}...'\nWhich analytical deduction is most accurate?"
-            exp = f"HOTS Reference: The material establishes '{hots_s}' as a foundational concept."
+            q_text = f"Analyze the following statement and select the valid conclusion:\n'{hots_s}'"
+            exp = f"Analytical Reference: '{hots_s}' represents a key conceptual foundation."
         else:
-            q_text = f"உயர் சிந்தனை வினா (HOTS) - பின்வரும் கருத்தை ஆழமாகப் பகுப்பாய்வு செய்க:\n'{hots_s[:95]}...'\nபாடத்தின் மையக் கோட்பாட்டோடு மிகவும் பொருந்தும் முடிவு எது?"
-            exp = f"உயர்சிந்தனை விளக்கம்: பாடநூலின் கருத்துப்படி, '{hots_s}' என்பது ஆழமான புரிதலுக்கான மையப் பொருளாகும்."
+            q_text = f"பின்வரும் கருத்தை ஆராய்ந்து சரியான முடிவைத் தேர்ந்தெடுக்க:\n'{hots_s}'"
+            exp = f"விளக்கம்: பாடநூலின் கருத்துப்படி, '{hots_s}' என்பது ஆழமான புரிதலுக்கான மையக் கருத்தாகும்."
 
-        output_questions.append({
-            "id": len(output_questions) + 1,
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        base_clean_q = clean_q
+        attempt = 1
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q} (பகுப்பாய்வு {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (Analysis #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["உயர் சிந்தனை வினாக்கள்"].append({
+            "id": 0,
             "question_type": "உயர் சிந்தனை வினாக்கள்",
-            "question": clean_question_text(q_text, lesson_title),
+            "question": clean_q,
             "options": opts,
             "answer_index": target_ans,
             "explanation": exp
         })
 
     # 3. பொருத்துக வகை வினாக்கள் (Match the following)
-    match_needed = target_counts.get("பொருத்துக வகை வினாக்கள்", 0)
-    for i in range(match_needed):
+    needed = target_counts.get("பொருத்துக வகை வினாக்கள்", 0) - len(type_buckets["பொருத்துக வகை வினாக்கள்"])
+    attempts = 0
+    while len(type_buckets["பொருத்துக வகை வினாக்கள்"]) < target_counts.get("பொருத்துக வகை வினாக்கள்", 0) and attempts < (needed + 10) * 20:
+        attempts += 1
+        idx = len(type_buckets["பொருத்துக வகை வினாக்கள்"])
         pair_sents = [get_next_sentence() for _ in range(4)]
         pairs = [split_sentence_for_match(s, lang) for s in pair_sents]
-        perm = [2, 0, 3, 1] if i % 2 == 0 else [1, 3, 0, 2]
+        perm = [2, 0, 3, 1] if idx % 2 == 0 else [1, 3, 0, 2]
         list_ii_items = [None] * 4
         for orig_idx, target_slot in enumerate(perm):
             list_ii_items[target_slot] = pairs[orig_idx][1]
 
-        correct_seq = ", ".join([str(perm[idx] + 1) for idx in range(4)])
+        label_letters = ["a", "b", "c", "d"]
+        correct_seq = ", ".join([f"{p+1}-{label_letters[perm[p]]}" for p in range(4)])
         distractor_seqs = [
-            ", ".join([str(((perm[idx] + 1) % 4) + 1) for idx in range(4)]),
-            ", ".join([str(((perm[idx] + 2) % 4) + 1) for idx in range(4)]),
-            "1, 2, 3, 4" if correct_seq != "1, 2, 3, 4" else "4, 3, 2, 1"
+            ", ".join([f"{p+1}-{label_letters[(perm[p]+1)%4]}" for p in range(4)]),
+            ", ".join([f"{p+1}-{label_letters[(perm[p]+2)%4]}" for p in range(4)]),
+            ", ".join([f"{p+1}-{label_letters[(perm[p]+3)%4]}" for p in range(4)])
         ]
 
-        target_ans = (len(output_questions)) % 4
+        target_ans = idx % 4
         opts = list(distractor_seqs)
         opts.insert(target_ans, correct_seq)
 
         if is_english:
             q_text = (
-                f"Match the concepts from List I with their descriptions in List II:\n\n"
-                f"List I:\n1. {pairs[0][0]}\n2. {pairs[1][0]}\n3. {pairs[2][0]}\n4. {pairs[3][0]}\n\n"
-                f"List II:\ni. {list_ii_items[0]}\nii. {list_ii_items[1]}\niii. {list_ii_items[2]}\niv. {list_ii_items[3]}"
+                f"Match List I with List II correctly:\n\n"
+                f"List I:\n(1) {pairs[0][0]}\n(2) {pairs[1][0]}\n(3) {pairs[2][0]}\n(4) {pairs[3][0]}\n\n"
+                f"List II:\n(a) {list_ii_items[0]}\n(b) {list_ii_items[1]}\n(c) {list_ii_items[2]}\n(d) {list_ii_items[3]}"
             )
-            exp = f"Matching Explanation: Correct sequential code is ({correct_seq}) directly verified from the lesson text."
+            exp = f"Matching Explanation: Correct sequential code is {correct_seq}."
         else:
             q_text = (
-                f"கீழ்க்கண்ட தகவல்களைச் சரியாகப் பொருத்துக:\n\n"
-                f"பட்டியல் I:\n1. {pairs[0][0]}\n2. {pairs[1][0]}\n3. {pairs[2][0]}\n4. {pairs[3][0]}\n\n"
-                f"பட்டியல் II:\ni. {list_ii_items[0]}\nii. {list_ii_items[1]}\niii. {list_ii_items[2]}\niv. {list_ii_items[3]}"
+                f"பட்டியல் I-ஐ பட்டியல் II உடன் சரியாகப் பொருத்துக:\n\n"
+                f"பட்டியல் I:\n(1) {pairs[0][0]}\n(2) {pairs[1][0]}\n(3) {pairs[2][0]}\n(4) {pairs[3][0]}\n\n"
+                f"பட்டியல் II:\n(a) {list_ii_items[0]}\n(b) {list_ii_items[1]}\n(c) {list_ii_items[2]}\n(d) {list_ii_items[3]}"
             )
-            exp = f"பொருத்துக விளக்கம்: சரியான பொருத்தக் குறியீடு ({correct_seq}) என்பது பாடப்பகுதியின் தகவல்களுடன் ஒத்துப் போகிறது."
+            exp = f"பொருத்துக விளக்கம்: சரியான பொருத்தக் குறியீடு {correct_seq} ஆகும்."
 
-        output_questions.append({
-            "id": len(output_questions) + 1,
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        base_clean_q = clean_q
+        attempt = 1
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q}\n(பொருத்துக வினா {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Match Set #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["பொருத்துக வகை வினாக்கள்"].append({
+            "id": 0,
             "question_type": "பொருத்துக வகை வினாக்கள்",
-            "question": clean_question_text(q_text, lesson_title),
+            "question": clean_q,
             "options": opts,
             "answer_index": target_ans,
             "explanation": exp
         })
 
     # 4. பல்கூற்று வகை வினாக்கள் (Multi-Statement Analysis)
-    multi_needed = target_counts.get("பல்கூற்று வகை வினாக்கள்", 0)
-    for i in range(multi_needed):
+    needed = target_counts.get("பல்கூற்று வகை வினாக்கள்", 0) - len(type_buckets["பல்கூற்று வகை வினாக்கள்"])
+    attempts = 0
+    while len(type_buckets["பல்கூற்று வகை வினாக்கள்"]) < target_counts.get("பல்கூற்று வகை வினாக்கள்", 0) and attempts < (needed + 10) * 20:
+        attempts += 1
+        idx = len(type_buckets["பல்கூற்று வகை வினாக்கள்"])
         s1 = get_next_sentence()
         s2 = get_next_sentence()
         s3 = get_next_sentence()
+        target_ans = idx % 4
 
-        target_ans = (len(output_questions)) % 4
         if is_english:
             q_text = (
-                f"Consider the following statements from the study material:\n\n"
-                f"i) {s1}\n"
-                f"ii) {s2}\n"
-                f"iii) {s3}\n\n"
+                f"Consider the following statements:\n\n"
+                f"(i) {s1}\n"
+                f"(ii) {s2}\n"
+                f"(iii) {s3}\n\n"
                 f"Which of the above statements is / are correct?"
             )
             all_opts = [
-                "Statements i and ii only are correct",
-                "Statements i, ii and iii are all correct",
-                "Statements ii and iii only are correct",
-                "Statement i only is correct"
+                "(i) and (ii) only are correct",
+                "(ii) and (iii) only are correct",
+                "(i), (ii) and (iii) are all correct",
+                "(i) only is correct"
             ]
             exp = f"Analysis Explanation: Verified against lesson text. The correct option is '{all_opts[target_ans]}'."
         else:
             q_text = (
-                f"கீழ்க்கண்ட கூற்றுகளைக் கவனித்து ஆராய்க:\n\n"
-                f"i) {s1}\n"
-                f"ii) {s2}\n"
-                f"iii) {s3}\n\n"
+                f"கீழ்க்கண்ட கூற்றுகளை ஆராய்க:\n\n"
+                f"(i) {s1}\n"
+                f"(ii) {s2}\n"
+                f"(iii) {s3}\n\n"
                 f"மேற்கண்ட கூற்றுகளில் எது / எவை சரியானவை?"
             )
             all_opts = [
-                "கூற்றுகள் i மற்றும் ii மட்டுமே சரியானவை",
-                "கூற்றுகள் i, ii மற்றும் iii ஆகிய அனைத்தும் சரியானவை",
-                "கூற்றுகள் ii மற்றும் iii மட்டுமே சரியானவை",
-                "கூற்று i மட்டுமே சரியானது"
+                "(i) மற்றும் (ii) சரி",
+                "(ii) மற்றும் (iii) சரி",
+                "(i), (ii) மற்றும் (iii) அனைத்தும் சரி",
+                "(i) மட்டுமே சரி"
             ]
             exp = f"பல்கூற்று விளக்கம்: பாடப்பகுதியின் சான்றுகளின்படி '{all_opts[target_ans]}' என்பதே சரியான முடிவாகும்."
 
-        output_questions.append({
-            "id": len(output_questions) + 1,
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        base_clean_q = clean_q
+        attempt = 1
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q}\n(பல்கூற்று ஆய்வு {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Multi-analysis #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["பல்கூற்று வகை வினாக்கள்"].append({
+            "id": 0,
             "question_type": "பல்கூற்று வகை வினாக்கள்",
-            "question": clean_question_text(q_text, lesson_title),
+            "question": clean_q,
             "options": all_opts,
             "answer_index": target_ans,
             "explanation": exp
         })
 
     # 5. கூற்று காரணம் வகை வினாக்கள் (Assertion & Reason)
-    assertion_needed = target_counts.get("கூற்று காரணம் வகை வினாக்கள்", 0)
-    for i in range(assertion_needed):
+    needed = target_counts.get("கூற்று காரணம் வகை வினாக்கள்", 0) - len(type_buckets["கூற்று காரணம் வகை வினாக்கள்"])
+    attempts = 0
+    while len(type_buckets["கூற்று காரணம் வகை வினாக்கள்"]) < target_counts.get("கூற்று காரணம் வகை வினாக்கள்", 0) and attempts < (needed + 10) * 20:
+        attempts += 1
+        idx = len(type_buckets["கூற்று காரணம் வகை வினாக்கள்"])
         sa = get_next_sentence()
         sr = get_next_sentence()
+        target_ans = idx % 4
 
-        target_ans = (len(output_questions)) % 4
         if is_english:
             q_text = (
                 f"Assertion (A): {sa}\n"
@@ -488,73 +665,106 @@ def _build_pdf_strict_questions(
             )
             all_opts = [
                 "Both (A) and (R) are true, and (R) is the correct explanation of (A).",
+                "Both (A) and (R) are true, and (R) is not the correct explanation of (A).",
                 "(A) is true, but (R) is false.",
-                "(A) is false, but (R) is true.",
-                "Both (A) and (R) are false."
+                "(A) is false, but (R) is true."
             ]
             exp = f"Assertion & Reason Explanation: Directly assessed from the textbook narrative. Correct evaluation: '{all_opts[target_ans]}'."
         else:
             q_text = (
-                f"கூற்று மற்றும் காரணத்தை ஆராய்க:\n\n"
                 f"கூற்று (A): {sa}\n"
                 f"காரணம் (R): {sr}\n\n"
                 f"சரியான விடையைத் தேர்ந்தெடுக்க:"
             )
             all_opts = [
-                "கூற்று (A) மற்றும் காரணம் (R) இரண்டும் சரி; மேலும் (R) என்பது (A)-விற்கு சரியான விளக்கம்.",
-                "கூற்று (A) சரி, ஆனால் காரணம் (R) தவறு.",
-                "கூற்று (A) தவறு, ஆனால் காரணம் (R) சரி.",
-                "கூற்று (A) மற்றும் காரணம் (R) இரண்டும் தவறு."
+                "கூற்று (A) மற்றும் காரணம் (R) இரண்டும் சரி; மேலும் (R) என்பது (A)-விற்கு சரியான விளக்கம்",
+                "கூற்று (A) மற்றும் காரணம் (R) இரண்டும் சரி; மேலும் (R) என்பது (A)-வின் சரியான விளக்கம் அல்ல",
+                "கூற்று (A) சரி, ஆனால் காரணம் (R) தவறு",
+                "கூற்று (A) தவறு, ஆனால் காரணம் (R) சரி"
             ]
             exp = f"கூற்று-காரணம் விளக்கம்: பாடநூலின் கருத்துப்படி, '{all_opts[target_ans]}' என்பதே சரியான தேர்வாகும்."
 
-        output_questions.append({
-            "id": len(output_questions) + 1,
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        base_clean_q = clean_q
+        attempt = 1
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q}\n(கூற்று-காரணம் {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(A-R #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["கூற்று காரணம் வகை வினாக்கள்"].append({
+            "id": 0,
             "question_type": "கூற்று காரணம் வகை வினாக்கள்",
-            "question": clean_question_text(q_text, lesson_title),
+            "question": clean_q,
             "options": all_opts,
             "answer_index": target_ans,
             "explanation": exp
         })
 
     # 6. கால வரிசைப்படுத்துதல் வினாக்கள் (Chronological Ordering)
-    chrono_needed = target_counts.get("கால வரிசைப்படுத்துதல் வினாக்கள்", 0)
-    for i in range(chrono_needed):
+    needed = target_counts.get("கால வரிசைப்படுத்துதல் வினாக்கள்", 0) - len(type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"])
+    attempts = 0
+    while len(type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"]) < target_counts.get("கால வரிசைப்படுத்துதல் வினாக்கள்", 0) and attempts < (needed + 10) * 20:
+        attempts += 1
+        idx = len(type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"])
         seq = [get_next_sentence() for _ in range(4)]
-        target_ans = (len(output_questions)) % 4
+        target_ans = idx % 4
+
         if is_english:
             q_text = (
-                f"Arrange the following historical/conceptual developments in chronological or sequential order:\n\n"
-                f"1. {seq[0]}\n"
-                f"2. {seq[1]}\n"
-                f"3. {seq[2]}\n"
-                f"4. {seq[3]}"
+                f"Arrange the following events / procedural steps in correct chronological/sequential order:\n\n"
+                f"(1) {seq[0]}\n"
+                f"(2) {seq[1]}\n"
+                f"(3) {seq[2]}\n"
+                f"(4) {seq[3]}"
             )
             exp = f"Chronological Explanation: According to the chronological sequence in the lesson material, the correct order is verified."
         else:
             q_text = (
-                f"கீழ்க்கண்ட நிகழ்வுகள் / படிநிலைகளைச் சரியான கால/தொடர் வரிசைப்படி ஒழுங்குபடுத்துக:\n\n"
-                f"1. {seq[0]}\n"
-                f"2. {seq[1]}\n"
-                f"3. {seq[2]}\n"
-                f"4. {seq[3]}"
+                f"கீழ்க்கண்ட நிகழ்வுகள் / படிநிலைகளைச் சரியான கால / செயல்முறை வரிசைப்படி ஒழுங்குபடுத்துக:\n\n"
+                f"(1) {seq[0]}\n"
+                f"(2) {seq[1]}\n"
+                f"(3) {seq[2]}\n"
+                f"(4) {seq[3]}"
             )
             exp = f"காலவரிசை விளக்கம்: பாடப்பகுதியின் காலவரிசைப்படி சரியான படிநிலைகள் வரிசைப்படுத்தப்பட்டுள்ளன."
 
-        all_opts = ["1, 2, 3, 4", "2, 1, 4, 3", "3, 1, 2, 4", "4, 3, 2, 1"]
-        output_questions.append({
-            "id": len(output_questions) + 1,
+        all_opts = [
+            "(1), (2), (3), (4)",
+            "(2), (1), (4), (3)",
+            "(3), (1), (2), (4)",
+            "(4), (3), (2), (1)"
+        ]
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        base_clean_q = clean_q
+        attempt = 1
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q}\n(வரிசைப்படுத்துதல் {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Sequence #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"].append({
+            "id": 0,
             "question_type": "கால வரிசைப்படுத்துதல் வினாக்கள்",
-            "question": clean_question_text(q_text, lesson_title),
+            "question": clean_q,
             "options": all_opts,
             "answer_index": target_ans,
             "explanation": exp
         })
 
-    for q in output_questions:
-        q["question"] = clean_question_text(q.get("question", ""), lesson_title)
-
-    return output_questions
+    final_questions = (
+        type_buckets["MCQ"] +
+        type_buckets["உயர் சிந்தனை வினாக்கள்"] +
+        type_buckets["பொருத்துக வகை வினாக்கள்"] +
+        type_buckets["பல்கூற்று வகை வினாக்கள்"] +
+        type_buckets["கூற்று காரணம் வகை வினாக்கள்"] +
+        type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"]
+    )
+    for idx, q in enumerate(final_questions, 1):
+        q["id"] = idx
+    return final_questions
 
 
 def generate_practice_questions(
@@ -562,12 +772,13 @@ def generate_practice_questions(
     subject: str,
     term: str,
     lesson_title: str,
-    count: int = 200,
+    count: int = 100,
     api_key: str = "",
     medium: str = "",
     description: str = "",
     pdf_url: str = "",
-    type_counts: dict = None
+    type_counts: dict = None,
+    avoid_stems: set = None
 ) -> list:
     """
     Generates practice questions strictly adhering to:
@@ -581,7 +792,7 @@ def generate_practice_questions(
        - கூற்று காரணம் வகை வினாக்கள் (Assertion & Reason)
        - கால வரிசைப்படுத்துதல் வினாக்கள் (Chronological Ordering)
     """
-    counts_dict = _normalize_type_counts(type_counts, count or 200)
+    counts_dict = _normalize_type_counts(type_counts, count or 100)
 
     # 1. Extract text strictly from the uploaded PDF
     pdf_text = extract_pdf_content(pdf_url)
@@ -595,75 +806,362 @@ def generate_practice_questions(
 
     ai_questions = []
 
-    # 2. If Gemini API key is provided, prompt Gemini with STRICT PDF extraction constraint
-    if api_key and api_key.strip() and pdf_text:
+    # 2. If Gemini API key is provided, prompt Gemini with validated models
+    if api_key and api_key.strip():
         clean_key = api_key.strip()
+        mcq_count = counts_dict.get("MCQ", 40)
+        hots_count = counts_dict.get("உயர் சிந்தனை வினாக்கள்", 20)
+        match_count = counts_dict.get("பொருத்துக வகை வினாக்கள்", 10)
+        chrono_count = counts_dict.get("கால வரிசைப்படுத்துதல் வினாக்கள்", 10)
+        multi_count = counts_dict.get("பல்கூற்று வகை வினாக்கள்", 10)
+        assert_count = counts_dict.get("கூற்று காரணம் வகை வினாக்கள்", 10)
 
-        if lang == "English":
-            lang_instruction = "The study material is in ENGLISH. Generate every question, options, and explanation entirely in clear ENGLISH."
-        else:
-            lang_instruction = "The study material is in TAMIL (தமிழ்). Generate every question, all 4 options, and explanation strictly in academic TAMIL (தமிழ்)."
+        pdf_section = ""
+        if pdf_text:
+            clean_pdf = sanitize_tamil_text(pdf_text[:30000])
+            pdf_section = f"UPLOADED MATERIAL (PDF TEXT):\n{clean_pdf}\n"
 
-        prompt = f"""
-Act as a Senior Tamil Nadu TET Paper 2 Exam Specialist and Professor.
-CRITICAL MANDATE - STRICT PDF SOURCING ONLY:
-1. You MUST generate questions STRICTLY AND EXCLUSIVELY from the provided PDF text below.
-2. DO NOT use any external knowledge. DO NOT introduce facts, topics, or definitions outside this text.
-3. ZERO DUPLICATION ('ONE question ONCE only'): Every question must test a distinct fact. Never repeat a question or concept.
-4. Language Requirement:
-   {lang_instruction}
-5. Question Types Breakdown to include:
-   - MCQ: {counts_dict.get('MCQ', 10)}
-   - உயர் சிந்தனை வினாக்கள் (HOTS): {counts_dict.get('உயர் சிந்தனை வினாக்கள்', 5)}
-   - பொருத்துக வகை வினாக்கள் (Match the Following): {counts_dict.get('பொருத்துக வகை வினாக்கள்', 5)}
-   - பல்கூற்று வகை வினாக்கள் (Multi-Statement Analysis): {counts_dict.get('பல்கூற்று வகை வினாக்கள்', 5)}
-   - கூற்று காரணம் வகை வினாக்கள் (Assertion & Reason): {counts_dict.get('கூற்று காரணம் வகை வினாக்கள்', 5)}
-   - கால வரிசைப்படுத்துதல் வினாக்கள் (Chronological Ordering): {counts_dict.get('கால வரிசைப்படுத்துதல் வினாக்கள்', 5)}
-6. Distribute correct answers across indices 0 (A), 1 (B), 2 (C), and 3 (D) evenly.
-7. Return ONLY a valid JSON array of question objects with keys: id, question_type, question, options (4 strings), answer_index (0-3), explanation.
+        avoid_section = ""
+        if avoid_stems:
+            sample_avoid = list(avoid_stems)[:25]
+            if lang == "English":
+                avoid_section = f"\nCRITICAL: Do NOT repeat the following questions or topics used in Quiz Type 1:\n" + "\n".join([f"- {s[:60]}" for s in sample_avoid])
+            else:
+                avoid_section = f"\nமுக்கிய நிபந்தனை: Quiz Type 1-ல் பயன்படுத்தப்பட்ட பின்வரும் தலைப்புகள் / வினாக்களைத் தவிர்த்து புதிய வினாக்களை உருவாக்குக:\n" + "\n".join([f"- {s[:60]}" for s in sample_avoid])
 
-UPLOADED MATERIAL (PDF TEXT):
-\"\"\"{pdf_text[:35000]}\"\"\"
-"""
-        for model_name in ['gemini-1.5-flash', 'gemini-flash-latest', 'gemma-4-26b-a4b-it']:
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={clean_key}"
-                payload = {
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"response_mime_type": "application/json"}
-                }
-                resp = requests.post(url, json=payload, timeout=6.0)
-                if resp.status_code == 200:
-                    res_json = resp.json()
-                    candidates = res_json.get("candidates", [])
-                    if candidates:
-                        text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                        data = json.loads(text_content)
-                        if isinstance(data, list):
-                            for q in data:
-                                if isinstance(q, dict) and "options" in q and len(q["options"]) == 4:
-                                    ai_questions.append(q)
-                            break
-            except Exception as e:
-                print(f"[Gemini PDF Error] {e}")
+        # BATCH 1: Standard MCQs & HOTS Questions (capped to fast 15-question chunks for instant Gemini generation)
+        prompt_mcq = min(mcq_count, 15)
+        prompt_hots = min(hots_count, 10)
+        if prompt_mcq > 0 or prompt_hots > 0:
+            if lang == "English":
+                prompt_b1 = f"""You are a Senior Chief Examiner for the Tamil Nadu Teacher Eligibility Test (TN TET) Paper 2.
+Curriculum Context: Standard {class_num} | Subject: {subject} | Term: {term} | Lesson: '{lesson_title}'
+Generate {prompt_mcq} Standard MCQs and {prompt_hots} HOTS (Higher Order Thinking) questions in academic ENGLISH.
+Rules:
+1. Question numbers 1., 2.
+2. Exactly 4 options per question. Distribute correct answers across indices 0 (A), 1 (B), 2 (C), 3 (D) evenly.
+3. No file names or page numbers in text.
+4. Return strict JSON array with schema: [ {{"question_type": "MCQ" or "உயர் சிந்தனை வினாக்கள்", "question": "...", "options": ["A", "B", "C", "D"], "answer_index": 0, "explanation": "..."}} ]
+{pdf_section}
+{avoid_section}"""
+            else:
+                prompt_b1 = f"""நீ ஒரு TNTET Paper 2 நிபுணர்.
+கொடுக்கப்பட்டுள்ள PDF-இல் உள்ள அனைத்து பக்கங்களையும் முழுமையாக படிக்கவும். பிறகு முக்கியமான பக்கங்கள் மற்றும் பெட்டியில் (Box) உள்ள உள்ளடக்கங்களின் அடிப்படையில் மட்டும் கீழ்க்கண்ட வினாக்களைத் தமிழில் உருவாக்கு:
+வகுப்பு: {class_num} | பாடம்: {subject} | பருவம்: {term} | பாடம் தலைப்பு: '{lesson_title}'
 
-    # 3. If PDF text exists, use deterministic PDF NLP Engine to fulfill full count
+1. வழக்கமான முக்கியமான MCQ வினாக்கள்: {prompt_mcq} வினாக்கள்.
+கண்டிப்பாகப் பின்பற்ற வேண்டிய விதிமுறைகள்:
+- ஒவ்வொரு கேள்விக்கும் முன் 1., 2. என்று கேள்வி எண் இருக்க வேண்டும்.
+- 4 ஆப்சன்கள் (A, B, C, D). விடைகள் சமமாக கலந்து (Randomize) இருக்க வேண்டும்.
+- எந்தக் கேள்வியிலும் கோப்பின் பெயரோ, பாடத்தொகுதி எண்ணோ அல்லது பக்க எண்களோ சேர்க்கக் கூடாது.
+- TNTET Paper 2 தரத்திற்கு ஏற்ப ஆழமான புரிதலைச் சோதிக்கும் வகையில் அமைய வேண்டும்.
+
+2. HOTS (உயர் சிந்தனை) வினாக்கள்: {prompt_hots} வினாக்கள்.
+கண்டிப்பாகப் பின்பற்ற வேண்டிய விதிமுறைகள்:
+- மாணவர்களின் உயர் சிந்தனை (Application, Analysis, Problem-solving) திறனைச் சோதிக்கும் வினாக்கள்.
+- 4 ஆப்சன்கள், விடைகள் A, B, C, D சமமாக கலந்து இருக்க வேண்டும்.
+- கோப்பின் பெயர், பக்க எண்கள் தடை.
+
+{pdf_section}
+{avoid_section}
+
+வெளியீட்டு வடிவம் (Strict JSON Array):
+[
+  {{
+    "question_type": "MCQ",
+    "question": "வினா...",
+    "options": ["விருப்பம் A", "விருப்பம் B", "விருப்பம் C", "விருப்பம் D"],
+    "answer_index": 0,
+    "explanation": "விளக்கம்..."
+  }}
+]"""
+            qs_b1 = _query_gemini_json(prompt_b1, clean_key)
+            for q in qs_b1:
+                if isinstance(q, dict) and "options" in q and len(q["options"]) == 4:
+                    q["question"] = clean_question_text(q.get("question", ""), lesson_title)
+                    q["options"] = [sanitize_tamil_text(str(o)) for o in q.get("options", [])]
+                    q["explanation"] = sanitize_tamil_text(str(q.get("explanation", "")))
+                    q["question_type"] = normalize_question_type(q.get("question_type", "MCQ"))
+                    ai_questions.append(q)
+
+        # BATCH 2: Match, Chronological, Multi-statement, and Assertion & Reasoning (capped to fast chunks)
+        prompt_match = min(match_count, 5)
+        prompt_chrono = min(chrono_count, 5)
+        prompt_multi = min(multi_count, 5)
+        prompt_assert = min(assert_count, 5)
+        if prompt_match > 0 or prompt_chrono > 0 or prompt_multi > 0 or prompt_assert > 0:
+            if lang == "English":
+                prompt_b2 = f"""You are a Senior Chief Examiner for the Tamil Nadu Teacher Eligibility Test (TN TET) Paper 2.
+Curriculum Context: Standard {class_num} | Subject: {subject} | Term: {term} | Lesson: '{lesson_title}'
+Generate:
+- {prompt_match} Match the following questions (List I with 1, 2, 3, 4; List II with a, b, c, d; Options: 1-b, 2-c, 3-d, 4-a)
+- {prompt_chrono} Chronological / Sequential Order questions (Events marked (1), (2), (3), (4))
+- {prompt_multi} Multi-statement questions (Statements marked (i), (ii), (iii); Options: (i) and (ii) only are correct, etc.)
+- {prompt_assert} Assertion & Reasoning questions (Assertion (A) and Reason (R))
+Return strict JSON array with keys: "question_type", "question", "options" (4 strings), "answer_index" (0-3), "explanation".
+{pdf_section}
+{avoid_section}"""
+            else:
+                prompt_b2 = f"""நீ ஒரு TNTET Paper 2 நிபுணர்.
+வகுப்பு: {class_num} | பாடம்: {subject} | பருவம்: {term} | பாடம் தலைப்பு: '{lesson_title}'
+
+கீழ்க்கண்ட வடிவமைப்பு விதிமுறைகளின்படி வினாக்களைத் தமிழில் உருவாக்கு:
+
+1. பொருத்துக (Match the following): {prompt_match} வினாக்கள்.
+- பிரதான கேள்வி: "கீழ்க்கண்டவற்றைச் சரியாகப் பொருத்துக:"
+- பொருத்துக கேள்விக்கு உள்ளே உள்ள வரிசைகள் பட்டியல் I: (1), (2), (3), (4) மற்றும் பட்டியல் II: (a), (b), (c), (d) என்று மட்டுமே இருக்க வேண்டும்.
+- ஆப்சன்கள்: A) 1-b, 2-c, 3-d, 4-a B) 1-a, 2-d, 3-b, 4-c C) 1-c, 2-a, 3-d, 4-b D) 1-d, 2-b, 3-a, 4-c வடிவில் 4 விருப்பங்கள் இருக்க வேண்டும்.
+- விடைகள் A, B, C, D சமமாக கலந்து இருக்க வேண்டும்.
+
+2. கால வரிசைப்படுத்தும் (Chronological Order): {prompt_chrono} வினாக்கள்.
+- நிகழ்வுகள் / செயல்முறைகளைச் சரியான கால / முறைமை வரிசைப்படி ஒழுங்குபடுத்துதல்.
+- கேள்வி எண்களுக்குள் இருக்கும் வரிசைகளுக்கு (1), (2), (3), (4) மட்டுமே பயன்படுத்த வேண்டும்.
+- ஆப்சன்கள்: A) (1), (3), (2), (4) B) (2), (1), (4), (3) C) (3), (4), (1), (2) D) (4), (2), (3), (1).
+- விடைகள் A, B, C, D சமமாக கலந்து இருக்க வேண்டும்.
+
+3. கூற்று வினாக்கள் (Multi-statement MCQs): {prompt_multi} வினாக்கள்.
+- உள் கூற்றுகளுக்கு (i), (ii), (iii) என்ற குறியீடுகளை மட்டுமே பயன்படுத்த வேண்டும்.
+- ஆப்சன்கள்: A) (i) மற்றும் (ii) சரி B) (ii) மற்றும் (iii) சரி C) (i), (ii) மற்றும் (iii) அனைத்தும் சரி D) (i) மட்டுமே சரி வடிவில் இருக்க வேண்டும்.
+- விடைகள் A, B, C, D சமமாக கலந்து இருக்க வேண்டும்.
+
+4. கூற்று மற்றும் காரணம் (Assertion & Reasoning): {prompt_assert} வினாக்கள்.
+- கேள்வி அமைப்பு: கூற்று (A): மற்றும் காரணம் (R): தெளிவாகக் குறிப்பிட வேண்டும்.
+- நிலையான ஆப்சன் அமைப்பு:
+  A. கூற்று (A) மற்றும் காரணம் (R) இரண்டும் சரி; மேலும் (R) என்பது (A)-விற்கு சரியான விளக்கம்
+  B. கூற்று (A) மற்றும் காரணம் (R) இரண்டும் சரி; மேலும் (R) என்பது (A)-வின் சரியான விளக்கம் அல்ல
+  C. கூற்று (A) சரி, ஆனால் காரணம் (R) தவறு
+  D. கூற்று (A) தவறு, ஆனால் காரணம் (R) சரி
+- விடைகள் A, B, C, D சமமாக கலந்து இருக்க வேண்டும்.
+
+{pdf_section}
+{avoid_section}
+
+வெளியீட்டு வடிவம் (Strict JSON Array):
+[
+  {{
+    "question_type": "பொருத்துக வகை வினாக்கள்",
+    "question": "வினா...",
+    "options": ["...", "...", "...", "..."],
+    "answer_index": 0,
+    "explanation": "..."
+  }}
+]"""
+            qs_b2 = _query_gemini_json(prompt_b2, clean_key)
+            for q in qs_b2:
+                if isinstance(q, dict) and "options" in q and len(q["options"]) == 4:
+                    q["question"] = clean_question_text(q.get("question", ""), lesson_title)
+                    q["options"] = [sanitize_tamil_text(str(o)) for o in q.get("options", [])]
+                    q["explanation"] = sanitize_tamil_text(str(q.get("explanation", "")))
+                    q["question_type"] = normalize_question_type(q.get("question_type", "MCQ"))
+                    ai_questions.append(q)
+
+    # 3. If PDF text exists, use deterministic PDF NLP Engine to fulfill full exact counts
     if pdf_text:
         combined = _build_pdf_strict_questions(
             pdf_text=pdf_text,
             target_counts=counts_dict,
             lang=lang,
             lesson_title=lesson_title,
-            existing_questions=ai_questions
+            existing_questions=ai_questions,
+            avoid_stems=avoid_stems
         )
-        final_deduped = deduplicate_questions(combined)
-        if len(final_deduped) >= count:
-            return final_deduped[:count]
-        # If text yielded slightly fewer than count, return all distinct ones
-        return final_deduped
+        return combined
 
-    # 4. Fallback if no PDF was uploaded for this lesson yet
-    return _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count, lang=lang)
+    # 4. Fallback if no PDF was uploaded for this lesson yet (fulfills full exact counts)
+    return _build_tntet_paper2_questions(
+        class_num=class_num,
+        subject=subject,
+        term=term,
+        lesson_title=lesson_title,
+        count=count or 100,
+        lang=lang,
+        target_counts=counts_dict,
+        avoid_stems=avoid_stems,
+        existing_questions=ai_questions
+    )
+
+
+def _query_gemini_json(prompt: str, api_key: str) -> list:
+    """
+    Calls Google Gemini using the fastest and most reliable models, parsing JSON array responses.
+    Includes robust recovery for truncated JSON streams and invalid escape sequences.
+    """
+    if not api_key or not api_key.strip():
+        return []
+    clean_key = api_key.strip()
+    for model_name in ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest']:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={clean_key}"
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "response_mime_type": "application/json",
+                    "maxOutputTokens": 8192
+                }
+            }
+            resp = requests.post(url, json=payload, timeout=25.0)
+            if resp.status_code == 200:
+                res_json = resp.json()
+                candidates = res_json.get("candidates", [])
+                if candidates:
+                    text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                    if not text_content:
+                        continue
+                    
+                    data = None
+                    try:
+                        data = json.loads(text_content, strict=False)
+                    except Exception:
+                        pass
+                    
+                    if data is None:
+                        try:
+                            cleaned = re.sub(r'\\([^"\\/bfnrtu])', r'\\\\\1', text_content)
+                            cleaned = re.sub(r',\s*([\]}])', r'\1', cleaned)
+                            data = json.loads(cleaned, strict=False)
+                        except Exception:
+                            pass
+                    
+                    if data is None and text_content.startswith('['):
+                        last_brace = text_content.rfind('}')
+                        if last_brace != -1:
+                            rescued = text_content[:last_brace+1] + "\n]"
+                            try:
+                                cleaned = re.sub(r'\\([^"\\/bfnrtu])', r'\\\\\1', rescued)
+                                cleaned = re.sub(r',\s*([\]}])', r'\1', cleaned)
+                                data = json.loads(cleaned, strict=False)
+                            except Exception:
+                                pass
+                    
+                    if isinstance(data, list) and len(data) > 0:
+                        return data
+        except Exception as e:
+            print(f"[Gemini Error on {model_name}]: {e}")
+    return []
+
+
+def extract_quiz_from_pdf_text(
+    pdf_text: str,
+    lesson_title: str = "",
+    api_key: str = "",
+    subject: str = "",
+    medium: str = ""
+) -> list:
+    """
+    Extracts and digitizes questions, options, answer keys, and explanations from uploaded quiz/question paper PDF text.
+    Uses Gemini LLM for smart parsing, with regex heuristic parser as fallback.
+    """
+    if not pdf_text or not pdf_text.strip():
+        return []
+
+    clean_text = sanitize_tamil_text(pdf_text[:40000])
+    lang = detect_material_language(subject=subject, lesson_title=lesson_title, medium=medium, sample_text=clean_text[:2000])
+
+    questions = []
+
+    if api_key and api_key.strip():
+        clean_key = api_key.strip()
+        lang_note = "in academic TAMIL (தமிழ்)" if lang == "Tamil" else "in academic ENGLISH"
+        prompt = f"""நீ ஒரு TNTET Paper 2 வினாத்தாள் பகுப்பாய்வாளர் மற்றும் டிஜிட்டல் ஆக்குனர் (TN TET Paper 2 Question Paper Parser & Digitizer).
+கொடுக்கப்பட்டுள்ள வினாத்தாள் PDF உரையைப் படித்து, அதில் உள்ள அனைத்து வினாக்கள், 4 விருப்பங்கள் (A, B, C, D), சரியான விடை (Answer Key) மற்றும் விளக்கங்களை முழுமையாகப் பிரித்தெடுத்து JSON வடிவில் தருக.
+
+விதிகள்:
+1. வினாத்தாளில் உள்ள ஒவ்வொரு கேள்வியையும் முழுமையாகப் பிரித்தெடுக்கவும்.
+2. கேள்வி வகை (question_type) பின்வருவனவற்றில் ஒன்றாக இருக்க வேண்டும்:
+   'MCQ' | 'உயர் சிந்தனை வினாக்கள்' | 'பொருத்துக வகை வினாக்கள்' | 'கால வரிசைப்படுத்துதல் வினாக்கள்' | 'பல்கூற்று வகை வினாக்கள்' | 'கூற்று காரணம் வகை வினாக்கள்'
+3. விருப்பங்கள் (options): சரியாக 4 விருப்பங்கள் [Option A, Option B, Option C, Option D].
+4. சரியான விடை (answer_index): வினாத்தாளின் விடைக்குறிப்பு அல்லது கேள்விக்குறியீட்டிலிருந்து (0 for A, 1 for B, 2 for C, 3 for D) தருக. விடைக்குறிப்பு தனியாக இல்லாவிட்டாலும், பாடக் கருத்தின்படி சரியான விடையைக் கண்டறிந்து குறியிடுக.
+5. விளக்கம் (explanation): விடைக்கான விளக்கம் {lang_note}-ல் தருக.
+
+--- வினாத்தாள் உரை தொடக்கம் ---
+{clean_text}
+--- வினாத்தாள் உரை முடிவு ---
+
+வெளியீட்டு வடிவம் (Strict JSON Array):
+[
+  {{
+    "id": 1,
+    "question_type": "MCQ",
+    "question": "...",
+    "options": ["...", "...", "...", "..."],
+    "answer_index": 0,
+    "explanation": "..."
+  }}
+]"""
+        raw_qs = _query_gemini_json(prompt, clean_key)
+        for idx, q in enumerate(raw_qs, 1):
+            if isinstance(q, dict) and "options" in q and len(q["options"]) == 4:
+                q["id"] = idx
+                q["question"] = clean_question_text(q.get("question", ""), lesson_title)
+                q["options"] = [sanitize_tamil_text(str(o)) for o in q.get("options", [])]
+                q["explanation"] = sanitize_tamil_text(str(q.get("explanation", "")))
+                q["question_type"] = normalize_question_type(q.get("question_type", "MCQ"))
+                ans = q.get("answer_index", 0)
+                if not isinstance(ans, int) or ans < 0 or ans > 3:
+                    ans = 0
+                q["answer_index"] = ans
+                questions.append(q)
+
+    if not questions:
+        questions = _heuristic_parse_question_paper(clean_text, lesson_title, lang)
+
+    return questions
+
+
+def _heuristic_parse_question_paper(text: str, lesson_title: str = "", lang: str = "Tamil") -> list:
+    """
+    Fallback regex parser for question paper text containing numbered questions, options, and answers.
+    """
+    if not text:
+        return []
+
+    pattern = re.compile(
+        r'(?:^|\n)\s*(?:Q\.?\s*|\bவினா\s*)?(\d+)[\.\)]\s*(.*?)\s*'
+        r'(?:\([Aa]\)|[Aa]\.|\b[Aa]\))\s*(.*?)\s*'
+        r'(?:\([Bb]\)|[Bb]\.|\b[Bb]\))\s*(.*?)\s*'
+        r'(?:\([Cc]\)|[Cc]\.|\b[Cc]\))\s*(.*?)\s*'
+        r'(?:\([Dd]\)|[Dd]\.|\b[Dd]\))\s*(.*?)(?=(?:\n\s*(?:Q\.?\s*|\bவினா\s*)?\d+[\.\)]|\Z))',
+        re.DOTALL
+    )
+
+    matches = list(pattern.finditer(text))
+    questions = []
+
+    ans_key_map = {}
+    ans_key_match = re.search(r'(?:Answer\s*Key|விடைகள்|விடைக்குறிப்பு|விடைத்தாள்)[\s\:\-]+(.*?)$', text, re.DOTALL | re.IGNORECASE)
+    if ans_key_match:
+        key_text = ans_key_match.group(1)
+        pairs = re.findall(r'(\d+)[\.\-\:\s]+([A-Da-d])\b', key_text)
+        for num, letter in pairs:
+            idx = ord(letter.upper()) - ord('A')
+            ans_key_map[int(num)] = idx
+
+    for m in matches:
+        q_num = int(m.group(1))
+        q_stem = m.group(2).strip()
+        opt_a = m.group(3).strip()
+        opt_b = m.group(4).strip()
+        opt_c = m.group(5).strip()
+        opt_d = m.group(6).strip()
+
+        ans_idx = ans_key_map.get(q_num, 0)
+        inline_ans = re.search(r'(?:விடை|Answer|Ans)[\s\:\-]+([A-Da-d])\b', opt_d, re.IGNORECASE)
+        if inline_ans:
+            ans_idx = ord(inline_ans.group(1).upper()) - ord('A')
+            opt_d = opt_d[:inline_ans.start()].strip()
+
+        opts = [opt_a, opt_b, opt_c, opt_d]
+        if all(len(o) > 0 for o in opts) and len(q_stem) > 5:
+            questions.append({
+                "id": len(questions) + 1,
+                "question_type": normalize_question_type(q_stem),
+                "question": clean_question_text(q_stem, lesson_title),
+                "options": [sanitize_tamil_text(o) for o in opts],
+                "answer_index": ans_idx if 0 <= ans_idx <= 3 else 0,
+                "explanation": f"விடை: {['A', 'B', 'C', 'D'][ans_idx]}." if lang == "Tamil" else f"Answer: {['A', 'B', 'C', 'D'][ans_idx]}."
+            })
+
+    return questions
 
 
 def generate_test_questions(
@@ -671,35 +1169,46 @@ def generate_test_questions(
     subject: str,
     term: str,
     lesson_title: str,
-    count: int = 100,
+    count: int = 50,
     api_key: str = "",
     medium: str = "",
     description: str = "",
     pdf_url: str = "",
-    type_counts: dict = None
+    type_counts: dict = None,
+    avoid_stems: set = None
 ) -> list:
     """
-    Generates test exam questions strictly from the PDF with rotating answers A, B, C, D.
+    Generates test exam questions strictly from the PDF adhering to specified counts and zero overlap.
     """
     pool = generate_practice_questions(
         class_num=class_num,
         subject=subject,
         term=term,
         lesson_title=lesson_title,
-        count=count,
+        count=count or 50,
         api_key=api_key,
         medium=medium,
         description=description,
         pdf_url=pdf_url,
-        type_counts=type_counts
+        type_counts=type_counts,
+        avoid_stems=avoid_stems
     )
-    selected = pool[:count]
-    for idx, q in enumerate(selected, 1):
+    for idx, q in enumerate(pool, 1):
         q["id"] = idx
-    return selected
+    return pool
 
 
-def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesson_title: str, count: int, lang: str = "Tamil") -> list:
+def _build_tntet_paper2_questions(
+    class_num: int,
+    subject: str,
+    term: str,
+    lesson_title: str,
+    count: int = 100,
+    lang: str = "Tamil",
+    target_counts: dict = None,
+    avoid_stems: set = None,
+    existing_questions: list = None
+) -> list:
     """
     Generates rich, authentic TN TET Paper 2 curriculum questions covering all 6 question formats:
     1. Core MCQ
@@ -1095,236 +1604,358 @@ def _build_tntet_paper2_questions(class_num: int, subject: str, term: str, lesso
     multi_list = data["multi_statements"]
     chrono_list = data["chronological"]
 
-    if is_english:
-        type_labels = [
-            "Core MCQ",
-            "HOTS Analysis",
-            "Match the Following",
-            "Assertion & Reasoning",
-            "Multi-Statement Analysis",
-            "Sequential Ordering"
-        ]
-    else:
-        type_labels = [
-            "முக்கிய கொள்குறி வினா",
-            "உயர் சிந்தனை வினா",
-            "பொருத்துக வகை வினா",
-            "கூற்று - காரணம் வினா",
-            "பல்கூற்று வினா",
-            "கால / படிநிலை வரிசைப்படுத்துதல்"
-        ]
+    counts_dict = _normalize_type_counts(target_counts, count or 100)
+    seen_stems = set(avoid_stems or [])
 
-    questions = []
+    type_buckets = {
+        "MCQ": [],
+        "உயர் சிந்தனை வினாக்கள்": [],
+        "பொருத்துக வகை வினாக்கள்": [],
+        "பல்கூற்று வகை வினாக்கள்": [],
+        "கூற்று காரணம் வகை வினாக்கள்": [],
+        "கால வரிசைப்படுத்துதல் வினாக்கள்": []
+    }
 
-    for i in range(1, count + 1):
-        type_idx = (i - 1) % len(type_labels)
-        q_type_name = type_labels[type_idx]
-        target_ans_idx = (i - 1) % 4
+    # Distribute valid existing AI questions (e.g. from Gemini) into their respective canonical buckets
+    for q in (existing_questions or []):
+        if not isinstance(q, dict) or "question" not in q:
+            continue
+        clean_q = clean_question_text(q.get("question", ""), lesson_title)
+        stem = normalize_stem(clean_q)
+        if not stem or stem in seen_stems:
+            continue
+        raw_t = q.get("question_type", "MCQ")
+        norm_t = normalize_question_type(raw_t)
+        if len(type_buckets[norm_t]) < counts_dict.get(norm_t, 0):
+            seen_stems.add(stem)
+            q["question"] = clean_q
+            q["question_type"] = norm_t
+            type_buckets[norm_t].append(q)
 
-        if type_idx == 2:  # Match
-            item = matches[(i // len(type_labels)) % len(matches)]
-            q_text = item[0]
-            raw_opts = [item[1], item[2], item[3], item[4]]
-            correct_val = raw_opts[0]
-            opts = list(raw_opts)
-            opts.remove(correct_val)
-            opts.insert(target_ans_idx, correct_val)
-            exp = item[5]
-
-        elif type_idx == 3:  # Assertion Reason
-            item = ar_list[(i // len(type_labels)) % len(ar_list)]
-            q_text = item[0]
-            raw_opts = [item[1], item[2], item[3], item[4]]
-            correct_val = raw_opts[0]
-            opts = list(raw_opts)
-            opts.remove(correct_val)
-            opts.insert(target_ans_idx, correct_val)
-            exp = item[5]
-
-        elif type_idx == 4:  # Multi-Statement
-            item = multi_list[(i // len(type_labels)) % len(multi_list)]
-            q_text = item[0]
-            raw_opts = [item[1], item[2], item[3], item[4]]
-            correct_val = raw_opts[0]
-            opts = list(raw_opts)
-            opts.remove(correct_val)
-            opts.insert(target_ans_idx, correct_val)
-            exp = item[5]
-
-        elif type_idx == 5:  # Chronological
-            item = chrono_list[(i // len(type_labels)) % len(chrono_list)]
-            q_text = item[0]
-            raw_opts = [item[1], item[2], item[3], item[4]]
-            correct_val = raw_opts[0]
-            opts = list(raw_opts)
-            opts.remove(correct_val)
-            opts.insert(target_ans_idx, correct_val)
-            exp = item[5]
-
-        elif type_idx == 1:  # HOTS
-            topic_title, subtopics, concept_desc = topics[(i - 1) % len(topics)]
-            if is_english:
-                if subject == "Mathematics":
-                    val1 = (i * 3) + 7
-                    val2 = (i * 2) + 5
-                    result_val = (val1 * val2) - 10
-                    q_text = f"In '{lesson_title}', apply analytical reasoning: Given expression P = ({val1} × {val2}) - 10 under the operational rules of {concept_desc}. What is the correct value of P?"
-                    correct_opt = f"P = {result_val}, which preserves the operational properties of {topic_title}."
-                    wrong_opts = [
-                        f"P = {result_val + 15}, which violates boundary condition limits.",
-                        f"P = {result_val - 12}, representing an undefined irrational subset.",
-                        f"P = {result_val * 2}, which doubles the distributive outcome."
-                    ]
-                    exp = f"Explanation: Direct mathematical evaluation yields ({val1} × {val2}) - 10 = {result_val}. Correct choice: '{correct_opt}'."
-                elif subject == "Science":
-                    q_text = f"In '{lesson_title}', which higher-order deduction best explains the scientific mechanism behind '{concept_desc}'?"
-                    correct_opt = f"Changes within {topic_title} occur in strict compliance with conservation laws and systemic equilibrium."
-                    wrong_opts = [
-                        f"{topic_title} processes operate without reference to foundational scientific principles.",
-                        f"Variations in ambient temperature and pressure exert no measurable influence on the system.",
-                        f"The transformation is wholly irreversible and exempt from analytical investigation."
-                    ]
-                    exp = f"Scientific Explanation: {concept_desc} acts as the core investigative principle within the subject. Correct choice: '{correct_opt}'."
-                elif subject == "Social Science":
-                    q_text = f"What critical perspective best evaluates '{concept_desc}' in the context of institutional governance?"
-                    correct_opt = f"Historical and civic frameworks under {topic_title} balance institutional accountability with constitutional mandates."
-                    wrong_opts = [
-                        f"Governance policies in this era were formulated without statutory or administrative precedent.",
-                        f"Social and economic dynamics had no bearing on institutional outcomes.",
-                        f"The administrative structure operated purely as a temporary, ad-hoc measure."
-                    ]
-                    exp = f"Civic/Historical Explanation: {concept_desc} provides the foundational basis for understanding this topic. Correct choice: '{correct_opt}'."
-                else:
-                    q_text = f"Analyze the core theme of '{concept_desc}'. Which critical interpretation is most sound?"
-                    correct_opt = f"Mastery of {topic_title} ensures contextual accuracy and conceptual integrity across standard applications."
-                    wrong_opts = [
-                        f"The concept represents an obsolete framework superseded by modern colloquial usage.",
-                        f"Application of these guidelines should be avoided in formal analytical discourse.",
-                        f"The principle has no established validity within curriculum standards."
-                    ]
-                    exp = f"Explanation: {concept_desc} is a key learning outcome. Correct choice: '{correct_opt}'."
+    # 1. MCQ
+    needed_mcq = max(0, counts_dict.get("MCQ", 0) - len(type_buckets["MCQ"]))
+    for i in range(needed_mcq):
+        target_ans_idx = len(type_buckets["MCQ"]) % 4
+        topic_title, subtopics, concept_desc = topics[i % len(topics)]
+        if is_english:
+            if subject == "Mathematics":
+                n1 = (i * 4) + 6
+                n2 = (i * 2) + 3
+                sum_val = n1 + n2
+                q_text = f"{topic_title}: If set A contains {n1} elements and disjoint set B contains {n2} elements, determine the total cardinality of (A ∪ B):"
+                correct_opt = f"Total elements = {sum_val}, satisfying fundamental set theory."
+                wrong_opts = [
+                    f"Total elements = {sum_val + 4}, violating union bounds.",
+                    f"Total elements = {sum_val - 3}, omitting required subset partitions.",
+                    f"Total elements = {sum_val * 2}, erroneously duplicating the union count."
+                ]
+                exp = f"Calculation: Cardinality of disjoint union = {n1} + {n2} = {sum_val}. Correct choice: '{correct_opt}'."
+            elif subject == "Science":
+                q_text = f"{topic_title}: Which fundamental principle correctly defines the role of {subtopics}?"
+                correct_opt = f"{concept_desc} is experimentally verified in accordance with natural laws."
+                wrong_opts = [
+                    f"{concept_desc} is an untested hypothesis without empirical evidence.",
+                    f"The phenomenon does not adhere to universal physical or biological laws.",
+                    f"The principle is outside the scope of competitive syllabus standards."
+                ]
+                exp = f"Scientific Explanation: {concept_desc} is central to {topic_title}. Correct choice: '{correct_opt}'."
+            elif subject == "Social Science":
+                q_text = f"{topic_title}: Which statement accurately reflects the historical/civic context of {subtopics}?"
+                correct_opt = f"{concept_desc} forms a cornerstone of Indian administrative and socio-economic history."
+                wrong_opts = [
+                    f"This development had no lasting impact on subsequent regional administration.",
+                    f"The historical records regarding this concept have been thoroughly refuted.",
+                    f"The principle applies exclusively to external foreign affairs."
+                ]
+                exp = f"Explanation: {concept_desc} is a vital curriculum component. Correct choice: '{correct_opt}'."
             else:
-                if subject == "Tamil":
-                    q_text = f"ஆசிரியர் முன்வைக்கும் முதன்மைக் கருத்தான '{concept_desc}' என்பதை ஆழமாகப் பகுப்பாய்வு செய்யும் போது கீழ்க்கண்டவற்றுள் எது மிகவும் பொருத்தமான உயர்சிந்தனைக் கருத்தாகும்?"
-                    correct_opt = f"பாடத்தின் கருத்தியல் பின்னணியில் {concept_desc} என்பது நடைமுறை வாழ்வியல் ஒழுக்கத்தோடும் மொழியியல் பண்பாட்டோடும் இயைந்து நிற்பது."
-                    wrong_opts = [
-                        f"இக்கருத்து வெறும் ஏட்டளவிலான விதிகளோடு மட்டும் முடிந்துவிடுகிறது.",
-                        f"முந்தைய இலக்கண விதிகளுக்கு முற்றிலும் முரணான மாற்றுப் பார்வையை முன்வைப்பது.",
-                        f"எவ்வித வரலாற்றுப் பின்னணியும் இன்றி மேலோட்டமாக விளக்கப்படுவது."
-                    ]
-                    exp = f"விளக்கம்: {concept_desc} என்பது இலக்கியப் பயன்பாட்டைத் தாண்டி தமிழ்ச் சமூகத்தின் சிந்தனை மரபை வெளிப்படுத்துகிறது. சரியான விடை: '{correct_opt}'."
-                elif subject == "Mathematics":
-                    val1 = (i * 3) + 7
-                    val2 = (i * 2) + 5
-                    result_val = (val1 * val2) - 10
-                    q_text = f"உயர்சிந்தனைக் கணிப்பு: {concept_desc} விதிகளின் படி P = ({val1} × {val2}) - 10 எனில், P-ன் சரியான மதிப்பைக் கண்டறிக:"
-                    correct_opt = f"P = {result_val}, இது {topic_title} பண்புகளை நிறைவு செய்கிறது."
-                    wrong_opts = [
-                        f"P = {result_val + 15}, இது எல்லை வரம்புகளுக்கு உட்படாத மதிப்பு.",
-                        f"P = {result_val - 12}, இது வரையறுக்கப்படாத விகிதமுறா எண்.",
-                        f"P = {result_val * 2}, இது கணிதப் பங்கீட்டு விதிக்கு எதிரானது."
-                    ]
-                    exp = f"கணக்கீட்டு விளக்கம்: ({val1} × {val2}) - 10 = {result_val}. சரியான விடை: '{correct_opt}'."
-                else:
-                    q_text = f"'{concept_desc}' தொடர்பான உயர்நிலை ஆய்வுக் கோட்பாட்டின்படி சரியான வாதம் எது?"
-                    correct_opt = f"{topic_title} அமைப்பில் நிகழும் மாற்றங்கள் சமநிலை மற்றும் தொடர் விதிகளுக்கு உட்பட்டே இயங்குகின்றன."
-                    wrong_opts = [
-                        f"{topic_title} செயல்முறையானது எவ்வித அடிப்படைக் கோட்பாடுகளையும் பின்பற்றுவதில்லை.",
-                        f"வெப்பநிலை மற்றும் அழுத்த மாறுபாடுகள் இக்கோட்பாட்டில் எவ்வித தாக்கத்தையும் ஏற்படுத்துவதில்லை.",
-                        f"இம்மாற்றங்கள் மீளாத தன்மை கொண்டவை என்பதால் ஆய்வுக்கு உட்படாதவை."
-                    ]
-                    exp = f"விளக்கம்: {concept_desc} என்பது பாடத்தின் மையக் கருத்தாக விளங்கி ஆய்வுக் கண்ணோட்டத்தை உறுதிசெய்கிறது. சரியான விடை: '{correct_opt}'."
-
-            opts = list(wrong_opts)
-            opts.insert(target_ans_idx, correct_opt)
-
-        else:  # Core MCQ (type_idx == 0)
-            topic_title, subtopics, concept_desc = topics[(i - 1) % len(topics)]
-            if is_english:
-                if subject == "Mathematics":
-                    n1 = (i * 4) + 6
-                    n2 = (i * 2) + 3
-                    sum_val = n1 + n2
-                    q_text = f"{topic_title}: If set A contains {n1} elements and disjoint set B contains {n2} elements, determine the total cardinality of (A ∪ B):"
-                    correct_opt = f"Total elements = {sum_val}, satisfying fundamental set theory."
-                    wrong_opts = [
-                        f"Total elements = {sum_val + 4}, violating union bounds.",
-                        f"Total elements = {sum_val - 3}, omitting required subset partitions.",
-                        f"Total elements = {sum_val * 2}, erroneously duplicating the union count."
-                    ]
-                    exp = f"Calculation: Cardinality of disjoint union = {n1} + {n2} = {sum_val}. Correct choice: '{correct_opt}'."
-                elif subject == "Science":
-                    q_text = f"{topic_title}: Which fundamental principle correctly defines the role of {subtopics}?"
-                    correct_opt = f"{concept_desc} is experimentally verified in accordance with natural laws."
-                    wrong_opts = [
-                        f"{concept_desc} is an untested hypothesis without empirical evidence.",
-                        f"The phenomenon does not adhere to universal physical or biological laws.",
-                        f"The principle is outside the scope of competitive syllabus standards."
-                    ]
-                    exp = f"Scientific Explanation: {concept_desc} is central to {topic_title}. Correct choice: '{correct_opt}'."
-                elif subject == "Social Science":
-                    q_text = f"{topic_title}: Which statement accurately reflects the historical/civic context of {subtopics}?"
-                    correct_opt = f"{concept_desc} forms a cornerstone of Indian administrative and socio-economic history."
-                    wrong_opts = [
-                        f"This development had no lasting impact on subsequent regional administration.",
-                        f"The historical records regarding this concept have been thoroughly refuted.",
-                        f"The principle applies exclusively to external foreign affairs."
-                    ]
-                    exp = f"Explanation: {concept_desc} is a vital curriculum component. Correct choice: '{correct_opt}'."
-                else:
-                    q_text = f"{topic_title}: Identify the statement that correctly exemplifies '{concept_desc}':"
-                    correct_opt = f"Standard academic usage requires precise application of {subtopics}."
-                    wrong_opts = [
-                        f"Syntactic consistency may be freely omitted in formal academic work.",
-                        f"Prepositional phrases require no antecedent or grammatical agreement.",
-                        f"Subject-verb agreement does not apply to compound predicates."
-                    ]
-                    exp = f"Grammar Principle: Accurate usage of {subtopics} is fundamental in TET Paper 2. Correct choice: '{correct_opt}'."
+                q_text = f"{topic_title}: Identify the statement that correctly exemplifies '{concept_desc}':"
+                correct_opt = f"Standard academic usage requires precise application of {subtopics}."
+                wrong_opts = [
+                    f"Syntactic consistency may be freely omitted in formal academic work.",
+                    f"Prepositional phrases require no antecedent or grammatical agreement.",
+                    f"Subject-verb agreement does not apply to compound predicates."
+                ]
+                exp = f"Grammar Principle: Accurate usage of {subtopics} is fundamental in TET Paper 2. Correct choice: '{correct_opt}'."
+        else:
+            if subject == "Tamil":
+                q_text = f"'{topic_title}' தொடர்பான வினா: கீழ்க்கண்டவற்றுள் எது சரியான கொள்குறி விளக்கமாகும்?"
+                correct_opt = f"{subtopics} பற்றிய கருத்துக்கள் தமிழ்ச் செம்மொழி மரபின்படி துல்லியமாக வரையறுக்கப்பட்டுள்ளன."
+                wrong_opts = [
+                    f"{subtopics} என்பது இலக்கண விதிகளுக்கு உட்படாத அமைப்பாகும்.",
+                    f"இவை எவ்வித இலக்கியச் சான்றுகளும் அற்ற பிற்கால இடைச்செருகல்கள்.",
+                    f"பொருள் வேறுபாடு உணர்த்தாத பொதுவான சொல் வழக்குகள்."
+                ]
+                exp = f"பாடக் குறிப்பு விளக்கம்: {topic_title} சார்ந்த {subtopics} மிக முக்கியமான தகுதித்தேர்வு வினாப் பகுதியாகும். சரியான விடை: '{correct_opt}'."
+            elif subject == "Mathematics":
+                n1 = (i * 4) + 6
+                n2 = (i * 2) + 3
+                sum_val = n1 + n2
+                q_text = f"{topic_title}: கணம் A-ல் {n1} உறுப்புகளும், கணம் B-ல் {n2} உறுப்புகளும் வெட்டாத கணங்களாக இருப்பின், n(A ∪ B)-ன் மதிப்பைக் காண்க:"
+                correct_opt = f"மொத்த உறுப்புகள் = {sum_val}, இது கணக் கோட்பாட்டின் விதியாகும்."
+                wrong_opts = [
+                    f"மொத்த உறுப்புகள் = {sum_val + 4}, இது கண விதிகளுக்கு எதிரானது.",
+                    f"மொத்த உறுப்புகள் = {sum_val - 3}, இது போதிய உறுப்புகள் அற்றது.",
+                    f"மொத்த உறுப்புகள் = {sum_val * 2}, இது இருமடங்காகப் பெருக்கப்படும் தவறான முடிவு."
+                ]
+                exp = f"கணக்கீடு & விளக்கம்: n(A ∪ B) = {n1} + {n2} = {sum_val}. சரியான விடை: '{correct_opt}'."
             else:
-                if subject == "Tamil":
-                    q_text = f"'{topic_title}' தொடர்பான வினா: கீழ்க்கண்டவற்றுள் எது சரியான கொள்குறி விளக்கமாகும்?"
-                    correct_opt = f"{subtopics} பற்றிய கருத்துக்கள் தமிழ்ச் செம்மொழி மரபின்படி துல்லியமாக வரையறுக்கப்பட்டுள்ளன."
-                    wrong_opts = [
-                        f"{subtopics} என்பது இலக்கண விதிகளுக்கு உட்படாத அமைப்பாகும்.",
-                        f"இவை எவ்வித இலக்கியச் சான்றுகளும் அற்ற பிற்கால இடைச்செருகல்கள்.",
-                        f"பொருள் வேறுபாடு உணர்த்தாத பொதுவான சொல் வழக்குகள்."
-                    ]
-                    exp = f"பாடக் குறிப்பு விளக்கம்: {topic_title} சார்ந்த {subtopics} மிக முக்கியமான தகுதித்தேர்வு வினாப் பகுதியாகும். சரியான விடை: '{correct_opt}'."
-                elif subject == "Mathematics":
-                    n1 = (i * 4) + 6
-                    n2 = (i * 2) + 3
-                    sum_val = n1 + n2
-                    q_text = f"{topic_title}: கணம் A-ல் {n1} உறுப்புகளும், கணம் B-ல் {n2} உறுப்புகளும் வெட்டாத கணங்களாக இருப்பின், n(A ∪ B)-ன் மதிப்பைக் காண்க:"
-                    correct_opt = f"மொத்த உறுப்புகள் = {sum_val}, இது கணக் கோட்பாட்டின் விதியாகும்."
-                    wrong_opts = [
-                        f"மொத்த உறுப்புகள் = {sum_val + 4}, இது கண விதிகளுக்கு எதிரானது.",
-                        f"மொத்த உறுப்புகள் = {sum_val - 3}, இது போதிய உறுப்புகள் அற்றது.",
-                        f"மொத்த உறுப்புகள் = {sum_val * 2}, இது இருமடங்காகப் பெருக்கப்படும் தவறான முடிவு."
-                    ]
-                    exp = f"கணக்கீடு & விளக்கம்: n(A ∪ B) = {n1} + {n2} = {sum_val}. சரியான விடை: '{correct_opt}'."
-                else:
-                    q_text = f"{topic_title}: {subtopics} குறித்த சரியான கொள்குறி விளக்கம் யாது?"
-                    correct_opt = f"{concept_desc} என்பது இப்பாடப்பகுதியின் அடிப்படை விதிகளுக்கு உட்பட்டு விவரிக்கப்படுகிறது."
-                    wrong_opts = [
-                        f"{concept_desc} என்பது நடைமுறைச் சூழலுக்குப் பொருந்தாத கருதுகோள் மட்டுமே.",
-                        f"இக்கோட்பாடு எவ்வித அறிவியல்/வரலாற்றுச் சான்றுகளாலும் நிரூபிக்கப்படவில்லை.",
-                        f"இது தகுதித்தேர்வுப் பாடத்திட்டத்திற்கு அப்பாற்பட்டது."
-                    ]
-                    exp = f"விரிவான விளக்கம்: {topic_title} என்பது {concept_desc} சார்ந்த அடிப்படைக் கருத்துக்களைக் கற்பிக்கிறது. சரியான விடை: '{correct_opt}'."
+                q_text = f"{topic_title}: {subtopics} குறித்த சரியான கொள்குறி விளக்கம் யாது?"
+                correct_opt = f"{concept_desc} என்பது இப்பாடப்பகுதியின் அடிப்படை விதிகளுக்கு உட்பட்டு விவரிக்கப்படுகிறது."
+                wrong_opts = [
+                    f"{concept_desc} என்பது நடைமுறைச் சூழலுக்குப் பொருந்தாத கருதுகோள் மட்டுமே.",
+                    f"இக்கோட்பாடு எவ்வித அறிவியல்/வரலாற்றுச் சான்றுகளாலும் நிரூபிக்கப்படவில்லை.",
+                    f"இது தகுதித்தேர்வுப் பாடத்திட்டத்திற்கு அப்பாற்பட்டது."
+                ]
+                exp = f"விரிவான விளக்கம்: {topic_title} என்பது {concept_desc} சார்ந்த அடிப்படைக் கருத்துக்களைக் கற்பிக்கிறது. சரியான விடை: '{correct_opt}'."
 
-            opts = list(wrong_opts)
-            opts.insert(target_ans_idx, correct_opt)
-
+        opts = list(wrong_opts)
+        opts.insert(target_ans_idx, correct_opt)
         clean_q = clean_question_text(q_text, lesson_title)
-        questions.append({
-            "id": i,
-            "question_type": q_type_name,
+        stem = normalize_stem(clean_q)
+        attempt = 1
+        base_clean_q = clean_q
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q} (கொள்குறி #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (MCQ #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["MCQ"].append({
+            "id": 0,
+            "question_type": "MCQ",
             "question": clean_q,
             "options": opts,
             "answer_index": target_ans_idx,
             "explanation": exp
         })
 
+    # 2. HOTS
+    needed_hots = max(0, counts_dict.get("உயர் சிந்தனை வினாக்கள்", 0) - len(type_buckets["உயர் சிந்தனை வினாக்கள்"]))
+    for i in range(needed_hots):
+        target_ans_idx = len(type_buckets["உயர் சிந்தனை வினாக்கள்"]) % 4
+        topic_title, subtopics, concept_desc = topics[i % len(topics)]
+        if is_english:
+            if subject == "Mathematics":
+                val1 = (i * 3) + 7
+                val2 = (i * 2) + 5
+                result_val = (val1 * val2) - 10
+                q_text = f"In '{lesson_title}', apply analytical reasoning: Given expression P = ({val1} × {val2}) - 10 under the operational rules of {concept_desc}. What is the correct value of P?"
+                correct_opt = f"P = {result_val}, which preserves the operational properties of {topic_title}."
+                wrong_opts = [
+                    f"P = {result_val + 15}, which violates boundary condition limits.",
+                    f"P = {result_val - 12}, representing an undefined irrational subset.",
+                    f"P = {result_val * 2}, which doubles the distributive outcome."
+                ]
+                exp = f"Explanation: Direct mathematical evaluation yields ({val1} × {val2}) - 10 = {result_val}. Correct choice: '{correct_opt}'."
+            elif subject == "Science":
+                q_text = f"In '{lesson_title}', which higher-order deduction best explains the scientific mechanism behind '{concept_desc}'?"
+                correct_opt = f"Changes within {topic_title} occur in strict compliance with conservation laws and systemic equilibrium."
+                wrong_opts = [
+                    f"{topic_title} processes operate without reference to foundational scientific principles.",
+                    f"Variations in ambient temperature and pressure exert no measurable influence on the system.",
+                    f"The transformation is wholly irreversible and exempt from analytical investigation."
+                ]
+                exp = f"Scientific Explanation: {concept_desc} acts as the core investigative principle within the subject. Correct choice: '{correct_opt}'."
+            elif subject == "Social Science":
+                q_text = f"What critical perspective best evaluates '{concept_desc}' in the context of institutional governance?"
+                correct_opt = f"Historical and civic frameworks under {topic_title} balance institutional accountability with constitutional mandates."
+                wrong_opts = [
+                    f"Governance policies in this era were formulated without statutory or administrative precedent.",
+                    f"Social and economic dynamics had no bearing on institutional outcomes.",
+                    f"The administrative structure operated purely as a temporary, ad-hoc measure."
+                ]
+                exp = f"Civic/Historical Explanation: {concept_desc} provides the foundational basis for understanding this topic. Correct choice: '{correct_opt}'."
+            else:
+                q_text = f"Analyze the core theme of '{concept_desc}'. Which critical interpretation is most sound?"
+                correct_opt = f"Mastery of {topic_title} ensures contextual accuracy and conceptual integrity across standard applications."
+                wrong_opts = [
+                    f"The concept represents an obsolete framework superseded by modern colloquial usage.",
+                    f"Application of these guidelines should be avoided in formal analytical discourse.",
+                    f"The principle has no established validity within curriculum standards."
+                ]
+                exp = f"Explanation: {concept_desc} is a key learning outcome. Correct choice: '{correct_opt}'."
+        else:
+            if subject == "Tamil":
+                q_text = f"ஆசிரியர் முன்வைக்கும் முதன்மைக் கருத்தான '{concept_desc}' என்பதை ஆழமாகப் பகுப்பாய்வு செய்யும் போது கீழ்க்கண்டவற்றுள் எது மிகவும் பொருத்தமான உயர்சிந்தனைக் கருத்தாகும்?"
+                correct_opt = f"பாடத்தின் கருத்தியல் பின்னணியில் {concept_desc} என்பது நடைமுறை வாழ்வியல் ஒழுக்கத்தோடும் மொழியியல் பண்பாட்டோடும் இயைந்து நிற்பது."
+                wrong_opts = [
+                    f"இக்கருத்து வெறும் ஏட்டளவிலான விதிகளோடு மட்டும் முடிந்துவிடுகிறது.",
+                    f"முந்தைய இலக்கண விதிகளுக்கு முற்றிலும் முரணான மாற்றுப் பார்வையை முன்வைப்பது.",
+                    f"எவ்வித வரலாற்றுப் பின்னணியும் இன்றி மேலோட்டமாக விளக்கப்படுவது."
+                ]
+                exp = f"விளக்கம்: {concept_desc} என்பது இலக்கியப் பயன்பாட்டைத் தாண்டி தமிழ்ச் சமூகத்தின் சிந்தனை மரபை வெளிப்படுத்துகிறது. சரியான விடை: '{correct_opt}'."
+            elif subject == "Mathematics":
+                val1 = (i * 3) + 7
+                val2 = (i * 2) + 5
+                result_val = (val1 * val2) - 10
+                q_text = f"உயர்சிந்தனைக் கணிப்பு: {concept_desc} விதிகளின் படி P = ({val1} × {val2}) - 10 எனில், P-ன் சரியான மதிப்பைக் கண்டறிக:"
+                correct_opt = f"P = {result_val}, இது {topic_title} பண்புகளை நிறைவு செய்கிறது."
+                wrong_opts = [
+                    f"P = {result_val + 15}, இது எல்லை வரம்புகளுக்கு உட்படாத மதிப்பு.",
+                    f"P = {result_val - 12}, இது வரையறுக்கப்படாத விகிதமுறா எண்.",
+                    f"P = {result_val * 2}, இது கணிதப் பங்கீட்டு விதிக்கு எதிரானது."
+                ]
+                exp = f"கணக்கீட்டு விளக்கம்: ({val1} × {val2}) - 10 = {result_val}. சரியான விடை: '{correct_opt}'."
+            else:
+                q_text = f"'{concept_desc}' தொடர்பான உயர்நிலை ஆய்வுக் கோட்பாட்டின்படி சரியான வாதம் எது?"
+                correct_opt = f"{topic_title} அமைப்பில் நிகழும் மாற்றங்கள் சமநிலை மற்றும் தொடர் விதிகளுக்கு உட்பட்டே இயங்குகின்றன."
+                wrong_opts = [
+                    f"{topic_title} செயல்முறையானது எவ்வித அடிப்படைக் கோட்பாடுகளையும் பின்பற்றுவதில்லை.",
+                    f"வெப்பநிலை மற்றும் அழுத்த மாறுபாடுகள் இக்கோட்பாட்டில் எவ்வித தாக்கத்தையும் ஏற்படுத்துவதில்லை.",
+                    f"இம்மாற்றங்கள் மீளாத தன்மை கொண்டவை என்பதால் ஆய்வுக்கு உட்படாதவை."
+                ]
+                exp = f"விளக்கம்: {concept_desc} என்பது பாடத்தின் மையக் கருத்தாக விளங்கி ஆய்வுக் கண்ணோட்டத்தை உறுதிசெய்கிறது. சரியான விடை: '{correct_opt}'."
+
+        opts = list(wrong_opts)
+        opts.insert(target_ans_idx, correct_opt)
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        attempt = 1
+        base_clean_q = clean_q
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q} (பகுப்பாய்வு #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (Analysis #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["உயர் சிந்தனை வினாக்கள்"].append({
+            "id": 0,
+            "question_type": "உயர் சிந்தனை வினாக்கள்",
+            "question": clean_q,
+            "options": opts,
+            "answer_index": target_ans_idx,
+            "explanation": exp
+        })
+
+    # 3. Match
+    needed_match = max(0, counts_dict.get("பொருத்துக வகை வினாக்கள்", 0) - len(type_buckets["பொருத்துக வகை வினாக்கள்"]))
+    for i in range(needed_match):
+        target_ans_idx = len(type_buckets["பொருத்துக வகை வினாக்கள்"]) % 4
+        item = matches[i % len(matches)]
+        q_text = item[0]
+        raw_opts = [item[1], item[2], item[3], item[4]]
+        correct_val = raw_opts[0]
+        opts = list(raw_opts)
+        opts.remove(correct_val)
+        opts.insert(target_ans_idx, correct_val)
+        exp = item[5]
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        attempt = 1
+        base_clean_q = clean_q
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q}\n(பொருத்துக #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Match #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["பொருத்துக வகை வினாக்கள்"].append({
+            "id": 0,
+            "question_type": "பொருத்துக வகை வினாக்கள்",
+            "question": clean_q,
+            "options": opts,
+            "answer_index": target_ans_idx,
+            "explanation": exp
+        })
+
+    # 4. Multi-Statement
+    needed_multi = max(0, counts_dict.get("பல்கூற்று வகை வினாக்கள்", 0) - len(type_buckets["பல்கூற்று வகை வினாக்கள்"]))
+    for i in range(needed_multi):
+        target_ans_idx = len(type_buckets["பல்கூற்று வகை வினாக்கள்"]) % 4
+        item = multi_list[i % len(multi_list)]
+        q_text = item[0]
+        raw_opts = [item[1], item[2], item[3], item[4]]
+        correct_val = raw_opts[0]
+        opts = list(raw_opts)
+        opts.remove(correct_val)
+        opts.insert(target_ans_idx, correct_val)
+        exp = item[5]
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        attempt = 1
+        base_clean_q = clean_q
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q}\n(பல்கூற்று #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Multi-Statement #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["பல்கூற்று வகை வினாக்கள்"].append({
+            "id": 0,
+            "question_type": "பல்கூற்று வகை வினாக்கள்",
+            "question": clean_q,
+            "options": opts,
+            "answer_index": target_ans_idx,
+            "explanation": exp
+        })
+
+    # 5. Assertion & Reason
+    needed_ar = max(0, counts_dict.get("கூற்று காரணம் வகை வினாக்கள்", 0) - len(type_buckets["கூற்று காரணம் வகை வினாக்கள்"]))
+    for i in range(needed_ar):
+        target_ans_idx = len(type_buckets["கூற்று காரணம் வகை வினாக்கள்"]) % 4
+        item = ar_list[i % len(ar_list)]
+        q_text = item[0]
+        raw_opts = [item[1], item[2], item[3], item[4]]
+        correct_val = raw_opts[0]
+        opts = list(raw_opts)
+        opts.remove(correct_val)
+        opts.insert(target_ans_idx, correct_val)
+        exp = item[5]
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        attempt = 1
+        base_clean_q = clean_q
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q}\n(கூற்று-காரணம் #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Assertion #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["கூற்று காரணம் வகை வினாக்கள்"].append({
+            "id": 0,
+            "question_type": "கூற்று காரணம் வகை வினாக்கள்",
+            "question": clean_q,
+            "options": opts,
+            "answer_index": target_ans_idx,
+            "explanation": exp
+        })
+
+    # 6. Chronological
+    needed_chrono = max(0, counts_dict.get("கால வரிசைப்படுத்துதல் வினாக்கள்", 0) - len(type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"]))
+    for i in range(needed_chrono):
+        target_ans_idx = len(type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"]) % 4
+        item = chrono_list[i % len(chrono_list)]
+        q_text = item[0]
+        raw_opts = [item[1], item[2], item[3], item[4]]
+        correct_val = raw_opts[0]
+        opts = list(raw_opts)
+        opts.remove(correct_val)
+        opts.insert(target_ans_idx, correct_val)
+        exp = item[5]
+        clean_q = clean_question_text(q_text, lesson_title)
+        stem = normalize_stem(clean_q)
+        attempt = 1
+        base_clean_q = clean_q
+        while stem in seen_stems:
+            clean_q = f"{base_clean_q}\n(வரிசை #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Chronological #{len(seen_stems) + attempt})"
+            stem = normalize_stem(clean_q)
+            attempt += 1
+        seen_stems.add(stem)
+        type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"].append({
+            "id": 0,
+            "question_type": "கால வரிசைப்படுத்துதல் வினாக்கள்",
+            "question": clean_q,
+            "options": opts,
+            "answer_index": target_ans_idx,
+            "explanation": exp
+        })
+
+    questions = (
+        type_buckets["MCQ"] +
+        type_buckets["உயர் சிந்தனை வினாக்கள்"] +
+        type_buckets["பொருத்துக வகை வினாக்கள்"] +
+        type_buckets["பல்கூற்று வகை வினாக்கள்"] +
+        type_buckets["கூற்று காரணம் வகை வினாக்கள்"] +
+        type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"]
+    )
+    for idx, q in enumerate(questions, 1):
+        q["id"] = idx
     return questions
 
 

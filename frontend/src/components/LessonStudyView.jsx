@@ -20,11 +20,11 @@ import { fetchApi, getEmbedYoutubeUrl } from "../api";
 import { translations } from "../translations";
 import { downloadQuizAsPdf } from "../utils/pdfExport";
 
-export default function LessonStudyView({ lessonId, user, onBack, lang = "en" }) {
+export default function LessonStudyView({ lessonId, user, onBack, lang = "en", initialStage = 1 }) {
   const [lessonData, setLessonData] = useState(null);
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeStage, setActiveStage] = useState(1);
+  const [activeStage, setActiveStage] = useState(Number(initialStage) || 1);
 
   const [isVideoModal, setIsVideoModal] = useState(false);
 
@@ -43,6 +43,29 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   const [countdownStr, setCountdownStr] = useState("");
 
   const t = translations[lang] || translations.en;
+
+  const cleanQuestionStem = (text) => {
+    if (!text) return "";
+    let s = String(text);
+    // Strip control characters (which cause tofu / empty box symbols)
+    s = s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, "");
+    // Fix rogue newlines between Tamil characters
+    s = s.replace(/([\u0B80-\u0BFF])\s*\n\s*([\u0B80-\u0BFF])/g, "$1$2");
+    // Fix spaces before pulli or vowel signs
+    s = s.replace(/\s+([\u0BCD\u0BBE-\u0BCC])/g, "$1");
+    // Remove repetitive boilerplate prefixes requested by user
+    s = s.replace(/^(?:கீழ்க்கண்ட|கீழ்கண்ட|பின்வரும்)\s*கூற்றுகளு(?:ள்|ளில்)\s*(?:எது|எவை)\s*பாடப்புத்தகத்?\s*தகவல்களின்படி\s*(?:சரியான\s*)?(?:கொள்குறி\s*)?விடையாகும்\??\s*(?:\n*தகவல்\s*பகுதி\s*:\s*['"]?)?/i, "");
+    s = s.replace(/^(?:தகவல்\s*பகுதி|தகவலின்படி)\s*:\s*['"]?/i, "");
+    s = s.replace(/^(?:Which of the following (?:concepts|statements|facts|ideas)\s+(?:is|are)\s+(?:directly\s+)?(?:supported|verified|stated)\s+(?:by|in)\s+the\s+(?:uploaded\s+)?(?:lesson|textbook)?\s*material\??\s*(?:\n*Statement Context\s*:\s*['"]?)?)/i, "");
+    s = s.replace(/^Statement Context\s*:\s*['"]?/i, "");
+    s = s.replace(/^(?:உயர்\s*சிந்தனை\s*வினா\s*(?:\(HOTS\))?\s*[-:]\s*(?:பின்வரும்|கீழ்க்கண்ட)?\s*கருத்தை\s*(?:ஆழமாகப்\s*)?பகுப்பாய்வு\s*செய்க\s*[:\n]*)/i, "");
+    s = s.replace(/^(?:Analytical\s*&\s*Higher\s*Order\s*Thinking\s*\(HOTS\)\s*[-:]\s*Analyze\s*the\s*following\s*concept\s*[:\n]*)/i, "");
+    s = s.replace(/\n*பாடத்தின்\s*மையக்\s*கோட்பாட்டோடு\s*மிகவும்\s*பொருந்தும்\s*முடிவு\s*எது\??/g, "");
+    s = s.replace(/\n*Which\s*analytical\s*deduction\s*is\s*most\s*accurate\??/g, "");
+    s = s.replace(/^\s*●\s*/, "");
+    s = s.replace(/\.\.\.['"]?$/, ".");
+    return s.trim();
+  };
 
   useEffect(() => {
     loadLessonDetails();
@@ -114,10 +137,15 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
       setLessonData(res.lesson);
       setProgress(res.progress);
 
-      if (!res.progress.stage1_pdf) setActiveStage(1);
-      else if (!res.progress.stage2_video) setActiveStage(2);
-      else if (!res.progress.stage3_questions) setActiveStage(3);
-      else setActiveStage(4);
+      const requestedStage = Number(initialStage);
+      if (requestedStage && [1, 2, 3, 4].includes(requestedStage)) {
+        setActiveStage(requestedStage);
+      } else {
+        if (!res.progress.stage1_pdf) setActiveStage(1);
+        else if (!res.progress.stage2_video) setActiveStage(2);
+        else if (!res.progress.stage3_questions) setActiveStage(3);
+        else setActiveStage(4);
+      }
     } catch (err) {
       console.error("Lesson details error:", err);
     } finally {
@@ -180,7 +208,8 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   const handleStartTest = async () => {
     setTestLoading(true);
     try {
-      const res = await fetchApi(`/learning/lesson/${lessonId}/generate-test`, {
+      const email = user ? user.email : "candidate@tet.com";
+      const res = await fetchApi(`/learning/lesson/${lessonId}/generate-test?user_email=${encodeURIComponent(email)}`, {
         method: "POST"
       });
       if (!res || !Array.isArray(res.questions) || res.questions.length === 0) {
@@ -266,6 +295,11 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
   const questionsDone = progress?.stage3_questions;
   const testDone = progress?.stage4_test;
 
+  const isDirect = Boolean(initialStage && [1, 2, 3, 4].includes(Number(initialStage)));
+  const canAccessStage2 = isDirect || pdfDone;
+  const canAccessStage3 = isDirect || videoDone;
+  const canAccessStage4 = isDirect || questionsDone;
+
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-4 sm:space-y-6 animate-fade-in text-[#071c38]">
       
@@ -329,10 +363,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
 
         {/* STAGE 2: VIDEO */}
         <button
-          onClick={() => pdfDone && setActiveStage(2)}
-          disabled={!pdfDone}
+          onClick={() => canAccessStage2 && setActiveStage(2)}
+          disabled={!canAccessStage2}
           className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative card-interactive min-h-[92px] ${
-            !pdfDone
+            !canAccessStage2
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 2
               ? "bg-[#00a651] text-white border-[#00a651] shadow-md scale-[1.01]"
@@ -343,7 +377,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 2 • VIDEO</span>
-            {!pdfDone ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : videoDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <Video className="w-5 h-5 shrink-0" />}
+            {!canAccessStage2 ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : videoDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <Video className="w-5 h-5 shrink-0" />}
           </div>
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage2Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage2Desc}</span>
@@ -351,10 +385,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
 
         {/* STAGE 3: QUESTIONS */}
         <button
-          onClick={() => videoDone && setActiveStage(3)}
-          disabled={!videoDone}
+          onClick={() => canAccessStage3 && setActiveStage(3)}
+          disabled={!canAccessStage3}
           className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative card-interactive min-h-[92px] ${
-            !videoDone
+            !canAccessStage3
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 3
               ? "bg-[#ff7a00] text-white border-[#ff7a00] shadow-md scale-[1.01]"
@@ -365,7 +399,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 3 • PRACTICE</span>
-            {!videoDone ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : questionsDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <HelpCircle className="w-5 h-5 shrink-0" />}
+            {!canAccessStage3 ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : questionsDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <HelpCircle className="w-5 h-5 shrink-0" />}
           </div>
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage3Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage3Desc}</span>
@@ -373,10 +407,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
 
         {/* STAGE 4: QUIZ / TEST */}
         <button
-          onClick={() => questionsDone && setActiveStage(4)}
-          disabled={!questionsDone}
+          onClick={() => canAccessStage4 && setActiveStage(4)}
+          disabled={!canAccessStage4}
           className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative card-interactive min-h-[92px] ${
-            !questionsDone
+            !canAccessStage4
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 4
               ? !lessonData?.is_stage4_locked_by_time
@@ -391,7 +425,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 4 • QUIZ (≥80%)</span>
-            {!questionsDone ? (
+            {!canAccessStage4 ? (
               <Lock className="w-4 h-4 text-slate-400 shrink-0" />
             ) : testDone ? (
               <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -574,8 +608,8 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                         </span>
                       </div>
 
-                      <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line">
-                        {q.question}
+                      <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line tamil-content">
+                        {cleanQuestionStem(q.question)}
                       </h4>
 
                       {/* Options in 2 columns: A & B on line 1, C & D on line 2 */}
@@ -770,8 +804,8 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                             </span>
                           </div>
 
-                          <h5 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line">
-                            {item.question}
+                          <h5 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line tamil-content">
+                            {cleanQuestionStem(item.question)}
                           </h5>
 
                           {item.options && item.options.length > 0 && (
@@ -944,8 +978,8 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en" })
                         </span>
                       </div>
 
-                      <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line">
-                        {q.question}
+                      <h4 className="text-sm sm:text-base font-bold text-[#061b36] leading-relaxed whitespace-pre-line tamil-content">
+                        {cleanQuestionStem(q.question)}
                       </h4>
 
                       {/* Options in 2 columns: A & B on line 1, C & D on line 2 */}

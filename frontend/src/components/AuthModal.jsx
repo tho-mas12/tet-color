@@ -575,37 +575,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, lang = "en" 
         ) : (
           /* ================= MAIN SIGN IN / REGISTER FORM ================= */
           <>
-            {/* CLEAN TAB SWITCHER: SIGN IN / REGISTER */}
-            <div className="flex items-center p-1 bg-slate-100 rounded-2xl mb-4 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(true);
-                  setError("");
-                }}
-                className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
-                  isLogin
-                    ? "bg-white text-[#0055ff] shadow-xs font-black"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {t.loginBtn ? (isTa ? "உள்நுழைவு (Sign In)" : "Sign In") : "Sign In"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(false);
-                  setError("");
-                }}
-                className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
-                  !isLogin
-                    ? "bg-white text-[#0055ff] shadow-xs font-black"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {t.registerBtn ? (isTa ? "புதிய பதிவு (Register)" : "Register") : "Register"}
-              </button>
-            </div>
 
             {/* OFFICIAL GOOGLE IDENTITY SERVICES BUTTON (Like izon.frontierwox.in) */}
             <div className="mb-4">

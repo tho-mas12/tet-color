@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { fetchApi } from "../api";
 
-export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
+export default function HomePage({ onOpenLogin, onOpenRegister, onNavigateMaterials, lang = "en" }) {
   const isTa = lang === "ta";
 
   // Real-time Active Students Statistics
@@ -134,6 +134,16 @@ export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
                 <UserCheck className="w-5 h-5 text-[#0055ff]" />
                 <span>{isTa ? "இலவச பதிவு (Register Free)" : "Register Free Account"}</span>
               </button>
+
+              {onNavigateMaterials && (
+                <button
+                  onClick={onNavigateMaterials}
+                  className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-98"
+                >
+                  <BookOpen className="w-4 h-4 text-emerald-700" />
+                  <span>{isTa ? "பாடப்புத்தகங்கள் (1–12)" : "Download All Books (1–12)"}</span>
+                </button>
+              )}
             </div>
 
             {/* Academic Credential Bar */}
@@ -454,7 +464,10 @@ export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
             </div>
 
             <button
-              onClick={onOpenLogin}
+              onClick={() => {
+                sessionStorage.setItem("intended_redirect", "/course/tet-1");
+                onOpenLogin();
+              }}
               className="w-full py-3 rounded-2xl bg-[#061b36] hover:bg-[#0055ff] text-white font-bold text-xs transition cursor-pointer flex items-center justify-center space-x-2"
             >
               <span>{isTa ? "தாள் 1 பாடங்களைத் திறக்க உள்நுழைக" : "Login to Access Paper 1"}</span>
@@ -491,7 +504,10 @@ export default function HomePage({ onOpenLogin, onOpenRegister, lang = "en" }) {
             </div>
 
             <button
-              onClick={onOpenLogin}
+              onClick={() => {
+                sessionStorage.setItem("intended_redirect", "/course/tet-2");
+                onOpenLogin();
+              }}
               className="w-full py-3 rounded-2xl bg-[#061b36] hover:bg-emerald-600 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center space-x-2"
             >
               <span>{isTa ? "தாள் 2 பாடங்களைத் திறக்க உள்நுழைக" : "Login to Access Paper 2"}</span>

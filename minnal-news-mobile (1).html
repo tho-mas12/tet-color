@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#ff5722">
+    <meta name="description" content="மின்னல் செய்திகள் - தமிழக மற்றும் உலக செய்திகள் நேரலை">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>⚡ மின்னல் செய்திகள்</title>
+    <link rel="manifest" href="data:application/json,{%22name%22:%22%E0%AE%AE%E0%AE%BF%E0%AE%A9%E0%AF%8D%E0%AE%A9%E0%AE%B2%20%E0%AE%9A%E0%AF%86%E0%AE%AF%E0%AF%8D%E0%AE%A4%E0%AE%BF%E0%AE%95%E0%AE%B3%E0%AF%8D%22,%22short_name%22:%22%E0%AE%AE%E0%AE%BF%E0%AE%A9%E0%AF%8D%E0%AE%A9%E0%AE%B2%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230a0a0a%22,%22theme_color%22:%22%23ff5722%22,%22icons%22:[{%22src%22:%22https://via.placeholder.com/192/ff5722/ffffff?text=%E2%9A%A1%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22},{%22src%22:%22https://via.placeholder.com/512/ff5722/ffffff?text=%E2%9A%A1%22,%22sizes%22:%22512x512%22,%22type%22:%22image/png%22}]}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Noto Sans Tamil', sans-serif; background: #0a0a0a; color: #fff; overflow: hidden; height: 100vh; width: 100vw; }
+        .phone-container { width: 100%; height: 100vh; margin: 0 auto; background: #0a0a0a; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+        /* On real phones (<=560px) the app fills the entire screen edge-to-edge.
+           On wider windows (tablets/desktop browsers used for testing) it keeps a phone-frame look. */
+        @media (min-width: 561px) {
+            .phone-container { max-width: 480px; box-shadow: 0 0 40px rgba(0,0,0,0.6); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+        }
+
+        /* Top Bar – one line */
+        .top-bar {
+            padding: calc(6px + env(safe-area-inset-top)) 10px 6px;
+            display: flex;
+            align-items: center;
+            background: rgba(0,0,0,0.9);
+            position: absolute; top: 0; left: 0; right: 0;
+            z-index: 50;
+            backdrop-filter: blur(12px);
+            gap: 6px;
+            min-height: 44px;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+        .top-bar::-webkit-scrollbar { display: none; }
+        .app-title {
+            font-size: 14px; font-weight: 800; color: #ff5722;
+            white-space: nowrap; flex-shrink: 0;
+            cursor: pointer; user-select: none;
+            display: flex; align-items: center; gap: 4px;
+            padding: 2px 6px; border-radius: 4px;
+        }
+        .app-title:active { background: rgba(255,87,34,0.2); }
+        .filter-btns {
+            display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; align-items: center;
+        }
+        .filter-btn {
+            background: rgba(255,255,255,0.1); color: #ccc;
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 2px 8px; border-radius: 14px; font-size: 11px; font-weight: 600;
+            cursor: pointer; white-space: nowrap; font-family: inherit; line-height: 1.5;
+        }
+        .filter-btn.active { background: #ff5722; color: #fff; border-color: #ff5722; }
+        .refresh-btn, .admin-plus-btn, .admin-delete-btn {
+            width: 28px; height: 28px; border-radius: 50%; border: none;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; cursor: pointer; flex-shrink: 0;
+            font-family: inherit; transition: transform 0.2s;
+        }
+        .refresh-btn { background: linear-gradient(135deg, #ff5722, #e64a19); color: #fff; box-shadow: 0 2px 8px rgba(255,87,34,0.4); }
+        .refresh-btn:active { transform: scale(0.92); }
+        .refresh-btn.spinning { animation: spin 1s linear infinite; }
+        .admin-plus-btn { background: #43a047; color: #fff; display: none; }
+        .admin-delete-btn { background: #d32f2f; color: #fff; display: none; }
+        .admin-plus-btn.show, .admin-delete-btn.show { display: flex; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Scroll container */
+        .news-scroll-container {
+            flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory;
+            -webkit-overflow-scrolling: touch; scrollbar-width: none;
+            padding-top: calc(44px + env(safe-area-inset-top));
+        }
+        .news-scroll-container::-webkit-scrollbar { display: none; }
+
+        /* News Card – GROK inspired */
+        .news-card {
+            width: 100%; height: 100vh; min-height: 100vh;
+            scroll-snap-align: start;
+            display: flex; flex-direction: column;
+            background: #111; overflow: hidden;
+        }
+        .image-section { width: 100%; height: 50vh; background: #1a1a1a; position: relative; overflow: hidden; }
+        .news-image { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+        .image-overlay {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 50%; background: linear-gradient(to top, rgba(17,17,17,1), transparent);
+            pointer-events: none;
+        }
+        .content-section { flex: 1; padding: 16px 18px calc(18px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; justify-content: space-between; background: #111; }
+        .news-title { font-size: 18px; font-weight: 700; line-height: 1.4; color: #fff; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        /* ✅ 12-line summary – guaranteed */
+        .news-description {
+            font-size: 14px; color: #ccc; line-height: 1.6; text-align: justify;
+            display: -webkit-box;
+            display: box;
+            -webkit-line-clamp: 12;
+            line-clamp: 12;
+            -webkit-box-orient: vertical;
+            box-orient: vertical;
+            overflow: hidden;
+            max-height: calc(1.6em * 12); /* fallback for browsers without line-clamp */
+            margin-bottom: 12px;
+        }
+        .read-full-link {
+            color: #4fc3f7; font-weight: 700; font-size: 13px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px;
+            border: none; background: none; font-family: inherit; padding: 4px 0;
+        }
+        .read-full-link:hover { color: #81d4fa; }
+        /* ✅ Bottom card menu — locked to a single line on every screen width */
+        .news-footer {
+            display: flex; align-items: center;
+            padding-top: 12px; border-top: 1px solid #2a2a2a; flex-wrap: nowrap; gap: 6px;
+        }
+        .time-ago {
+            font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 4px;
+            flex: 1 1 auto; min-width: 0; overflow: hidden;
+        }
+        .time-ago .time-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .page-count { font-size: 12px; color: #ffab91; background: rgba(255,87,34,0.15); padding: 2px 8px; border-radius: 12px; font-weight: 700; flex-shrink: 0; }
+        .action-area { display: flex; align-items: center; gap: 6px; position: relative; flex-shrink: 0; }
+        .share-btn {
+            background: #25D366; color: #fff; border: none; padding: 4px 12px; border-radius: 16px;
+            font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;
+            font-family: inherit; flex-shrink: 0; white-space: nowrap;
+        }
+        @media (max-width: 340px) {
+            .share-btn { padding: 4px 8px; }
+            .share-btn .share-label { display: none; }
+            .nav-arrow { width: 28px; height: 28px; font-size: 12px; }
+            .action-area { gap: 4px; }
+        }
+        .share-menu {
+            display: none; position: absolute; bottom: 36px; right: 0;
+            background: #1e1e1e; border: 1px solid #333; border-radius: 12px; padding: 6px;
+            min-width: 140px; flex-direction: column; gap: 4px; z-index: 60;
+        }
+        .share-menu.show { display: flex; }
+        .share-option {
+            display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px;
+            color: #fff; font-size: 12px; font-weight: 600; cursor: pointer;
+            border: none; background: transparent; width: 100%; text-align: left; font-family: inherit;
+        }
+        .share-option:hover { background: rgba(255,255,255,0.08); }
+        .share-option.wa { color: #25D366; } .share-option.fb { color: #1877F2; } .share-option.ig { color: #E4405F; } .share-option.dl { color: #ffab40; }
+        .nav-arrows { display: flex; gap: 4px; }
+        .nav-arrow {
+            width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 13px; font-family: inherit;
+        }
+        .nav-arrow:active { background: rgba(255,87,34,0.6); }
+        .nav-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* Full News Overlay */
+        .full-news-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0a0a0a; z-index: 1000; display: none; flex-direction: column;
+            animation: slideUp 0.35s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(60px); opacity: 0; } }
+        .full-news-overlay.closing { animation: slideDown 0.3s ease forwards; }
+        .overlay-header {
+            background: rgba(20,20,20,0.95); padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #333; backdrop-filter: blur(20px);
+            position: sticky; top: 0; z-index: 10;
+        }
+        .overlay-source { font-size: 14px; font-weight: 700; color: #ff5722; display: flex; align-items: center; gap: 6px; }
+        .close-btn { background: #ff5722; color: #fff; border: none; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-family: inherit; }
+        .overlay-body { flex: 1; overflow-y: auto; }
+        .overlay-image-container { width: 100%; height: 240px; background: #000; position: relative; overflow: hidden; }
+        .overlay-image { width: 100%; height: 100%; object-fit: cover; }
+        .overlay-image-gradient { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(to top, #0a0a0a, transparent); }
+        .overlay-content { padding: 20px 18px 30px; }
+        .overlay-title { font-size: 22px; font-weight: 800; line-height: 1.3; color: #fff; margin-bottom: 12px; }
+        .overlay-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+        .overlay-source-tag { background: #ff5722; color: #fff; padding: 3px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+        .overlay-time { color: #888; font-size: 12px; display: flex; align-items: center; gap: 4px; }
+        .overlay-text { font-size: 15px; color: #e0e0e0; line-height: 1.8; text-align: justify; white-space: pre-line; }
+        .overlay-text p { margin-bottom: 14px; }
+
+        /* Loading, Toast, etc. */
+        .loading-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0a0a0a; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 2000;
+            transition: opacity 0.4s;
+        }
+        .loading-screen.hidden { opacity: 0; pointer-events: none; }
+        .loading-spinner { width: 44px; height: 44px; border: 3px solid #333; border-top-color: #ff5722; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
+        .loading-text { color: #ccc; font-size: 15px; font-weight: 600; }
+        .loading-subtext { color: #666; font-size: 12px; margin-top: 6px; }
+
+        .error-toast {
+            position: fixed; bottom: 70px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #d32f2f; color: #fff; padding: 10px 20px; border-radius: 10px;
+            font-size: 13px; font-weight: 600; z-index: 1500;
+            opacity: 0; transition: all 0.35s; max-width: 90%; text-align: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+        .error-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .error-toast.success { background: #2e7d32; }
+
+        .page-indicator {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 6px; z-index: 40; pointer-events: none;
+        }
+        .page-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.25); transition: all 0.3s; }
+        .page-dot.active { background: #ff5722; height: 18px; border-radius: 3px; }
+
+        .admin-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 1200;
+            display: none; align-items: center; justify-content: center; padding: 16px;
+        }
+        .admin-modal.show { display: flex; }
+        .admin-form {
+            background: #1a1a1a; border-radius: 16px; padding: 20px;
+            width: 100%; max-width: 380px; max-height: 90vh; overflow-y: auto;
+            border: 1px solid #333;
+        }
+        .admin-form h3 { color: #ff5722; margin-bottom: 14px; font-size: 17px; }
+        .admin-form label { display: block; font-size: 12px; color: #aaa; margin-bottom: 3px; margin-top: 10px; }
+        .admin-form input, .admin-form textarea, .admin-form select {
+            width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #444;
+            background: #111; color: #fff; font-size: 14px; font-family: inherit;
+        }
+        .admin-form textarea { min-height: 70px; resize: vertical; }
+        .admin-actions { display: flex; gap: 10px; margin-top: 18px; }
+        .admin-actions button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; font-family: inherit; }
+        .btn-save { background: #ff5722; color: #fff; }
+        .btn-cancel { background: #333; color: #ccc; }
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666; text-align: center; padding: 40px 20px; }
+        .empty-state i { font-size: 40px; margin-bottom: 12px; color: #444; }
+
+        /* ✅ FULL SCREEN DISPLAY IMAGE */
+        .image-expand-btn {
+            position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%;
+            background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.3); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-size: 13px;
+            cursor: pointer; z-index: 5;
+        }
+        .fullscreen-image-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.97); z-index: 3000; display: none;
+            align-items: center; justify-content: center;
+        }
+        .fullscreen-image-overlay.show { display: flex; }
+        .fullscreen-image-overlay img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .fullscreen-close-btn {
+            position: absolute; top: calc(14px + env(safe-area-inset-top)); right: 16px;
+            width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.15);
+            border: none; color: #fff; font-size: 16px; display: flex; align-items: center;
+            justify-content: center; cursor: pointer; z-index: 5;
+        }
+        .admin-img-preview { display: none; width: 100%; border-radius: 8px; margin-top: 8px; max-height: 160px; object-fit: cover; }
+        .admin-file-hint { font-size: 11px; color: #666; margin-top: 4px; }
+
+        @media (max-height: 700px) {
+            .image-section { height: 42vh; }
+            .news-title { font-size: 16px; }
+            .news-description { font-size: 13px; max-height: calc(1.6em * 10); -webkit-line-clamp: 10; line-clamp: 10; }
+            .overlay-image-container { height: 180px; }
+            .overlay-title { font-size: 19px; }
+        }
+        @media (min-height: 850px) {
+            .news-title { font-size: 20px; }
+            .news-description { font-size: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">செய்திகள் ஏற்றப்படுகின்றன...</div>
+        <div class="loading-subtext" id="loading-subtext">இன்றைய செய்திகள்</div>
+    </div>
+    <div class="phone-container">
+        <div class="top-bar">
+            <div class="app-title" id="app-title"><i class="fas fa-bolt"></i> மின்னல் செய்திகள்</div>
+            <div class="filter-btns">
+                <button class="filter-btn active" id="btn-all" onclick="setFilter('all')">ALL News</button>
+                <button class="filter-btn" id="btn-edu" onclick="setFilter('education')">கல்வி</button>
+                <button class="refresh-btn" id="refresh-btn" onclick="refreshNews()" title="புதுப்பிக்க"><i class="fas fa-sync-alt"></i></button>
+                <button class="admin-plus-btn" id="admin-plus-btn" onclick="openAdminForm()" title="சேர்"><i class="fas fa-plus"></i></button>
+                <button class="admin-delete-btn" id="admin-delete-btn" onclick="deleteCurrentNews()" title="நீக்கு"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+        <div class="news-scroll-container" id="scroll-box"></div>
+        <div class="page-indicator" id="page-indicator"></div>
+    </div>
+
+    <!-- Full News Overlay -->
+    <div class="full-news-overlay" id="news-overlay">
+        <div class="overlay-header">
+            <span class="overlay-source" id="overlay-source"><i class="fas fa-newspaper"></i> <span id="overlay-source-text">செய்தி நிறுவனம்</span></span>
+            <button class="close-btn" onclick="closeFullNews()"><i class="fas fa-times"></i> மூடு</button>
+        </div>
+        <div class="overlay-body">
+            <div class="overlay-image-container" id="overlay-media">
+                <img class="overlay-image" id="overlay-img" src="" alt="Full Image" style="cursor:zoom-in" onclick="openFullScreenImage(this.src)">
+                <div class="overlay-image-gradient"></div>
+            </div>
+            <div class="overlay-content">
+                <h1 class="overlay-title" id="overlay-title">தலைப்பு</h1>
+                <div class="overlay-meta">
+                    <span class="overlay-source-tag" id="overlay-tag">ஆதாரம்</span>
+                    <span class="overlay-time" id="overlay-time"><i class="far fa-clock"></i> <span></span></span>
+                </div>
+                <div class="overlay-text" id="overlay-text">முழு விவரம்...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Modal -->
+    <div class="admin-modal" id="admin-modal">
+        <div class="admin-form">
+            <h3><i class="fas fa-plus-circle"></i> புதிய செய்தி</h3>
+            <label>தலைப்பு *</label>
+            <input type="text" id="admin-title" placeholder="தலைப்பு">
+            <label>சுருக்கம்</label>
+            <textarea id="admin-desc" placeholder="சுருக்க விளக்கம்"></textarea>
+            <label>முழு செய்தி</label>
+            <textarea id="admin-full" placeholder="முழு விவரம்"></textarea>
+            <label>மூலம்</label>
+            <input type="text" id="admin-source" placeholder="எ.கா. தினமலர்" value="அட்மின்">
+            <label>படம் தேர்வு செய்யவும் (கம்பியூட்டர் / மொபைல்)</label>
+            <input type="file" id="admin-img-file" accept="image/*" onchange="previewAdminImage(event)">
+            <div class="admin-file-hint">படத்தைத் தேர்ந்தெடுத்தவுடன் Drive-இல் சேமிக்கப்படும்</div>
+            <img class="admin-img-preview" id="admin-img-preview" alt="Preview">
+            <label>வகை</label>
+            <select id="admin-cat">
+                <option value="general">பொது</option>
+                <option value="education">கல்வி</option>
+                <option value="politics">அரசியல்</option>
+                <option value="sports">விளையாட்டு</option>
+                <option value="technology">தொழில்நுட்பம்</option>
+                <option value="entertainment">சினிமா</option>
+                <option value="health">சுகாதாரம்</option>
+                <option value="weather">வானிலை</option>
+                <option value="business">வணிகம்</option>
+            </select>
+            <div class="admin-actions">
+                <button class="btn-cancel" onclick="closeAdminForm()">ரத்து</button>
+                <button class="btn-save" onclick="saveAdminNews()">சேமி</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ FULL SCREEN DISPLAY IMAGE -->
+    <div class="fullscreen-image-overlay" id="fullscreen-image-overlay" onclick="closeFullScreenImage(event)">
+        <button class="fullscreen-close-btn" onclick="closeFullScreenImage(event)"><i class="fas fa-times"></i></button>
+        <img id="fullscreen-image-el" src="" alt="முழுத்திரைப் படம்">
+    </div>
+
+    <div class="error-toast" id="error-toast"></div>
+
+    <script>
+        // ================================================================
+        // CONFIG (Replace with your actual Apps Script URL)
+        // ================================================================
+        const DRIVE_API = 'https://script.google.com/macros/s/AKfycbxMexRa77406z3_CmqK55FPxeP9QHkbJDmCgC1A7eA2omJ8MJDwJ8t_GKs-grA9DpgvkA/exec';
+        const API_ACTION = '?action=news&_=';
+        const SYNC_ACTION = '?action=sync&_=';
+        const STATUS_ACTION = '?action=status&_=';
+
+        let newsData = [];
+        let filteredData = [];
+        let currentFilter = 'all';
+        let currentScrollIndex = 0;
+        let isRefreshing = false;
+        let displayTimer = null;
+        let statusPollTimer = null;
+
+        // Admin state
+        let adminMode = false;
+        let adminPassword = '';
+        let titleClickCount = 0;
+        let titleClickTimer = null;
+        let adminImageBase64 = '';
+        let adminImageMime = '';
+
+        const loadingScreen = document.getElementById('loading-screen');
+        const scrollBox = document.getElementById('scroll-box');
+
+        // ================================================================
+        // HELPER FUNCTIONS
+        // ================================================================
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function indiaDateKey(value) {
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return '';
+            return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+        }
+
+        function formatExactTime(value) {
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return 'நேரம் தெரியவில்லை';
+            return new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(d).toLowerCase();
+        }
+
+        function formatDateShort(value) {
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return '';
+            return new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
+        }
+
+        function normalizeTitle(title) {
+            return String(title || '').toLowerCase().replace(/[^஀-௿a-z0-9\s]/gi, '').replace(/\s+/g, ' ').trim().substring(0, 120);
+        }
+
+        function normalizeLink(url) {
+            if (!url || url === '#') return '';
+            try {
+                const u = new URL(url);
+                ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'ocid', 'at_medium', 'at_campaign', '_gl'].forEach(k => u.searchParams.delete(k));
+                u.hash = '';
+                return u.toString().replace(/\/+$/, '').toLowerCase();
+            } catch (_) {
+                return String(url).trim().toLowerCase().replace(/\/+$/, '');
+            }
+        }
+
+        function titleSimilarity(a, b) {
+            const aa = new Set(normalizeTitle(a).split(' ').filter(Boolean));
+            const bb = new Set(normalizeTitle(b).split(' ').filter(Boolean));
+            if (!aa.size || !bb.size) return 0;
+            let common = 0;
+            aa.forEach(w => { if (bb.has(w)) common++; });
+            return { maxRatio: common / Math.max(aa.size, bb.size), minRatio: common / Math.min(aa.size, bb.size) };
+        }
+
+        function isDuplicateNews(news, kept) {
+            const key = normalizeLink(news.link) ? 'url:' + normalizeLink(news.link) : 'title:' + normalizeTitle(news.title);
+            for (const old of kept) {
+                const oldKey = normalizeLink(old.link) ? 'url:' + normalizeLink(old.link) : 'title:' + normalizeTitle(old.title);
+                if (key === oldKey) return true;
+                const a = normalizeTitle(news.title),
+                    b = normalizeTitle(old.title);
+                if (a && b) {
+                    const sim = titleSimilarity(a, b);
+                    if (a === b || sim.maxRatio >= 0.88 || (Math.min(a.split(' ').length, b.split(' ').length) >= 4 && sim.minRatio >= 0.92)) return true;
+                }
+            }
+            return false;
+        }
+
+        function showToast(message, success = false) {
+            const toast = document.getElementById('error-toast');
+            toast.textContent = message;
+            toast.classList.toggle('success', !!success);
+            toast.classList.add('show');
+            clearTimeout(showToast._t);
+            showToast._t = setTimeout(() => toast.classList.remove('show'), 3500);
+        }
+
+        function updateDate() {
+            const text = new Intl.DateTimeFormat('ta-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date());
+            const el = document.getElementById('loading-subtext');
+            if (el) el.textContent = text + ' · Google Drive';
+        }
+
+        function driveConfigured() {
+            return DRIVE_API && !DRIVE_API.includes('PASTE_YOUR_APPS_SCRIPT');
+        }
+
+        function buildUrl(action) {
+            return DRIVE_API.replace(/\/$/, '') + action + Date.now();
+        }
+
+        function stopStatusPoll() {
+            if (statusPollTimer) { clearInterval(statusPollTimer);
+                statusPollTimer = null; }
+        }
+
+        function startStatusPoll() {
+            stopStatusPoll();
+            statusPollTimer = setInterval(async () => {
+                try {
+                    const res = await fetch(buildUrl(STATUS_ACTION), { cache: 'no-store' });
+                    const s = await res.json();
+                    if (s && typeof s.current === 'number' && s.total) {
+                        const label = document.getElementById('loading-subtext');
+                        if (label) label.textContent = `${s.current}/${s.total} சேனல்கள் முடிந்தது${s.channel ? (' · ' + s.channel) : ''}`;
+                    }
+                    if (s && s.done) stopStatusPoll();
+                } catch (e) {}
+            }, 1500);
+        }
+
+        // ================================================================
+        // DATA FETCHING
+        // ================================================================
+        async function fetchNewsPayload(url) {
+            const response = await fetch(url, { method: 'GET', cache: 'no-store' });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const data = await response.json();
+            if (!data || data.ok !== true || !Array.isArray(data.news)) throw new Error(data && data.error ? data.error : 'Drive data invalid');
+            const unique = [];
+            for (const n of data.news) {
+                if (indiaDateKey(n.pubDate) !== indiaDateKey(new Date())) continue;
+                if (!isDuplicateNews(n, unique)) unique.push(n);
+            }
+            unique.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+            newsData = unique;
+            applyFilter();
+            updateDate();
+            return { ok: true, news: newsData, updatedAt: data.updatedAt || '', date: data.date || '' };
+        }
+
+        async function loadFromDrive(showLoader = true) {
+            if (!driveConfigured()) {
+                renderSetupMessage();
+                return { ok: false, news: [] };
+            }
+            if (showLoader) loadingScreen.classList.remove('hidden');
+            try {
+                return await fetchNewsPayload(buildUrl(API_ACTION));
+            } catch (e) {
+                console.error('Drive read failed', e);
+                if (!newsData.length) renderErrorMessage('Google Drive செய்திகளைப் பெற முடியவில்லை.');
+                showToast('Google Drive தரவைப் பெற முடியவில்லை');
+                return { ok: false, news: newsData };
+            } finally {
+                if (showLoader) setTimeout(() => loadingScreen.classList.add('hidden'), 350);
+            }
+        }
+
+        async function syncFromDrive() {
+            if (!driveConfigured()) {
+                renderSetupMessage();
+                return { ok: false, news: [] };
+            }
+            startStatusPoll();
+            try {
+                return await fetchNewsPayload(buildUrl(SYNC_ACTION));
+            } catch (e) {
+                console.error('Drive sync failed', e);
+                showToast('14 சேனல்களையும் Sync செய்ய முடியவில்லை');
+                return { ok: false, news: newsData };
+            } finally {
+                stopStatusPoll();
+            }
+        }
+
+        function renderSetupMessage() {
+            document.getElementById('scroll-box').innerHTML = `<div class="empty-state"><i class="fab fa-google-drive" style="color:#4285f4"></i><p>Google Drive இணைப்பு இன்னும் அமைக்கப்படவில்லை.</p><p style="font-size:12px;margin-top:8px;color:#777">Apps Script Web App URL-ஐ DRIVE_API பகுதியில் சேர்க்கவும்.</p></div>`;
+            loadingScreen.classList.add('hidden');
+        }
+
+        function renderErrorMessage(msg) {
+            document.getElementById('scroll-box').innerHTML = `<div class="empty-state"><i class="fas fa-cloud-exclamation"></i><p>${escapeHtml(msg)}</p><p style="font-size:12px;margin-top:8px;color:#777">சில நிமிடங்களுக்கு பிறகு refresh செய்யவும்.</p></div>`;
+        }
+
+        // ================================================================
+        // RENDERING
+        // ================================================================
+        function getImageUrl(news) { return news.imageUrl || ''; }
+
+        // Builds the card preview text: prefers the full article text (so the
+        // 12-line clamp has enough content to actually fill 12 lines), and
+        // falls back to the short RSS description when full text isn't loaded yet.
+        function previewTextFor(news) {
+            const src = (news.fullText || news.description || '').toString();
+            return src.replace(/\s+/g, ' ').trim();
+        }
+
+        function createNewsCard(news, index, total) {
+            const imgUrl = getImageUrl(news);
+            const safeTitle = escapeHtml(news.title || 'செய்தி');
+            const prevId = index > 0 ? `news-${index}` : null;
+            const nextId = index < total - 1 ? `news-${index + 2}` : null;
+            const shareText = encodeURIComponent(`${news.title}\n\n${news.description || ''}\n\n- மின்னல் செய்திகள்`);
+            const shareUrl = encodeURIComponent(news.link || location.href);
+
+            const imageHtml = imgUrl ?
+                `<img class="news-image" src="${escapeHtml(imgUrl)}" alt="${safeTitle}" loading="lazy" decoding="async" onerror="this.style.opacity='0.3'" onclick="openFullScreenImage('${escapeHtml(imgUrl)}')">
+                 <button class="image-expand-btn" onclick="event.stopPropagation();openFullScreenImage('${escapeHtml(imgUrl)}')" title="முழுத்திரையில் காண"><i class="fas fa-expand"></i></button>` :
+                `<div class="empty-state" style="height:100%;padding:20px"><i class="fas fa-image"></i><p>படம் இல்லை</p></div>`;
+
+            return `<div class="news-card" id="news-${index + 1}" data-index="${index}">
+                <div class="image-section">${imageHtml}<div class="image-overlay"></div></div>
+                <div class="content-section">
+                    <div>
+                        <h2 class="news-title">${safeTitle}</h2>
+                        <p class="news-description" id="desc-${index}">${escapeHtml(previewTextFor(news))}</p>
+                        <button class="read-full-link" onclick="openFullNews(${index})">முழு செய்தியைப் படிக்க <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    <div class="news-footer">
+                        <div class="time-ago"><i class="far fa-clock"></i> <span class="time-text">${escapeHtml(formatDateShort(news.pubDate))} · ${escapeHtml(formatExactTime(news.pubDate))}</span></div>
+                        <span class="page-count">${index + 1}/${total}</span>
+                        <div class="action-area">
+                            <button class="share-btn" onclick="toggleShareMenu(event,${index})"><i class="fas fa-share-alt"></i> <span class="share-label">பகிர்</span></button>
+                            <div class="share-menu" id="share-menu-${index}">
+                                <a class="share-option wa" href="https://wa.me/?text=${shareText}" target="_blank"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+                                <a class="share-option fb" href="https://www.facebook.com/sharer/sharer.php?u=${shareUrl}&quote=${shareText}" target="_blank"><i class="fab fa-facebook"></i> Facebook</a>
+                                <button class="share-option ig" onclick="shareInstagram(${index})"><i class="fab fa-instagram"></i> Instagram</button>
+                                <button class="share-option dl" onclick="downloadNews(${index})"><i class="fas fa-download"></i> Download</button>
+                            </div>
+                            <div class="nav-arrows">
+                                ${prevId ? `<button class="nav-arrow" onclick="scrollToNews('${prevId}')"><i class="fas fa-chevron-left"></i></button>` : `<button class="nav-arrow" disabled><i class="fas fa-chevron-left"></i></button>`}
+                                ${nextId ? `<button class="nav-arrow" onclick="scrollToNews('${nextId}')"><i class="fas fa-chevron-right"></i></button>` : `<button class="nav-arrow" disabled><i class="fas fa-chevron-right"></i></button>`}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function renderNews() {
+            const container = document.getElementById('scroll-box');
+            const indicator = document.getElementById('page-indicator');
+            if (!filteredData.length) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-newspaper"></i><p>இந்த வகையில் இன்று செய்திகள் இல்லை</p><p style="font-size:12px;margin-top:8px;color:#555">Refresh அழுத்தி Drive தரவை மீண்டும் படிக்கவும்.</p></div>';
+                indicator.innerHTML = '';
+                return;
+            }
+            container.innerHTML = filteredData.map((n, i) => createNewsCard(n, i, filteredData.length)).join('');
+            indicator.innerHTML = filteredData.map((_, i) => `<div class="page-dot ${i === 0 ? 'active' : ''}"></div>`).join('');
+            setupPreviewObserver();
+        }
+
+        // ================================================================
+        // BACKGROUND PREVIEW LOADER (fills the 12-line card preview)
+        // Requests are queued and run with limited concurrency to be gentle
+        // on mobile data connections and battery.
+        // ================================================================
+        let previewObserver = null;
+        let previewQueue = [];
+        let activePreviewFetches = 0;
+        const MAX_CONCURRENT_PREVIEWS = 2;
+
+        function setupPreviewObserver() {
+            if (previewObserver) previewObserver.disconnect();
+            previewQueue = [];
+            if (!('IntersectionObserver' in window)) {
+                // Fallback: eagerly load previews for the first few cards.
+                filteredData.slice(0, 3).forEach((_, i) => queuePreviewLoad(i));
+                return;
+            }
+            previewObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const idx = Number(entry.target.dataset.index);
+                        previewObserver.unobserve(entry.target);
+                        queuePreviewLoad(idx);
+                    }
+                });
+            }, { root: scrollBox, rootMargin: '100% 0px 100% 0px', threshold: 0.01 });
+            document.querySelectorAll('.news-card').forEach(card => previewObserver.observe(card));
+        }
+
+        function queuePreviewLoad(index) {
+            if (!previewQueue.includes(index)) previewQueue.push(index);
+            processPreviewQueue();
+        }
+
+        function processPreviewQueue() {
+            while (activePreviewFetches < MAX_CONCURRENT_PREVIEWS && previewQueue.length) {
+                const idx = previewQueue.shift();
+                activePreviewFetches++;
+                loadCardPreview(idx).finally(() => {
+                    activePreviewFetches--;
+                    processPreviewQueue();
+                });
+            }
+        }
+
+        async function loadCardPreview(index) {
+            const n = filteredData[index];
+            if (!n || n._fullTextLoaded || n._previewLoading || !n.link || n.link === '#' || !driveConfigured()) return;
+            // ✅ Drive already has enough full text stored (from an earlier scrape,
+            // or an admin entry) — read it from Drive only, skip the live fetch.
+            if (n.fullText && n.fullText.length >= 400) { n._fullTextLoaded = true; return; }
+            n._previewLoading = true;
+            try {
+                const data = await fetchFullTextFor(n.link);
+                if (data && data.ok && data.fullText && data.fullText.length > (n.description || '').length) {
+                    n.fullText = data.fullText;
+                }
+            } catch (e) {
+                // Keep showing the short description on failure.
+            } finally {
+                n._fullTextLoaded = true;
+                n._previewLoading = false;
+                if (filteredData[index] === n) {
+                    const el = document.getElementById('desc-' + index);
+                    if (el) el.textContent = previewTextFor(n);
+                }
+            }
+        }
+
+        function applyFilter() {
+            filteredData = currentFilter === 'education' ? newsData.filter(n => n.category === 'education') : [...newsData];
+            renderNews();
+        }
+
+        function setFilter(type) {
+            currentFilter = type;
+            document.getElementById('btn-all').classList.toggle('active', type === 'all');
+            document.getElementById('btn-edu').classList.toggle('active', type === 'education');
+            applyFilter();
+            scrollToNewest();
+        }
+
+        function scrollToNewest() {
+            currentScrollIndex = 0;
+            requestAnimationFrame(() => {
+                scrollBox.scrollTop = 0;
+                const first = document.getElementById('news-1');
+                if (first) first.scrollIntoView({ behavior: 'auto', block: 'start' });
+            });
+        }
+
+        function scrollToNews(id) {
+            const el = document.getElementById(id);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function updatePageIndicator() {
+            const index = Math.max(0, Math.round(scrollBox.scrollTop / window.innerHeight));
+            if (index !== currentScrollIndex) {
+                currentScrollIndex = index;
+                document.querySelectorAll('.page-dot').forEach((d, i) => d.classList.toggle('active', i === index));
+            }
+        }
+
+        // ================================================================
+        // SHARE & DOWNLOAD
+        // ================================================================
+        function toggleShareMenu(e, index) {
+            e.stopPropagation();
+            document.querySelectorAll('.share-menu').forEach(m => { if (m.id !== `share-menu-${index}`) m.classList.remove('show'); });
+            const m = document.getElementById(`share-menu-${index}`);
+            if (m) m.classList.toggle('show');
+        }
+        document.addEventListener('click', () => document.querySelectorAll('.share-menu').forEach(m => m.classList.remove('show')));
+
+        function shareInstagram(index) {
+            const n = filteredData[index];
+            if (!n) return;
+            const t = `${n.title}\n\n${n.description || ''}`;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(t).then(() => showToast('Instagram உரை நகலெடுக்கப்பட்டது', true));
+            } else {
+                prompt('நகலெடுக்கவும்:', t);
+            }
+        }
+
+        function downloadNews(index) {
+            const n = filteredData[index];
+            if (!n) return;
+            const text = `மின்னல் செய்திகள்\n\n${n.title}\n\n${n.fullText || n.description || ''}\n\nமூலம்: ${n.source || ''}\n${n.link || ''}`;
+            const a = document.createElement('a');
+            const u = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+            a.href = u;
+            a.download = 'minnal-news.txt';
+            a.click();
+            URL.revokeObjectURL(u);
+        }
+
+        // ================================================================
+        // FULL TEXT (Overlay)
+        // ================================================================
+        function formatFullTextHtml(full) {
+            const raw = String(full || '').trim();
+            if (!raw) return '<p>செய்தி விவரம் கிடைக்கவில்லை.</p>';
+            return raw.split(/\n+/).filter(Boolean).map(p => `<p>${escapeHtml(p)}</p>`).join('');
+        }
+
+        async function fetchFullTextFor(link) {
+            const url = DRIVE_API.replace(/\/$/, '') + '?action=fulltext&url=' + encodeURIComponent(link) + '&_=' + Date.now();
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return await res.json();
+        }
+
+        function openFullNews(index) {
+            const n = filteredData[index];
+            if (!n) return;
+
+            document.getElementById('overlay-source-text').textContent = n.source || 'செய்தி நிறுவனம்';
+            document.getElementById('overlay-tag').textContent = n.source || 'செய்தி நிறுவனம்';
+            document.getElementById('overlay-time').querySelector('span').textContent = formatDateShort(n.pubDate) + ' · ' + formatExactTime(n.pubDate);
+            document.getElementById('overlay-title').textContent = n.title || '';
+
+            const media = document.getElementById('overlay-media');
+            if (n.imageUrl) {
+                media.innerHTML = `<img class="overlay-image" id="overlay-img" src="${escapeHtml(n.imageUrl)}" alt="" style="cursor:zoom-in" onclick="openFullScreenImage('${escapeHtml(n.imageUrl)}')">
+                    <button class="image-expand-btn" onclick="event.stopPropagation();openFullScreenImage('${escapeHtml(n.imageUrl)}')" title="முழுத்திரையில் காண"><i class="fas fa-expand"></i></button>
+                    <div class="overlay-image-gradient"></div>`;
+            } else {
+                media.innerHTML = '<div class="empty-state" style="height:100%"><i class="fas fa-image"></i><p>படம் இல்லை</p></div>';
+            }
+
+            const overlay = document.getElementById('news-overlay');
+            overlay.style.display = 'flex';
+            overlay.classList.remove('closing');
+            document.body.style.overflow = 'hidden';
+
+            const textEl = document.getElementById('overlay-text');
+
+            // ✅ Already loaded, or Drive already has enough full text stored —
+            // show it straight from Drive data without a live fetch.
+            if (n._fullTextLoaded || (n.fullText && n.fullText.length >= 400)) {
+                n._fullTextLoaded = true;
+                textEl.innerHTML = formatFullTextHtml(n.fullText || n.description || '');
+                return;
+            }
+
+            textEl.innerHTML = formatFullTextHtml(n.description || '') +
+                '<p style="color:#888;font-size:13px;display:flex;align-items:center;gap:8px;"><i class="fas fa-spinner fa-spin"></i> முழு செய்தி ஏற்றப்படுகிறது...</p>';
+
+            if (!n.link || n.link === '#' || !driveConfigured()) {
+                n._fullTextLoaded = true;
+                return;
+            }
+
+            fetchFullTextFor(n.link)
+                .then(data => {
+                    if (data && data.ok && data.fullText && data.fullText.length > (n.description || '').length) {
+                        n.fullText = data.fullText;
+                    }
+                    n._fullTextLoaded = true;
+                    if (filteredData[index] === n && document.getElementById('news-overlay').style.display === 'flex') {
+                        textEl.innerHTML = formatFullTextHtml(n.fullText || n.description || '');
+                    }
+                })
+                .catch(() => {
+                    n._fullTextLoaded = true;
+                    if (filteredData[index] === n && document.getElementById('news-overlay').style.display === 'flex') {
+                        textEl.innerHTML = formatFullTextHtml(n.description || '');
+                    }
+                });
+        }
+
+        function closeFullNews() {
+            const o = document.getElementById('news-overlay');
+            o.classList.add('closing');
+            setTimeout(() => {
+                o.style.display = 'none';
+                o.classList.remove('closing');
+                document.body.style.overflow = '';
+            }, 300);
+        }
+
+        // ================================================================
+        // REFRESH (reads Drive cache only)
+        // ================================================================
+        async function refreshNews() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            const btn = document.getElementById('refresh-btn');
+            btn.classList.add('spinning');
+            btn.disabled = true;
+            loadingScreen.classList.remove('hidden');
+            document.getElementById('loading-subtext').textContent = 'Drive லிருந்து சமீபத்திய செய்திகள் ஏற்றப்படுகின்றன...';
+            const result = await loadFromDrive(true);
+            loadingScreen.classList.add('hidden');
+            if (result.ok && result.news.length) {
+                showToast(`${result.news.length} செய்திகள் புதுப்பிக்கப்பட்டன`, true);
+            } else {
+                showToast('Drive இல் புதிய செய்திகள் இல்லை', false);
+            }
+            btn.classList.remove('spinning');
+            btn.disabled = false;
+            isRefreshing = false;
+            scrollToNewest();
+        }
+
+        function startDisplayRefresh() {
+            clearInterval(displayTimer);
+            displayTimer = setInterval(() => loadFromDrive(false), 15 * 60 * 1000);
+        }
+
+        // ================================================================
+        // ADMIN FEATURES
+        // ================================================================
+        document.getElementById('app-title').addEventListener('click', function() {
+            titleClickCount++;
+            clearTimeout(titleClickTimer);
+            titleClickTimer = setTimeout(() => { titleClickCount = 0; }, 500);
+            if (titleClickCount === 3) {
+                titleClickCount = 0;
+                const pass = prompt('🔐 நிர்வாக அணுகலுக்கான கடவுச்சொல்லை உள்ளிடவும்:');
+                if (pass === 'minnal@2026') {
+                    adminMode = true;
+                    adminPassword = pass;
+                    document.getElementById('admin-plus-btn').classList.add('show');
+                    document.getElementById('admin-delete-btn').classList.add('show');
+                    showToast('✅ நிர்வாக பயன்முறை இயக்கப்பட்டது', true);
+                } else if (pass !== null) {
+                    showToast('❌ தவறான கடவுச்சொல்', false);
+                }
+            }
+        });
+
+        function openAdminForm() {
+            if (!adminMode) { showToast('🔒 முதலில் தலைப்பில் 3x கிளிக் செய்து உள்நுழையவும்', false); return; }
+            document.getElementById('admin-modal').classList.add('show');
+        }
+
+        function closeAdminForm() {
+            document.getElementById('admin-modal').classList.remove('show');
+        }
+
+        // ✅ Reads the image chosen from the device (computer/mobile) and keeps
+        // it in memory as base64, ready to upload to the Drive images folder
+        // when the news is submitted. Shows a quick preview to the admin.
+        function previewAdminImage(e) {
+            const file = e.target.files && e.target.files[0];
+            const previewEl = document.getElementById('admin-img-preview');
+            if (!file) { adminImageBase64 = ''; adminImageMime = ''; previewEl.style.display = 'none'; return; }
+            if (!/^image\//i.test(file.type)) {
+                showToast('படக்கோப்பை மட்டும் தேர்வு செய்யவும்', false);
+                e.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function () {
+                const result = String(reader.result || '');
+                const commaIdx = result.indexOf(',');
+                adminImageBase64 = commaIdx >= 0 ? result.substring(commaIdx + 1) : '';
+                adminImageMime = file.type;
+                previewEl.src = result;
+                previewEl.style.display = 'block';
+            };
+            reader.onerror = function () { showToast('படத்தைப் படிக்க முடியவில்லை', false); };
+            reader.readAsDataURL(file);
+        }
+
+        function resetAdminForm() {
+            document.getElementById('admin-title').value = '';
+            document.getElementById('admin-desc').value = '';
+            document.getElementById('admin-full').value = '';
+            document.getElementById('admin-img-file').value = '';
+            const previewEl = document.getElementById('admin-img-preview');
+            previewEl.src = '';
+            previewEl.style.display = 'none';
+            adminImageBase64 = '';
+            adminImageMime = '';
+        }
+
+        // ✅ Uploads the image (if any) + the news text to the Google Drive
+        // backend. The image is stored once in the Drive images folder and
+        // the news item is written into minnal-news.json, so every reader
+        // — including this device on the next load — sees it straight from
+        // Drive, not from local memory.
+        async function saveAdminNews() {
+            if (!adminMode) return;
+            const title = document.getElementById('admin-title').value.trim();
+            const desc = document.getElementById('admin-desc').value.trim();
+            const full = document.getElementById('admin-full').value.trim();
+            const source = document.getElementById('admin-source').value.trim() || 'அட்மின்';
+            const cat = document.getElementById('admin-cat').value;
+            if (!title) { showToast('தலைப்பு கட்டாயம்', false); return; }
+            if (!driveConfigured()) { showToast('Drive இணைப்பு அமைக்கப்படவில்லை', false); return; }
+
+            const saveBtn = document.querySelector('.btn-save');
+            const originalLabel = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'சேமிக்கிறது...';
+
+            try {
+                const payload = {
+                    action: 'addNews',
+                    password: adminPassword,
+                    title: title,
+                    description: desc,
+                    fullText: full,
+                    source: source,
+                    category: cat,
+                    imageBase64: adminImageBase64 || '',
+                    imageMime: adminImageMime || ''
+                };
+                // text/plain avoids a CORS preflight against the Apps Script endpoint.
+                const res = await fetch(DRIVE_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!data || data.ok !== true) throw new Error((data && data.error) || 'சேமிக்க முடியவில்லை');
+
+                closeAdminForm();
+                resetAdminForm();
+                showToast('✅ புதிய செய்தி Drive-இல் சேமிக்கப்பட்டது', true);
+                await loadFromDrive(true); // reload so the card shows straight from Drive
+                scrollToNewest();
+            } catch (e) {
+                console.error('addNews failed', e);
+                showToast('❌ செய்தியை சேமிக்க முடியவில்லை: ' + (e.message || ''), false);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalLabel;
+            }
+        }
+
+        // ✅ Deletes the currently viewed news from Drive (persists for every
+        // viewer, not just this device) then reloads from Drive.
+        async function deleteCurrentNews() {
+            if (!adminMode) { showToast('🔒 நிர்வாக பயன்முறையில் மட்டுமே', false); return; }
+            if (!filteredData.length) { showToast('நீக்க செய்திகள் இல்லை', false); return; }
+            if (currentScrollIndex < 0 || currentScrollIndex >= filteredData.length) return;
+            const itemToDelete = filteredData[currentScrollIndex];
+            if (!itemToDelete) return;
+            const id = itemToDelete.id || '';
+            if (!id) { showToast('இந்த செய்தியை நீக்க முடியாது', false); return; }
+            if (!driveConfigured()) { showToast('Drive இணைப்பு அமைக்கப்படவில்லை', false); return; }
+
+            try {
+                const res = await fetch(DRIVE_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'deleteNews', password: adminPassword, id: id })
+                });
+                const data = await res.json();
+                if (!data || data.ok !== true) throw new Error((data && data.error) || 'நீக்க முடியவில்லை');
+                showToast('🗑️ இந்த செய்தி Drive-இல் இருந்து நீக்கப்பட்டது', true);
+                await loadFromDrive(true);
+                scrollToNewest();
+            } catch (e) {
+                console.error('deleteNews failed', e);
+                showToast('❌ நீக்க முடியவில்லை: ' + (e.message || ''), false);
+            }
+        }
+
+        // ================================================================
+        // ✅ FULL SCREEN DISPLAY IMAGE
+        // ================================================================
+        function openFullScreenImage(url) {
+            if (!url) return;
+            document.getElementById('fullscreen-image-el').src = url;
+            document.getElementById('fullscreen-image-overlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeFullScreenImage(e) {
+            if (e) e.stopPropagation();
+            document.getElementById('fullscreen-image-overlay').classList.remove('show');
+            document.getElementById('fullscreen-image-el').src = '';
+            document.body.style.overflow = '';
+        }
+
+        // ================================================================
+        // INIT
+        // ================================================================
+        function init() {
+            updateDate();
+            scrollBox.addEventListener('scroll', updatePageIndicator, { passive: true });
+
+            document.addEventListener('keydown', function(e) {
+                // Close fullscreen image on Escape
+                if (document.getElementById('fullscreen-image-overlay').classList.contains('show') && e.key === 'Escape') {
+                    closeFullScreenImage();
+                    return;
+                }
+                // Close overlay on Escape
+                if (document.getElementById('news-overlay').style.display === 'flex' && e.key === 'Escape') {
+                    closeFullNews();
+                    return;
+                }
+                // Arrow navigation
+                if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+                    e.preventDefault();
+                    if (currentScrollIndex + 1 < filteredData.length) {
+                        scrollToNews('news-' + (currentScrollIndex + 2));
+                    }
+                }
+                if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                    e.preventDefault();
+                    if (currentScrollIndex > 0) {
+                        scrollToNews('news-' + currentScrollIndex);
+                    }
+                }
+            });
+
+            loadFromDrive(true).then(res => {
+                startDisplayRefresh();
+                if (!res.ok || !newsData.length || (res.date && res.date !== indiaDateKey(new Date()))) {
+                    syncFromDrive().then(() => {});
+                }
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

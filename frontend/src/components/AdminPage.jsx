@@ -41,7 +41,14 @@ import {
   SlidersHorizontal,
   LayoutDashboard,
   Save,
-  Check
+  Check,
+  Share2,
+  Copy,
+  LayoutGrid,
+  Library,
+  Newspaper,
+  BookCheck,
+  Languages
 } from "lucide-react";
 import { fetchApi, saveUploadedMaterialClient, saveUploadedLessonClient } from "../api";
 import { translations } from "../translations";
@@ -81,8 +88,288 @@ const cleanQuestionText = (text, lessonTitle = "") => {
   return clean;
 };
 
+// WhatsApp / Telegram Lesson Sharing Modal with Direct Auto-Login Deep Links
+function ShareLessonMessageModal({ lesson, onClose, showToast }) {
+  if (!lesson) return null;
+
+  const tamilClassMap = {
+    1: "ஒன்றாம் வகுப்பு",
+    2: "இரண்டாம் வகுப்பு",
+    3: "மூன்றாம் வகுப்பு",
+    4: "நான்காம் வகுப்பு",
+    5: "ஐந்தாம் வகுப்பு",
+    6: "ஆறாம் வகுப்பு",
+    7: "ஏழாம் வகுப்பு",
+    8: "எட்டாம் வகுப்பு",
+    9: "ஒன்பதாம் வகுப்பு",
+    10: "பத்தாம் வகுப்பு",
+    11: "பதினொன்றாம் வகுப்பு",
+    12: "பன்னிரண்டாம் வகுப்பு"
+  };
+
+  const tamilSubjectMap = {
+    "Tamil": "தமிழ்",
+    "English": "ஆங்கிலம்",
+    "Mathematics": "கணிதம்",
+    "Maths": "கணிதம்",
+    "Science": "அறிவியல்",
+    "Social Science": "சமூக அறிவியல்",
+    "Child Development and Pedagogy": "குழந்தை மேம்பாடும் கற்பித்தல் முறைகளும்",
+    "CDP": "குழந்தை மேம்பாடும் கற்பித்தல் முறைகளும்"
+  };
+
+  const tamilDayNumberMap = {
+    1: "முதல்நாள்",
+    2: "2-ஆம் நாள்",
+    3: "3-ஆம் நாள்",
+    4: "4-ஆம் நாள்",
+    5: "5-ஆம் நாள்",
+    6: "6-ஆம் நாள்",
+    7: "7-ஆம் நாள்",
+    8: "8-ஆம் நாள்",
+    9: "9-ஆம் நாள்",
+    10: "10-ஆம் நாள்"
+  };
+
+  const [dayTitle, setDayTitle] = useState(() => tamilDayNumberMap[lesson.lesson_order] || (lesson.lesson_order === 1 ? "முதல்நாள்" : `${lesson.lesson_order}-ஆம் நாள்`));
+  const [paperTitle, setPaperTitle] = useState(() => lesson.class_num <= 8 ? "TET PAPER - 1 பயிற்சி" : "TET PAPER - 2 பயிற்சி");
+  const [classTitle, setClassTitle] = useState(() => tamilClassMap[lesson.class_num] || `${lesson.class_num}-ஆம் வகுப்பு`);
+  const [subjectTitle, setSubjectTitle] = useState(() => tamilSubjectMap[lesson.subject] || lesson.subject);
+  const [unitTitle, setUnitTitle] = useState(() => `அலகு ${lesson.lesson_order || 1}`);
+  const [lessonTitle, setLessonTitle] = useState(() => `பாடம் ${lesson.title}`);
+  const [stage4Status, setStage4Status] = useState(() => lesson.stage4_force_open ? "TEST LINK OPEN (திறக்கப்பட்டது)" : "TEST LJNK  OPEN 8:00 PM");
+  const [copied, setCopied] = useState(false);
+
+  const origin = typeof window !== "undefined" && window.location.origin ? window.location.origin : "https://tnteachers.in";
+  const stage1Url = `${origin}/learning/lesson/${lesson.id}?stage=1`;
+  const stage2Url = `${origin}/learning/lesson/${lesson.id}?stage=2`;
+  const stage3Url = `${origin}/learning/lesson/${lesson.id}?stage=3`;
+  const stage4Url = `${origin}/learning/lesson/${lesson.id}?stage=4`;
+
+  const fullMessage = `${dayTitle} \n\n ${paperTitle} \n\n${classTitle}\n ${subjectTitle} \n${unitTitle}\n ${lessonTitle} \n\nStage 1 \nLESSON PDF LINK \n${stage1Url}\n\nstage 2 \nLESSON VIDEO LINK\n${stage2Url}\n\nstage 3 \nPRACTICE QA LINK\n${stage3Url}\n\nstage 4\n${stage4Status} \n${stage4Url}`;
+
+  const handleCopy = () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullMessage);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = fullMessage;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setCopied(true);
+      showToast("பகிர்வு செய்தி நகலெடுக்கப்பட்டது (Copied to clipboard)!", "success");
+      setTimeout(() => setCopied(false), 3000);
+    } catch (e) {
+      showToast("செய்தியை நகலெடுக்க இயலவில்லை.", "error");
+    }
+  };
+
+  const handleWhatsAppShare = () => {
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(fullMessage)}`;
+    window.open(url, "_blank");
+  };
+
+  const handleTelegramShare = () => {
+    const url = `https://t.me/share/url?url=${encodeURIComponent(stage1Url)}&text=${encodeURIComponent(fullMessage)}`;
+    window.open(url, "_blank");
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 my-8">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+              <Share2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">
+                தினசரி பயிற்சிப் பகிர்வுச் செய்தி (Daily Study Plan Message)
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">
+                மாணவர்கள் நேரடியாக பாடத்திற்குச் செல்லக்கூடிய 4 நிலை நேரடி இணைப்புகளுடன்
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Customizable Fields Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80">
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">நாள் வரிசை (Day)</label>
+            <input
+              type="text"
+              value={dayTitle}
+              onChange={(e) => setDayTitle(e.target.value)}
+              className="w-full p-2 rounded-xl bg-white border border-slate-200 font-semibold focus:outline-none focus:border-[#0055ff]"
+            />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">TET தேர்வுத் தாள் (Paper)</label>
+            <input
+              type="text"
+              value={paperTitle}
+              onChange={(e) => setPaperTitle(e.target.value)}
+              className="w-full p-2 rounded-xl bg-white border border-slate-200 font-semibold focus:outline-none focus:border-[#0055ff]"
+            />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">வகுப்பு (Class)</label>
+            <input
+              type="text"
+              value={classTitle}
+              onChange={(e) => setClassTitle(e.target.value)}
+              className="w-full p-2 rounded-xl bg-white border border-slate-200 font-semibold focus:outline-none focus:border-[#0055ff]"
+            />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">பாடம் / துறை (Subject)</label>
+            <input
+              type="text"
+              value={subjectTitle}
+              onChange={(e) => setSubjectTitle(e.target.value)}
+              className="w-full p-2 rounded-xl bg-white border border-slate-200 font-semibold focus:outline-none focus:border-[#0055ff]"
+            />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">அலகு (Unit)</label>
+            <input
+              type="text"
+              value={unitTitle}
+              onChange={(e) => setUnitTitle(e.target.value)}
+              className="w-full p-2 rounded-xl bg-white border border-slate-200 font-semibold focus:outline-none focus:border-[#0055ff]"
+            />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">பாடம் தலைப்பு (Lesson Title)</label>
+            <input
+              type="text"
+              value={lessonTitle}
+              onChange={(e) => setLessonTitle(e.target.value)}
+              className="w-full p-2 rounded-xl bg-white border border-slate-200 font-semibold focus:outline-none focus:border-[#0055ff]"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block font-bold text-slate-700 mb-1">நிலை 4 தேர்வு நிலை (Stage 4 Status / Unlock Time)</label>
+            <input
+              type="text"
+              value={stage4Status}
+              onChange={(e) => setStage4Status(e.target.value)}
+              className="w-full p-2 rounded-xl bg-white border border-slate-200 font-semibold focus:outline-none focus:border-[#0055ff]"
+            />
+          </div>
+        </div>
+
+        {/* Live WhatsApp Bubble Preview */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-600 flex items-center space-x-1">
+              <span>நேரடி முன்னோட்டம் (WhatsApp Message Preview):</span>
+            </span>
+            <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              ✓ Direct Auto-Login Deep Links
+            </span>
+          </div>
+          <div className="bg-[#e7f8ee] border border-emerald-200/90 rounded-2xl p-4 text-xs font-mono text-slate-800 whitespace-pre-wrap leading-relaxed shadow-inner max-h-56 overflow-y-auto select-all">
+            {fullMessage}
+          </div>
+        </div>
+
+        {/* Stage Direct Test Links */}
+        <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="font-bold text-slate-600">நேரடி சோதனை (Test Deep Links):</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <a
+              href={stage1Url}
+              target="_blank"
+              rel="noreferrer"
+              className="px-2.5 py-1 rounded-lg bg-sky-100 text-[#0284c7] hover:bg-sky-200 font-bold text-[11px] transition"
+            >
+              Stage 1 (PDF) ↗
+            </a>
+            <a
+              href={stage2Url}
+              target="_blank"
+              rel="noreferrer"
+              className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 font-bold text-[11px] transition"
+            >
+              Stage 2 (Video) ↗
+            </a>
+            <a
+              href={stage3Url}
+              target="_blank"
+              rel="noreferrer"
+              className="px-2.5 py-1 rounded-lg bg-blue-100 text-[#0055ff] hover:bg-blue-200 font-bold text-[11px] transition"
+            >
+              Stage 3 (QA) ↗
+            </a>
+            <a
+              href={stage4Url}
+              target="_blank"
+              rel="noreferrer"
+              className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-bold text-[11px] transition"
+            >
+              Stage 4 (Exam) ↗
+            </a>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+          >
+            மூடு (Close)
+          </button>
+
+          <button
+            type="button"
+            onClick={handleTelegramShare}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#229ED9] hover:bg-[#1d87ba] text-white font-bold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer shadow-xs"
+          >
+            <span>✈️ Telegram பகிர்வு</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleWhatsAppShare}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer shadow-xs"
+          >
+            <span>💬 WhatsApp பகிர்வு</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-bold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer shadow-md"
+          >
+            {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+            <span>{copied ? "நகலெடுக்கப்பட்டது! (Copied)" : "செய்தியை நகலெடு (Copy)"}</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage({ user, lang = "en" }) {
   const [activeTab, setActiveTab] = useState("stats");
+  const [sharingLesson, setSharingLesson] = useState(null);
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = "success") => {
@@ -145,6 +432,9 @@ export default function AdminPage({ user, lang = "en" }) {
   const [savingQuizModal, setSavingQuizModal] = useState(false);
   const [revealedExplanations, setRevealedExplanations] = useState({});
   const [savingManualQuiz, setSavingManualQuiz] = useState(false);
+  const [uploadQuizPdfModal, setUploadQuizPdfModal] = useState(null); // { lesson, quiz_type }
+  const [uploadingQuizPdf, setUploadingQuizPdf] = useState(false);
+  const [quizPdfFile, setQuizPdfFile] = useState(null);
 
   // Live Meetings State
   const [meetingsList, setMeetingsList] = useState([]);
@@ -165,11 +455,20 @@ export default function AdminPage({ user, lang = "en" }) {
   const [timeLimit, setTimeLimit] = useState(60);
   const [passPercent, setPassPercent] = useState(80);
   const [countMcq, setCountMcq] = useState(40);
-  const [countHots, setCountHots] = useState(30);
-  const [countMatch, setCountMatch] = useState(30);
-  const [countMultiStmt, setCountMultiStmt] = useState(40);
-  const [countAssertion, setCountAssertion] = useState(30);
-  const [countChronological, setCountChronological] = useState(30);
+  const [countHots, setCountHots] = useState(20);
+  const [countMatch, setCountMatch] = useState(10);
+  const [countMultiStmt, setCountMultiStmt] = useState(10);
+  const [countAssertion, setCountAssertion] = useState(10);
+  const [countChronological, setCountChronological] = useState(10);
+
+  // Stage 4 Test Distribution State
+  const [stage4CountMcq, setStage4CountMcq] = useState(20);
+  const [stage4CountHots, setStage4CountHots] = useState(10);
+  const [stage4CountMatch, setStage4CountMatch] = useState(5);
+  const [stage4CountMultiStmt, setStage4CountMultiStmt] = useState(5);
+  const [stage4CountAssertion, setStage4CountAssertion] = useState(5);
+  const [stage4CountChronological, setStage4CountChronological] = useState(5);
+
   const [savingSettings, setSavingSettings] = useState(false);
 
   const [usersList, setUsersList] = useState([]);
@@ -212,6 +511,24 @@ export default function AdminPage({ user, lang = "en" }) {
   const [cardEndClass, setCardEndClass] = useState(8);
   const [cardBtnTextInput, setCardBtnTextInput] = useState("OPEN →");
   const [savingCard, setSavingCard] = useState(false);
+
+  // Dashboard Containers Management State (CRUD)
+  const [adminContainers, setAdminContainers] = useState([]);
+  const [editingContainerId, setEditingContainerId] = useState(null);
+  const [cKeyInput, setCKeyInput] = useState("");
+  const [cTitleInput, setCTitleInput] = useState("");
+  const [cSubtitleInput, setCSubtitleInput] = useState("");
+  const [cCategoryInput, setCCategoryInput] = useState("tet");
+  const [cDescInput, setCDescInput] = useState("");
+  const [cBadgeInput, setCBadgeInput] = useState("");
+  const [cBtnTextInput, setCBtnTextInput] = useState("OPEN →");
+  const [cActionUrlInput, setCActionUrlInput] = useState("");
+  const [cIconInput, setCIconInput] = useState("BookOpen");
+  const [cOrderInput, setCOrderInput] = useState(1);
+  const [cIsActiveInput, setCIsActiveInput] = useState(true);
+  const [savingContainer, setSavingContainer] = useState(false);
+  const [isContainerModalOpen, setIsContainerModalOpen] = useState(false);
+
 
   // Auto-set medium for language subjects
   useEffect(() => {
@@ -265,6 +582,7 @@ export default function AdminPage({ user, lang = "en" }) {
     loadUsers();
     loadAnnouncements();
     loadTetCards();
+    loadContainers();
     loadMeetings();
     loadDailyPractices();
   }, []);
@@ -495,6 +813,112 @@ export default function AdminPage({ user, lang = "en" }) {
     }
   };
 
+  const loadContainers = async () => {
+    try {
+      const data = await fetchApi("/admin/dashboard-containers");
+      setAdminContainers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Containers error:", err);
+    }
+  };
+
+  const handleOpenAddContainer = () => {
+    setEditingContainerId(null);
+    setCKeyInput("");
+    setCTitleInput("");
+    setCSubtitleInput("");
+    setCCategoryInput("custom");
+    setCDescInput("");
+    setCBadgeInput("New");
+    setCBtnTextInput("OPEN →");
+    setCActionUrlInput("");
+    setCIconInput("BookOpen");
+    setCOrderInput((adminContainers.length || 0) + 1);
+    setCIsActiveInput(true);
+    setIsContainerModalOpen(true);
+  };
+
+  const handleEditContainer = (c) => {
+    setEditingContainerId(c.id);
+    setCKeyInput(c.container_key || "");
+    setCTitleInput(c.title || "");
+    setCSubtitleInput(c.subtitle || "");
+    setCCategoryInput(c.category || "tet");
+    setCDescInput(c.description || "");
+    setCBadgeInput(c.badge_text || "");
+    setCBtnTextInput(c.button_text || "OPEN →");
+    setCActionUrlInput(c.action_url || "");
+    setCIconInput(c.icon_name || "BookOpen");
+    setCOrderInput(c.order_index ?? 1);
+    setCIsActiveInput(c.is_active ?? true);
+    setIsContainerModalOpen(true);
+  };
+
+  const handleSaveContainer = async (e) => {
+    e.preventDefault();
+    if (!cKeyInput.trim() || !cTitleInput.trim()) {
+      return showToast("Please provide Container Key and Title.", "error");
+    }
+    setSavingContainer(true);
+    try {
+      const payload = {
+        container_key: cKeyInput.trim().toLowerCase().replace(/\s+/g, "_"),
+        title: cTitleInput.trim(),
+        subtitle: cSubtitleInput.trim(),
+        category: cCategoryInput,
+        description: cDescInput.trim(),
+        badge_text: cBadgeInput.trim(),
+        button_text: cBtnTextInput.trim() || "OPEN →",
+        action_url: cActionUrlInput.trim(),
+        icon_name: cIconInput,
+        order_index: Number(cOrderInput) || 0,
+        is_active: cIsActiveInput
+      };
+
+      if (editingContainerId) {
+        await fetchApi(`/admin/dashboard-containers/${editingContainerId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload)
+        });
+        showToast(`Container '${payload.title}' updated successfully!`, "success");
+      } else {
+        await fetchApi("/admin/dashboard-containers", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        showToast(`Container '${payload.title}' created successfully!`, "success");
+      }
+      setIsContainerModalOpen(false);
+      loadContainers();
+    } catch (err) {
+      showToast(err.message || "Failed to save container.", "error");
+    } finally {
+      setSavingContainer(false);
+    }
+  };
+
+  const handleDeleteContainer = async (cId, cTitle) => {
+    if (!window.confirm(`Are you sure you want to delete container '${cTitle}'?`)) return;
+    try {
+      await fetchApi(`/admin/dashboard-containers/${cId}`, { method: "DELETE" });
+      showToast(`Container '${cTitle}' deleted successfully!`, "success");
+      loadContainers();
+    } catch (err) {
+      showToast(err.message || "Could not delete container.", "error");
+    }
+  };
+
+  const handleToggleContainer = async (cId) => {
+    try {
+      const res = await fetchApi(`/admin/dashboard-containers/${cId}/toggle`, { method: "POST" });
+      showToast(res.message || "Container status updated!", "success");
+      loadContainers();
+    } catch (err) {
+      showToast(err.message || "Could not toggle container status.", "error");
+    }
+  };
+
+
   const loadStats = async () => {
     try {
       const data = await fetchApi("/admin/stats");
@@ -531,11 +955,18 @@ export default function AdminPage({ user, lang = "en" }) {
       setTimeLimit(data.test_time_limit_mins || 60);
       setPassPercent(data.pass_percentage || 80);
       setCountMcq(data.count_mcq !== undefined ? data.count_mcq : 40);
-      setCountHots(data.count_hots !== undefined ? data.count_hots : 30);
-      setCountMatch(data.count_match !== undefined ? data.count_match : 30);
-      setCountMultiStmt(data.count_multi_stmt !== undefined ? data.count_multi_stmt : 40);
-      setCountAssertion(data.count_assertion !== undefined ? data.count_assertion : 30);
-      setCountChronological(data.count_chronological !== undefined ? data.count_chronological : 30);
+      setCountHots(data.count_hots !== undefined ? data.count_hots : 20);
+      setCountMatch(data.count_match !== undefined ? data.count_match : 10);
+      setCountMultiStmt(data.count_multi_stmt !== undefined ? data.count_multi_stmt : 10);
+      setCountAssertion(data.count_assertion !== undefined ? data.count_assertion : 10);
+      setCountChronological(data.count_chronological !== undefined ? data.count_chronological : 10);
+
+      setStage4CountMcq(data.stage4_count_mcq !== undefined ? data.stage4_count_mcq : 20);
+      setStage4CountHots(data.stage4_count_hots !== undefined ? data.stage4_count_hots : 10);
+      setStage4CountMatch(data.stage4_count_match !== undefined ? data.stage4_count_match : 5);
+      setStage4CountMultiStmt(data.stage4_count_multi_stmt !== undefined ? data.stage4_count_multi_stmt : 5);
+      setStage4CountAssertion(data.stage4_count_assertion !== undefined ? data.stage4_count_assertion : 5);
+      setStage4CountChronological(data.stage4_count_chronological !== undefined ? data.stage4_count_chronological : 5);
     } catch (err) {
       console.error("Settings load error:", err);
     }
@@ -677,11 +1108,12 @@ export default function AdminPage({ user, lang = "en" }) {
     if (!window.confirm("Are you sure you want to delete this lesson?")) return;
     try {
       await fetchApi(`/admin/lessons/${id}`, { method: "DELETE" });
-      showToast("Lesson module deleted!");
+      showToast("Lesson module deleted successfully!", "success");
       loadLessons();
       loadStats();
     } catch (err) {
-      showToast(err.message || "Lesson deleted!", "info");
+      console.error("Delete lesson error:", err);
+      showToast(err.message || "Failed to delete lesson.", "error");
       loadLessons();
     }
   };
@@ -729,10 +1161,11 @@ export default function AdminPage({ user, lang = "en" }) {
     const key = `${lesson.id}_${quizType}`;
     setGeneratingQuizKey(key);
     try {
-      const res = await fetchApi(`/admin/lessons/${lesson.id}/quiz/${quizType}/generate?count=200`, {
+      const qTarget = quizType === "type2" ? (Number(testCount) || 50) : (Number(practiceCount) || 100);
+      const res = await fetchApi(`/admin/lessons/${lesson.id}/quiz/${quizType}/generate?count=${qTarget}`, {
         method: "POST"
       });
-      const qCount = (res && res.questions && res.questions.length) || res?.total || 200;
+      const qCount = (res && res.questions && res.questions.length) || res?.total || qTarget;
       showToast(res?.message || `Quiz ${quizType.toUpperCase()} (${qCount} Questions) generated!`, "success");
       
       // Update local state immediately so user sees the change without delay
@@ -819,6 +1252,50 @@ export default function AdminPage({ user, lang = "en" }) {
       showToast(err.message || "Failed to save quiz.", "error");
     } finally {
       setSavingManualQuiz(false);
+    }
+  };
+
+  const handleUploadQuizPdfSubmit = async (e) => {
+    e.preventDefault();
+    if (!uploadQuizPdfModal || !quizPdfFile) {
+      showToast("Please select a valid PDF file.", "error");
+      return;
+    }
+    setUploadingQuizPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", quizPdfFile);
+      const lesId = uploadQuizPdfModal.lesson.id;
+      const qType = uploadQuizPdfModal.quiz_type;
+      const res = await fetch(`/api/admin/lessons/${lesId}/quiz/${qType}/upload-pdf`, {
+        method: "POST",
+        body: formData
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to extract questions from PDF.");
+      }
+      const data = await res.json();
+      const qCount = data.total || (data.questions ? data.questions.length : 0);
+      showToast(data.message || `Extracted ${qCount} questions from PDF successfully!`, "success");
+
+      setLessonsList(prev => prev.map(l => {
+        if (l.id === lesId) {
+          return {
+            ...l,
+            [qType === "type2" ? "has_quiz_type2" : "has_quiz_type1"]: true,
+            [qType === "type2" ? "quiz_type2_count" : "quiz_type1_count"]: qCount
+          };
+        }
+        return l;
+      }));
+      setUploadQuizPdfModal(null);
+      setQuizPdfFile(null);
+      await loadLessons();
+    } catch (err) {
+      showToast(err.message || "Failed to parse questions from PDF.", "error");
+    } finally {
+      setUploadingQuizPdf(false);
     }
   };
 
@@ -1140,7 +1617,13 @@ export default function AdminPage({ user, lang = "en" }) {
           count_match: Number(countMatch || 0),
           count_multi_stmt: Number(countMultiStmt || 0),
           count_assertion: Number(countAssertion || 0),
-          count_chronological: Number(countChronological || 0)
+          count_chronological: Number(countChronological || 0),
+          stage4_count_mcq: Number(stage4CountMcq || 0),
+          stage4_count_hots: Number(stage4CountHots || 0),
+          stage4_count_match: Number(stage4CountMatch || 0),
+          stage4_count_multi_stmt: Number(stage4CountMultiStmt || 0),
+          stage4_count_assertion: Number(stage4CountAssertion || 0),
+          stage4_count_chronological: Number(stage4CountChronological || 0)
         })
       });
       showToast("Admin & Gemini AI Settings saved successfully!");
@@ -1307,18 +1790,17 @@ export default function AdminPage({ user, lang = "en" }) {
     }
   };
 
-  // Nav Tabs configuration for Left Sidebar (FWT iZON Dashboard Style)
+  // Nav Tabs configuration for Left Sidebar (Dashboard First)
   const navTabs = [
     { id: "stats", label: "Dashboard", icon: LayoutDashboard, badge: null },
-    { id: "les_upload", label: "Courses", icon: BookOpen, badge: Array.isArray(lessonsList) ? lessonsList.length : 0 },
-    { id: "meetings", label: "Live Courses", icon: Video, badge: Array.isArray(meetingsList) && meetingsList.filter(m => m.is_live).length > 0 ? "LIVE" : null },
-    { id: "users", label: "Students", icon: Users, badge: Array.isArray(usersList) ? usersList.length : 0 },
-    { id: "quiz_manager", label: "Quizzes", icon: FileText, badge: "New" },
+    { id: "les_upload", label: "Courses & Lessons", icon: BookOpen, badge: Array.isArray(lessonsList) ? lessonsList.length : 0 },
+    { id: "quiz_manager", label: "Quizzes & Tests", icon: FileText, badge: "New" },
+    { id: "meetings", label: "Live Classes", icon: Video, badge: Array.isArray(meetingsList) && meetingsList.filter(m => m.is_live).length > 0 ? "LIVE" : null },
     { id: "daily_practice", label: "Daily Practice", icon: Clock, badge: Array.isArray(dailyPracticeList) ? dailyPracticeList.length : 0 },
-    { id: "mat_upload", label: "Materials Explorer", icon: FolderPlus, badge: Array.isArray(materialsList) ? materialsList.length : 0 },
-    { id: "tet_cards", label: "Certifications & Cards", icon: Award, badge: Array.isArray(adminTetCards) ? adminTetCards.length : 0 },
+    { id: "users", label: "Students", icon: Users, badge: Array.isArray(usersList) ? usersList.length : 0 },
     { id: "announcements", label: "Announcements", icon: Bell, badge: Array.isArray(announcementsList) ? announcementsList.length : 0 },
-    { id: "settings", label: "Settings", icon: Settings, badge: null }
+    { id: "settings", label: "Settings", icon: Settings, badge: null },
+    { id: "tet_cards", label: "Dashboard Containers", icon: LayoutGrid, badge: Array.isArray(adminContainers) ? adminContainers.length : 0 }
   ];
 
   return (
@@ -1327,90 +1809,34 @@ export default function AdminPage({ user, lang = "en" }) {
       {/* Modern Dynamic Toast Alert */}
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {/* TOP HEADER BAR (FWT iZON Dashboard Style - Full Width) */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl px-5 py-3.5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Left: Brand Logo & Sidebar Toggle */}
-        <div className="flex items-center space-x-3 w-full md:w-auto justify-between md:justify-start">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0055ff] to-[#0284C7] p-0.5 shadow-xs flex items-center justify-center overflow-hidden">
-              <img
-                src="/logo.jpg"
-                alt="TN Teacher Emblem"
-                className="w-full h-full object-cover rounded-lg"
-              />
-            </div>
-            <div>
-              <span className="text-base font-black tracking-tight text-[#061b36] block leading-tight">
-                TN <span className="text-[#0055ff]">TEACHER</span>
-              </span>
-              <span className="text-[10px] text-slate-400 font-bold tracking-wider uppercase block">
-                Executive Admin Console
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-            title="Toggle Sidebar Collapse"
-          >
-            {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-        </div>
-
-        {/* Middle: Clean Search Bar */}
-        <div className="w-full md:max-w-md relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search users, courses..."
-            value={globalSearch}
-            onChange={(e) => {
-              setGlobalSearch(e.target.value);
-              setUserSearchQuery(e.target.value);
-            }}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0055ff] focus:bg-white transition"
-          />
-        </div>
-
-        {/* Right: Notifications Bell & User Pill */}
-        <div className="flex items-center space-x-3 w-full md:w-auto justify-end">
-          {/* Bell Icon */}
-          <button
-            onClick={() => setActiveTab("announcements")}
-            className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
-            title="View Announcements & Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500"></span>
-          </button>
-
-          {/* System Admin Avatar Pill */}
-          <div className="flex items-center space-x-2.5 pl-2 border-l border-slate-200">
-            <div className="w-9 h-9 rounded-full bg-[#0055ff] text-white flex items-center justify-center font-black text-xs shadow-xs">
-              {user?.name ? user.name.slice(0, 2).toUpperCase() : "SA"}
-            </div>
-            <div className="text-left">
-              <div className="text-xs font-bold text-slate-900 leading-none">
-                {user?.name || "System Admin"}
-              </div>
-              <div className="text-[10px] text-[#0055ff] font-bold uppercase mt-0.5">
-                Admin
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ================= MAIN CONTAINER WITH LEFT SIDEBAR NAVIGATION ================= */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         
-        {/* LEFT SIDEBAR NAVIGATION MENU (FWT iZON Style) */}
+        {/* LEFT SIDEBAR NAVIGATION MENU */}
         <aside className={`${isSidebarCollapsed ? "w-full lg:w-20" : "w-full lg:w-72 xl:w-80"} shrink-0 bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xs space-y-1 sticky top-6 transition-all duration-200`}>
-          {!isSidebarCollapsed && (
+          {!isSidebarCollapsed ? (
             <div className="px-3.5 py-2.5 text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
-              <span>Admin Navigation</span>
-              <ShieldCheck className="w-4 h-4 text-[#0055ff]" />
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="w-4 h-4 text-[#0055ff]" />
+                <span>Admin Navigation</span>
+              </div>
+              <button
+                onClick={() => setIsSidebarCollapsed(true)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                title="Collapse Sidebar"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex justify-center py-1.5 border-b border-slate-100 mb-1">
+              <button
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-[#0055ff] hover:bg-blue-50 transition cursor-pointer"
+                title="Expand Sidebar"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           )}
 
@@ -2300,8 +2726,16 @@ export default function AdminPage({ user, lang = "en" }) {
                               </div>
                             </div>
 
-                            {/* Edit & Delete Action Buttons */}
-                            <div className="flex items-center space-x-1 shrink-0">
+                            {/* Share, Edit & Delete Action Buttons */}
+                            <div className="flex items-center space-x-1.5 shrink-0">
+                              <button
+                                onClick={() => setSharingLesson(l)}
+                                title="Share Lesson Message (வாட்ஸ்அப் / டெலிகிராம் செய்தி)"
+                                className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer transition flex items-center space-x-1 shadow-2xs"
+                              >
+                                <Share2 className="w-3.5 h-3.5" />
+                                <span>பகிர்வு (Share)</span>
+                              </button>
                               <button
                                 onClick={() => handleOpenEditLesson(l)}
                                 title="Edit Lesson & Schedule"
@@ -2439,8 +2873,18 @@ export default function AdminPage({ user, lang = "en" }) {
                           </span>
                         </div>
 
-                        {/* Stage 4 Manual Unlock / Lock Toggle */}
-                        <div className="flex items-center space-x-2">
+                        {/* Stage 4 Manual Unlock / Lock Toggle & Share Message */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSharingLesson(lesson)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#0055ff] hover:bg-blue-700 text-white transition flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                            title="Share Lesson Message (வாட்ஸ்அப் / டெலிகிராம் செய்தி)"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                            <span>பகிர்வு செய்தி (Share)</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => handleToggleLessonStage4(lesson.id)}
@@ -2486,7 +2930,7 @@ export default function AdminPage({ user, lang = "en" }) {
                             </p>
                           </div>
 
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-sky-100">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-2 border-t border-sky-100">
                             <button
                               onClick={() => handleGenerateQuiz(lesson, "type1")}
                               disabled={generatingQuizKey === `${lesson.id}_type1`}
@@ -2494,6 +2938,18 @@ export default function AdminPage({ user, lang = "en" }) {
                             >
                               {generatingQuizKey === `${lesson.id}_type1` ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                               <span>{generatingQuizKey === `${lesson.id}_type1` ? "Working..." : "AI Generate"}</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setQuizPdfFile(null);
+                                setUploadQuizPdfModal({ lesson, quiz_type: "type1" });
+                              }}
+                              className="flex items-center justify-center space-x-1 px-2.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-[#0284C7] text-xs font-bold transition cursor-pointer"
+                              title="Upload Question Paper PDF to extract questions & answers"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Upload PDF</span>
                             </button>
 
                             <button
@@ -2542,7 +2998,7 @@ export default function AdminPage({ user, lang = "en" }) {
                             </p>
                           </div>
 
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-purple-100">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-2 border-t border-purple-100">
                             <button
                               onClick={() => handleGenerateQuiz(lesson, "type2")}
                               disabled={generatingQuizKey === `${lesson.id}_type2`}
@@ -2550,6 +3006,18 @@ export default function AdminPage({ user, lang = "en" }) {
                             >
                               {generatingQuizKey === `${lesson.id}_type2` ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                               <span>{generatingQuizKey === `${lesson.id}_type2` ? "Working..." : "AI Generate"}</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setQuizPdfFile(null);
+                                setUploadQuizPdfModal({ lesson, quiz_type: "type2" });
+                              }}
+                              className="flex items-center justify-center space-x-1 px-2.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-purple-700 text-xs font-bold transition cursor-pointer"
+                              title="Upload Question Paper PDF to extract questions & answers"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Upload PDF</span>
                             </button>
 
                             <button
@@ -3096,144 +3564,330 @@ export default function AdminPage({ user, lang = "en" }) {
                   </div>
                 </div>
 
-                {/* QUESTION TYPE DISTRIBUTION CONFIGURATION */}
-                <div className="pt-3 border-t border-slate-200/80 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
-                        <SlidersHorizontal className="w-4 h-4 text-[#0055ff]" />
-                        <span>Question Types Distribution (வினா வகை ஒதுக்கீடு)</span>
-                      </h4>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        Specify exact number of questions needed per type. Strictly generated from uploaded PDF material.
-                      </p>
-                    </div>
-                    <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-blue-50 text-[#0055ff] border border-blue-200 shrink-0 self-start sm:self-auto">
-                      Total: {Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0)} Qs
-                    </span>
-                  </div>
+                {/* DUAL QUESTION TYPE DISTRIBUTION: STAGE 3 & STAGE 4 */}
+                {(() => {
+                  const stage3Total = Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
+                  const stage4Total = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
+                  return (
+                    <div className="pt-3 border-t border-slate-200/80 space-y-6">
+                      
+                      {/* 1. STAGE 3 PRACTICE QUESTION DISTRIBUTION */}
+                      <div className="space-y-3 bg-blue-50/40 p-4 rounded-3xl border border-blue-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
+                              <SlidersHorizontal className="w-4 h-4 text-[#0055ff]" />
+                              <span>Stage 3 Practice Question Types Distribution (நிலை 3 வினா ஒதுக்கீடு)</span>
+                            </h4>
+                            <p className="text-[11px] text-slate-500 font-medium">
+                              Exact breakdown for Stage 3 Practice. Matches Stage 3 Practice Count ({practiceCount} Qs).
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-black px-2.5 py-1 rounded-lg border shrink-0 ${
+                              stage3Total === Number(practiceCount)
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                : "bg-amber-50 text-amber-700 border-amber-300"
+                            }`}>
+                              Total: {stage3Total} Qs {stage3Total === Number(practiceCount) ? "✓ Matches" : `(Specified: ${practiceCount})`}
+                            </span>
+                          </div>
+                        </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    {/* 1. MCQ */}
-                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-[#061b36]">
-                          1. MCQ (கொள்குறி வினாக்கள்)
-                        </label>
-                        <span className="text-[10px] font-semibold text-slate-400">Multiple Choice</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                          {/* 1. MCQ */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">1. MCQ (கொள்குறி)</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Multiple Choice</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={countMcq}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCountMcq(val);
+                                const newTotal = Number(val || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
+                                setPracticeCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                              placeholder="40"
+                            />
+                          </div>
+
+                          {/* 2. HOTS */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">2. உயர் சிந்தனை (HOTS)</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Higher Order</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={countHots}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCountHots(val);
+                                const newTotal = Number(countMcq || 0) + Number(val || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
+                                setPracticeCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                              placeholder="20"
+                            />
+                          </div>
+
+                          {/* 3. Match */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">3. பொருத்துக (Match)</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Matching</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={countMatch}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCountMatch(val);
+                                const newTotal = Number(countMcq || 0) + Number(countHots || 0) + Number(val || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
+                                setPracticeCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                              placeholder="10"
+                            />
+                          </div>
+
+                          {/* 4. Multi-Statement */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">4. பல்கூற்று (Multi-Stmt)</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Analysis</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={countMultiStmt}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCountMultiStmt(val);
+                                const newTotal = Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(val || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
+                                setPracticeCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                              placeholder="10"
+                            />
+                          </div>
+
+                          {/* 5. Assertion & Reason */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">5. கூற்று காரணம்</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Assertion</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={countAssertion}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCountAssertion(val);
+                                const newTotal = Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(val || 0) + Number(countChronological || 0);
+                                setPracticeCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                              placeholder="10"
+                            />
+                          </div>
+
+                          {/* 6. Chronological */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">6. கால வரிசை</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Chronological</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={countChronological}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCountChronological(val);
+                                const newTotal = Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(val || 0);
+                                setPracticeCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
+                              placeholder="10"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <input
-                        type="number"
-                        min="0"
-                        value={countMcq}
-                        onChange={(e) => setCountMcq(e.target.value)}
-                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                        placeholder="e.g. 40"
-                      />
-                    </div>
 
-                    {/* 2. உயர் சிந்தனை வினாக்கள் (HOTS) */}
-                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-[#061b36]">
-                          2. உயர் சிந்தனை வினாக்கள்
-                        </label>
-                        <span className="text-[10px] font-semibold text-slate-400">HOTS Questions</span>
+                      {/* 2. STAGE 4 TIMED TEST QUESTION DISTRIBUTION */}
+                      <div className="space-y-3 bg-indigo-50/40 p-4 rounded-3xl border border-indigo-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
+                              <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+                              <span>Stage 4 Timed Test Question Types Distribution (நிலை 4 தேர்வு ஒதுக்கீடு)</span>
+                            </h4>
+                            <p className="text-[11px] text-slate-500 font-medium">
+                              Exact breakdown for Stage 4 Timed Test. Matches Stage 4 Question Count ({testCount} Qs).
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-black px-2.5 py-1 rounded-lg border shrink-0 ${
+                              stage4Total === Number(testCount)
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                : "bg-amber-50 text-amber-700 border-amber-300"
+                            }`}>
+                              Total: {stage4Total} Qs {stage4Total === Number(testCount) ? "✓ Matches" : `(Specified: ${testCount})`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                          {/* 1. MCQ */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">1. MCQ (கொள்குறி)</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Multiple Choice</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={stage4CountMcq}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStage4CountMcq(val);
+                                const newTotal = Number(val || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
+                                setTestCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
+                              placeholder="20"
+                            />
+                          </div>
+
+                          {/* 2. HOTS */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">2. உயர் சிந்தனை (HOTS)</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Higher Order</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={stage4CountHots}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStage4CountHots(val);
+                                const newTotal = Number(stage4CountMcq || 0) + Number(val || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
+                                setTestCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
+                              placeholder="10"
+                            />
+                          </div>
+
+                          {/* 3. Match */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">3. பொருத்துக (Match)</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Matching</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={stage4CountMatch}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStage4CountMatch(val);
+                                const newTotal = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(val || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
+                                setTestCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
+                              placeholder="5"
+                            />
+                          </div>
+
+                          {/* 4. Multi-Statement */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">4. பல்கூற்று (Multi-Stmt)</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Analysis</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={stage4CountMultiStmt}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStage4CountMultiStmt(val);
+                                const newTotal = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(val || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
+                                setTestCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
+                              placeholder="5"
+                            />
+                          </div>
+
+                          {/* 5. Assertion & Reason */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">5. கூற்று காரணம்</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Assertion</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={stage4CountAssertion}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStage4CountAssertion(val);
+                                const newTotal = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(val || 0) + Number(stage4CountChronological || 0);
+                                setTestCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
+                              placeholder="5"
+                            />
+                          </div>
+
+                          {/* 6. Chronological */}
+                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#061b36]">6. கால வரிசை</label>
+                              <span className="text-[10px] font-semibold text-slate-400">Chronological</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={stage4CountChronological}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStage4CountChronological(val);
+                                const newTotal = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(val || 0);
+                                setTestCount(newTotal);
+                              }}
+                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
+                              placeholder="5"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <input
-                        type="number"
-                        min="0"
-                        value={countHots}
-                        onChange={(e) => setCountHots(e.target.value)}
-                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                        placeholder="e.g. 30"
-                      />
-                    </div>
 
-                    {/* 3. பொருத்துக வகை வினாக்கள் (Match) */}
-                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-[#061b36]">
-                          3. பொருத்துக வகை வினாக்கள்
-                        </label>
-                        <span className="text-[10px] font-semibold text-slate-400">Match the Following</span>
+                      {/* Strict PDF Notice Banner */}
+                      <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/90 text-amber-950 text-xs flex items-start gap-2.5">
+                        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                          <strong className="block text-amber-950 font-bold">Strict PDF Material Extraction Active</strong>
+                          <span className="text-amber-800 leading-relaxed font-medium">
+                            All questions are generated exclusively from the uploaded lesson PDF material. No outside questions, zero repetitions (ONE question ONCE only), and zero overlap between Stage 3 Practice and Stage 4 Timed Test.
+                          </span>
+                        </div>
                       </div>
-                      <input
-                        type="number"
-                        min="0"
-                        value={countMatch}
-                        onChange={(e) => setCountMatch(e.target.value)}
-                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                        placeholder="e.g. 30"
-                      />
                     </div>
-
-                    {/* 4. பல்கூற்று வகை வினாக்கள் (Multi-Statement) */}
-                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-[#061b36]">
-                          4. பல்கூற்று வகை வினாக்கள்
-                        </label>
-                        <span className="text-[10px] font-semibold text-slate-400">Multi-Statement Analysis</span>
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        value={countMultiStmt}
-                        onChange={(e) => setCountMultiStmt(e.target.value)}
-                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                        placeholder="e.g. 40"
-                      />
-                    </div>
-
-                    {/* 5. கூற்று காரணம் வகை வினாக்கள் (Assertion & Reason) */}
-                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-[#061b36]">
-                          5. கூற்று காரணம் வகை வினாக்கள்
-                        </label>
-                        <span className="text-[10px] font-semibold text-slate-400">Assertion & Reason</span>
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        value={countAssertion}
-                        onChange={(e) => setCountAssertion(e.target.value)}
-                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                        placeholder="e.g. 30"
-                      />
-                    </div>
-
-                    {/* 6. கால வரிசைப்படுத்துதல் வினாக்கள் (Chronological Ordering) */}
-                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-[#061b36]">
-                          6. கால வரிசைப்படுத்துதல் வினாக்கள்
-                        </label>
-                        <span className="text-[10px] font-semibold text-slate-400">Chronological Ordering</span>
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        value={countChronological}
-                        onChange={(e) => setCountChronological(e.target.value)}
-                        className="w-full p-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                        placeholder="e.g. 30"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Strict PDF Notice Banner */}
-                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/90 text-amber-950 text-xs flex items-start gap-2.5">
-                    <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="space-y-0.5">
-                      <strong className="block text-amber-950 font-bold">Strict PDF Material Extraction Active</strong>
-                      <span className="text-amber-800 leading-relaxed font-medium">
-                        All questions are generated exclusively from the uploaded lesson PDF material. No outside questions, and zero repetitions (ONE question ONCE only).
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 <button
                   type="submit"
@@ -3267,18 +3921,6 @@ export default function AdminPage({ user, lang = "en" }) {
                       onChange={(e) => setAnnTitle(e.target.value)}
                       className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Priority</label>
-                    <select
-                      value={annPriority}
-                      onChange={(e) => setAnnPriority(e.target.value)}
-                      className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
-                    >
-                      <option value="normal">Normal Priority</option>
-                      <option value="urgent">Urgent / Breaking Alert</option>
-                    </select>
                   </div>
 
                   <div>
@@ -3316,14 +3958,8 @@ export default function AdminPage({ user, lang = "en" }) {
                     >
                       <div className="space-y-1">
                         <div className="flex items-center space-x-2">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                              ann.priority === "urgent"
-                                ? "bg-red-100 text-red-700 border border-red-200"
-                                : "bg-sky-100 text-[#0284C7] border border-[#0284C7]/30"
-                            }`}
-                          >
-                            {ann.priority}
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-sky-100 text-[#0284C7] border border-[#0284C7]/30">
+                            Notice
                           </span>
                           <h4 className="text-xs font-bold text-[#1E3A8A]">{ann.title}</h4>
                         </div>
@@ -3347,184 +3983,332 @@ export default function AdminPage({ user, lang = "en" }) {
             </div>
           )}
 
-          {/* TAB 8: TET COURSE CARDS MANAGEMENT */}
+          {/* TAB 8: DASHBOARD CONTAINERS MANAGEMENT (CRUD) */}
           {activeTab === "tet_cards" && (
             <div className="bg-white border border-sky-100 rounded-3xl p-6 sm:p-7 shadow-xs space-y-6">
-              <div className="flex items-center justify-between border-b border-sky-100 pb-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-sky-100 pb-4">
                 <div>
                   <h3 className="text-lg font-bold text-[#1E3A8A] flex items-center space-x-2">
-                    <Sparkles className="w-5 h-5 text-[#0055ff]" />
-                    <span>TET Course Cards Management</span>
+                    <LayoutGrid className="w-5 h-5 text-[#0055ff]" />
+                    <span>Dashboard Containers & Learning Boxes Management</span>
                   </h3>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Create & configure TET-1 (Class 1-8) and TET-2 (Class 6-12) course cards displayed on student dashboards.
+                    Full CRUD for candidate dashboard containers: TET-1, TET-2, TN Textbooks, News, Tamil Reading, English Reading, Online Class, NMMS, TREAST & Custom Modules.
                   </p>
                 </div>
 
-                <span className="px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#0055ff] text-xs font-bold">
-                  {adminTetCards.length} Cards Active
-                </span>
-              </div>
-
-              {/* Add / Edit TET Card Form */}
-              <form onSubmit={handleSaveTetCard} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-                <h4 className="text-xs font-black text-[#093c85] uppercase tracking-wider">
-                  ➕ Create or Update TET Course Card
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Card ID (e.g. tet1, tet2)</label>
-                    <input
-                      type="text"
-                      value={cardIdInput}
-                      onChange={(e) => setCardIdInput(e.target.value)}
-                      placeholder="e.g. tet1, tet2"
-                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Card Title (e.g. TET-1, TET-2)</label>
-                    <input
-                      type="text"
-                      value={cardTitleInput}
-                      onChange={(e) => setCardTitleInput(e.target.value)}
-                      placeholder="e.g. TET-1, TET-2"
-                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Exam Target Paper</label>
-                    <select
-                      value={cardPaperInput}
-                      onChange={(e) => {
-                        const p = e.target.value;
-                        setCardPaperInput(p);
-                        if (p === "paper1") {
-                          setCardRangeInput("Classes 1–8");
-                          setCardStartClass(1);
-                          setCardEndClass(8);
-                        } else if (p === "paper2") {
-                          setCardRangeInput("Classes 6–12");
-                          setCardStartClass(6);
-                          setCardEndClass(12);
-                        } else {
-                          setCardRangeInput(`Classes ${cardStartClass}–${cardEndClass}`);
-                        }
-                      }}
-                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
-                    >
-                      <option value="paper1">TET Paper 1 (Class 1 to 8)</option>
-                      <option value="paper2">TET Paper 2 (Class 6 to 12)</option>
-                      <option value="other">Other / Custom Target Paper...</option>
-                    </select>
-                  </div>
-                </div>
-
-                {cardPaperInput === "other" && (
-                  <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200/80 space-y-3">
-                    <div className="flex items-center space-x-2 text-xs font-black text-[#0055ff]">
-                      <Sparkles className="w-4 h-4" />
-                      <span>Custom Exam Target Configuration</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Custom Exam Target Name *</label>
-                        <input
-                          type="text"
-                          required
-                          value={customPaperTarget}
-                          onChange={(e) => setCustomPaperTarget(e.target.value)}
-                          placeholder="e.g. Special TET, Paper-3, TRB PG"
-                          className="w-full px-3.5 py-2 rounded-xl border border-blue-300 bg-white text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Start Class (1 to 12)</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={12}
-                          value={cardStartClass}
-                          onChange={(e) => {
-                            const sc = Number(e.target.value);
-                            setCardStartClass(sc);
-                            setCardRangeInput(`Classes ${sc}–${cardEndClass}`);
-                          }}
-                          className="w-full px-3.5 py-2 rounded-xl border border-blue-300 bg-white text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">End Class (1 to 12)</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={12}
-                          value={cardEndClass}
-                          onChange={(e) => {
-                            const ec = Number(e.target.value);
-                            setCardEndClass(ec);
-                            setCardRangeInput(`Classes ${cardStartClass}–${ec}`);
-                          }}
-                          className="w-full px-3.5 py-2 rounded-xl border border-blue-300 bg-white text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Tamil Subtitle / Description</label>
-                  <textarea
-                    value={cardDescInput}
-                    onChange={(e) => setCardDescInput(e.target.value)}
-                    placeholder="e.g. 1 முதல் 8 ஆம் வகுப்பு வரை பாடவாரியான தேர்வு தயாரிப்பு"
-                    rows={2}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
-                  />
-                </div>
-
-                <div className="flex justify-end">
+                <div className="flex items-center space-x-3">
+                  <span className="px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#0055ff] text-xs font-bold">
+                    {adminContainers.length} Containers Configured
+                  </span>
                   <button
-                    type="submit"
-                    disabled={savingCard}
-                    className="px-6 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                    onClick={handleOpenAddContainer}
+                    className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-all"
                   >
-                    {savingCard ? "Saving Card..." : "Save Course Card"}
+                    <Plus className="w-4 h-4" />
+                    <span>Add New Container</span>
                   </button>
                 </div>
-              </form>
+              </div>
 
-              {/* Cards List Table */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {adminTetCards.map((card) => (
-                  <div key={card.id} className="p-5 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-black text-[#0055ff] bg-blue-100 px-2.5 py-0.5 rounded-md">
-                          ID: {card.card_id}
-                        </span>
-                        <button
-                          onClick={() => handleDeleteTetCard(card.card_id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+              {/* Containers Cards Grid with CRUD Controls */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {adminContainers.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`p-5 rounded-2xl border transition-all flex flex-col justify-between space-y-4 ${
+                      c.is_active 
+                        ? "bg-slate-50 border-slate-200 hover:border-[#0055ff]/40 shadow-2xs" 
+                        : "bg-slate-100/70 border-slate-200/80 opacity-75"
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-6 h-6 rounded-lg bg-blue-100 text-[#0055ff] font-black text-xs flex items-center justify-center">
+                            #{c.order_index}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-200 text-slate-700">
+                            {c.category}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => handleToggleContainer(c.id)}
+                            title={c.is_active ? "Click to disable" : "Click to enable"}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase cursor-pointer transition-colors ${
+                              c.is_active 
+                                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200" 
+                                : "bg-slate-200 text-slate-500 hover:bg-slate-300"
+                            }`}
+                          >
+                            {c.is_active ? "Active" : "Disabled"}
+                          </button>
+                          <button
+                            onClick={() => handleEditContainer(c)}
+                            title="Edit Container"
+                            className="p-1.5 text-blue-600 hover:text-blue-800 rounded-lg hover:bg-blue-50 cursor-pointer"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteContainer(c.id, c.title)}
+                            title="Delete Container"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
-                      <h4 className="text-xl font-black text-[#093c85]">{card.title}</h4>
-                      <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">{card.description}</p>
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-lg font-black text-[#061b36]">{c.title}</h4>
+                          {c.badge_text && (
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-[#0055ff] border border-blue-200">
+                              {c.badge_text}
+                            </span>
+                          )}
+                        </div>
+                        {c.subtitle && (
+                          <p className="text-xs font-bold text-slate-500 mt-0.5">{c.subtitle}</p>
+                        )}
+                        <p className="text-xs text-slate-600 font-medium mt-1.5 line-clamp-2 leading-relaxed">
+                          {c.description || "No description specified."}
+                        </p>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 text-[11px] space-y-1">
+                        <div className="flex justify-between text-slate-500">
+                          <span>Key:</span>
+                          <span className="font-mono font-bold text-slate-700">{c.container_key}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-500">
+                          <span>Icon:</span>
+                          <span className="font-bold text-slate-700">{c.icon_name || "BookOpen"}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-500">
+                          <span>Button:</span>
+                          <span className="font-bold text-[#0055ff]">{c.button_text}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs font-bold text-slate-500">
-                      <span>{card.class_range}</span>
-                      <span className="text-[#0055ff]">{card.paper_type === "paper1" ? "Paper 1 (Class 1-8)" : "Paper 2 (Class 6-12)"}</span>
+                    <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs font-semibold">
+                      <span className="text-slate-400">Action: {c.action_url || "Built-in"}</span>
+                      <button
+                        onClick={() => handleEditContainer(c)}
+                        className="text-xs font-bold text-[#0055ff] hover:underline cursor-pointer"
+                      >
+                        Edit Details →
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
+
+              {/* CONTAINER ADD / EDIT MODAL */}
+              {isContainerModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+                  <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] overflow-y-auto">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <div>
+                        <h3 className="text-lg font-black text-[#061b36]">
+                          {editingContainerId ? "✏️ Edit Dashboard Container" : "➕ Create New Dashboard Container"}
+                        </h3>
+                        <p className="text-xs text-slate-500 font-medium">
+                          Configure title, subtitle, category, badge, icon, and display sequence.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setIsContainerModalOpen(false)}
+                        className="text-slate-400 hover:text-slate-700 text-xl font-bold p-1 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSaveContainer} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Container Key * (unique id e.g. news, nmms, treast)
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            disabled={Boolean(editingContainerId)}
+                            value={cKeyInput}
+                            onChange={(e) => setCKeyInput(e.target.value)}
+                            placeholder="e.g. nmms, tamil_reading"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff] disabled:bg-slate-100"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Container Title * (e.g. NMMS, TN Textbooks)
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={cTitleInput}
+                            onChange={(e) => setCTitleInput(e.target.value)}
+                            placeholder="e.g. NMMS"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Subtitle (e.g. தமிழ் வாசிப்பு & இலக்கணம்)
+                          </label>
+                          <input
+                            type="text"
+                            value={cSubtitleInput}
+                            onChange={(e) => setCSubtitleInput(e.target.value)}
+                            placeholder="e.g. Classes 1-12 | தாள் - 1"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Category / Module Type
+                          </label>
+                          <select
+                            value={cCategoryInput}
+                            onChange={(e) => setCCategoryInput(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          >
+                            <option value="tet">TET (Teacher Eligibility Test)</option>
+                            <option value="textbooks">TN Textbooks (School Books)</option>
+                            <option value="news">News (Education Circulars)</option>
+                            <option value="tamil_reading">Tamil Reading</option>
+                            <option value="english_reading">English Reading</option>
+                            <option value="online_class">Online Class (Live Meeting)</option>
+                            <option value="nmms">NMMS (8th Scholarship)</option>
+                            <option value="treast">TREAST (TRUST Exam)</option>
+                            <option value="custom">Custom Module</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Description (Tamil / English guidance text)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={cDescInput}
+                          onChange={(e) => setCDescInput(e.target.value)}
+                          placeholder="Brief description displayed on the dashboard card..."
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Badge Text</label>
+                          <input
+                            type="text"
+                            value={cBadgeInput}
+                            onChange={(e) => setCBadgeInput(e.target.value)}
+                            placeholder="e.g. Scholarship, Official"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Button Text</label>
+                          <input
+                            type="text"
+                            value={cBtnTextInput}
+                            onChange={(e) => setCBtnTextInput(e.target.value)}
+                            placeholder="e.g. OPEN NMMS →"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Action URL / Route</label>
+                          <input
+                            type="text"
+                            value={cActionUrlInput}
+                            onChange={(e) => setCActionUrlInput(e.target.value)}
+                            placeholder="e.g. nmms, textbooks, https://..."
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Icon Style</label>
+                          <select
+                            value={cIconInput}
+                            onChange={(e) => setCIconInput(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          >
+                            <option value="BookOpen">BookOpen (Default)</option>
+                            <option value="GraduationCap">GraduationCap (TET)</option>
+                            <option value="Library">Library (Textbooks)</option>
+                            <option value="Newspaper">Newspaper (News)</option>
+                            <option value="BookCheck">BookCheck (Tamil Reading)</option>
+                            <option value="Languages">Languages (English Reading)</option>
+                            <option value="Video">Video (Online Class)</option>
+                            <option value="Award">Award (NMMS)</option>
+                            <option value="Sparkles">Sparkles (TREAST)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Display Order Index</label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={cOrderInput}
+                            onChange={(e) => setCOrderInput(Number(e.target.value))}
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
+                          />
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={cIsActiveInput}
+                              onChange={(e) => setCIsActiveInput(e.target.checked)}
+                              className="w-4 h-4 text-[#0055ff] rounded"
+                            />
+                            <span>Active on Dashboard</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => setIsContainerModalOpen(false)}
+                          className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={savingContainer}
+                          className="px-6 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                        >
+                          {savingContainer ? "Saving Container..." : "Save Container"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -4916,6 +5700,133 @@ export default function AdminPage({ user, lang = "en" }) {
           </div>
         </div>
       )}
+
+      {/* ================= MODAL: UPLOAD QUIZ PDF MODAL ================= */}
+      {uploadQuizPdfModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full flex flex-col overflow-hidden border border-slate-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#061b36] via-[#092d62] to-[#0055ff] text-white p-5 flex items-start justify-between gap-4 shrink-0">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-500/30 border border-blue-400/40 text-blue-100 font-black uppercase">
+                    Class {uploadQuizPdfModal.lesson?.class_num} • {uploadQuizPdfModal.lesson?.subject}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 font-bold">
+                    {uploadQuizPdfModal.quiz_type === "type2" ? "Type 2 Quiz (Remedial)" : "Type 1 Quiz (Stage 3 Practice)"}
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-sky-400" />
+                  <span>Upload Question Paper PDF</span>
+                </h3>
+                <p className="text-xs text-blue-200/90 font-medium">
+                  {uploadQuizPdfModal.lesson?.title}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setUploadQuizPdfModal(null);
+                  setQuizPdfFile(null);
+                }}
+                disabled={uploadingQuizPdf}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                title="Close Modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleUploadQuizPdfSubmit} className="p-6 space-y-4">
+              <div className="p-3.5 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950 text-xs flex items-start gap-2.5">
+                <FileText className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <strong className="block font-bold">Automated AI Extraction & Digitization</strong>
+                  <span className="text-sky-800 leading-relaxed font-medium">
+                    Upload an existing question paper PDF. The system will automatically parse questions, 4 options (A, B, C, D), and answer keys, and save them directly into this lesson quiz!
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  Select Question Paper PDF <span className="text-red-500">*</span>
+                </label>
+                <div className="border-2 border-dashed border-slate-300 hover:border-[#0055ff] rounded-2xl p-6 transition flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-50/80 cursor-pointer relative">
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setQuizPdfFile(e.target.files[0]);
+                      }
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    disabled={uploadingQuizPdf}
+                  />
+                  <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                  {quizPdfFile ? (
+                    <div className="text-center space-y-1">
+                      <p className="text-xs font-bold text-slate-800">{quizPdfFile.name}</p>
+                      <p className="text-[11px] text-slate-500">{(quizPdfFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <span className="inline-block text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Ready to extract
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-1">
+                      <p className="text-xs font-bold text-slate-700">Click to browse or drop PDF here</p>
+                      <p className="text-[11px] text-slate-400">PDF with multiple choice questions (with or without answer key)</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadQuizPdfModal(null);
+                    setQuizPdfFile(null);
+                  }}
+                  disabled={uploadingQuizPdf}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!quizPdfFile || uploadingQuizPdf}
+                  className="px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-[#0044cc] text-white font-bold text-xs shadow-md hover:shadow-lg transition flex items-center space-x-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploadingQuizPdf ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Reading PDF & Extracting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Extract & Save Quiz</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL 6: SHARE LESSON MESSAGE ================= */}
+      <ShareLessonMessageModal
+        lesson={sharingLesson}
+        onClose={() => setSharingLesson(null)}
+        showToast={showToast}
+      />
 
     </div>
   );

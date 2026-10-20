@@ -89,11 +89,17 @@ class AdminSettingsSchema(BaseModel):
     test_time_limit_mins: int
     pass_percentage: int
     count_mcq: Optional[int] = 40
-    count_hots: Optional[int] = 30
-    count_match: Optional[int] = 30
-    count_multi_stmt: Optional[int] = 40
-    count_assertion: Optional[int] = 30
-    count_chronological: Optional[int] = 30
+    count_hots: Optional[int] = 20
+    count_match: Optional[int] = 10
+    count_multi_stmt: Optional[int] = 10
+    count_assertion: Optional[int] = 10
+    count_chronological: Optional[int] = 10
+    stage4_count_mcq: Optional[int] = 20
+    stage4_count_hots: Optional[int] = 10
+    stage4_count_match: Optional[int] = 5
+    stage4_count_multi_stmt: Optional[int] = 5
+    stage4_count_assertion: Optional[int] = 5
+    stage4_count_chronological: Optional[int] = 5
 
 class AnnouncementCreate(BaseModel):
     title: str
@@ -233,6 +239,45 @@ class ForgotPasswordRequest(BaseModel):
 class UserResetPassword(BaseModel):
     email: str
     new_password: str
+
+class DashboardContainerBase(BaseModel):
+    container_key: str
+    title: str
+    subtitle: Optional[str] = ""
+    category: Optional[str] = "general"
+    description: Optional[str] = ""
+    badge_text: Optional[str] = ""
+    button_text: Optional[str] = "OPEN →"
+    action_url: Optional[str] = ""
+    content_body: Optional[str] = None
+    icon_name: Optional[str] = "BookOpen"
+    order_index: Optional[int] = 0
+    is_active: Optional[bool] = True
+
+class DashboardContainerCreate(DashboardContainerBase):
+    pass
+
+class DashboardContainerUpdate(BaseModel):
+    container_key: Optional[str] = None
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    badge_text: Optional[str] = None
+    button_text: Optional[str] = None
+    action_url: Optional[str] = None
+    content_body: Optional[str] = None
+    icon_name: Optional[str] = None
+    order_index: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class DashboardContainerOut(DashboardContainerBase):
+    id: int
+    created_at: Optional[datetime] = None
+    active_meeting: Optional[dict] = None
+
+    class Config:
+        from_attributes = True
 
 
 

@@ -435,33 +435,43 @@ export async function fetchApi(endpoint, options = {}) {
     }
 
     if (endpoint.startsWith("/admin/settings")) {
-      return {
+      const stored = JSON.parse(localStorage.getItem("tet_admin_settings") || "null");
+      if (options.method === "PUT" && options.body) {
+        const body = JSON.parse(options.body);
+        const updated = { ...stored, ...body };
+        localStorage.setItem("tet_admin_settings", JSON.stringify(updated));
+        return updated;
+      }
+      return stored || {
         gemini_api_key: "",
-        practice_question_count: 200,
-        test_question_count: 100,
-        test_time_limit_mins: 60,
-        pass_percentage: 80
+        practice_question_count: 100,
+        test_question_count: 50,
+        test_time_limit_mins: 30,
+        pass_percentage: 80,
+        count_mcq: 40,
+        count_hots: 20,
+        count_match: 10,
+        count_multi_stmt: 10,
+        count_assertion: 10,
+        count_chronological: 10,
+        stage4_count_mcq: 20,
+        stage4_count_hots: 10,
+        stage4_count_match: 5,
+        stage4_count_multi_stmt: 5,
+        stage4_count_assertion: 5,
+        stage4_count_chronological: 5
       };
     }
 
     if (endpoint.startsWith("/meetings") || endpoint.startsWith("/admin/meetings")) {
-      let storedMeetings = JSON.parse(localStorage.getItem("tet_stored_meetings") || "null");
-      if (!storedMeetings || !Array.isArray(storedMeetings)) {
-        storedMeetings = [
-          {
-            id: 1,
-            title: "🔴 TN TET Paper-2 Live Science & Social Science Special Class",
-            meeting_link: "https://meet.google.com/abc-defg-hij",
-            meeting_url: "https://meet.google.com/abc-defg-hij",
-            start_time: new Date(Date.now() - 3600000).toISOString(),
-            end_time: new Date(Date.now() + 86400000 * 2).toISOString(),
-            description: "Direct Live Interaction with TET Faculty & Interactive Q&A Session for Paper 2 Aspirants. (Google Meet)",
-            is_active: true,
-            is_live: true
-          }
-        ];
-        localStorage.setItem("tet_stored_meetings", JSON.stringify(storedMeetings));
+      let storedMeetings = JSON.parse(localStorage.getItem("tet_stored_meetings") || "[]");
+      if (!Array.isArray(storedMeetings)) {
+        storedMeetings = [];
       }
+      // Purge any old hardcoded demo meetings
+      storedMeetings = storedMeetings.filter(m => !m.title?.includes("TN TET Paper-2 Live Science & Social Science Special Class") && m.id !== 1);
+      localStorage.setItem("tet_stored_meetings", JSON.stringify(storedMeetings));
+
       if (options.method === "POST") {
         const body = options.body ? JSON.parse(options.body) : {};
         const link = body.meeting_link || body.meeting_url || "https://meet.google.com/abc-defg-hij";
@@ -488,6 +498,14 @@ export async function fetchApi(endpoint, options = {}) {
           localStorage.setItem("tet_stored_meetings", JSON.stringify(storedMeetings));
         }
         return { message: "Meeting deleted successfully" };
+      }
+      if (endpoint === "/meetings/active") {
+        const nowIso = new Date().toISOString().slice(0, 16);
+        return storedMeetings.filter(m => {
+          if (m.is_active === false) return false;
+          if (m.end_time && m.end_time < nowIso) return false;
+          return true;
+        });
       }
       return storedMeetings;
     }

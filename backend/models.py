@@ -90,11 +90,17 @@ class AdminSettings(Base):
     test_time_limit_mins = Column(Integer, default=60)
     pass_percentage = Column(Integer, default=80)
     count_mcq = Column(Integer, default=40)
-    count_hots = Column(Integer, default=30)
-    count_match = Column(Integer, default=30)
-    count_multi_stmt = Column(Integer, default=40)
-    count_assertion = Column(Integer, default=30)
-    count_chronological = Column(Integer, default=30)
+    count_hots = Column(Integer, default=20)
+    count_match = Column(Integer, default=10)
+    count_multi_stmt = Column(Integer, default=10)
+    count_assertion = Column(Integer, default=10)
+    count_chronological = Column(Integer, default=10)
+    stage4_count_mcq = Column(Integer, default=20)
+    stage4_count_hots = Column(Integer, default=10)
+    stage4_count_match = Column(Integer, default=5)
+    stage4_count_multi_stmt = Column(Integer, default=5)
+    stage4_count_assertion = Column(Integer, default=5)
+    stage4_count_chronological = Column(Integer, default=5)
 
 class TETCard(Base):
     __tablename__ = "tet_cards"
@@ -141,5 +147,23 @@ class DailyPractice(Base):
     time_limit_mins = Column(Integer, default=20)
     pass_percentage = Column(Integer, default=80)
     available_date = Column(String(50), nullable=True) # "YYYY-MM-DD"
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class DashboardContainer(Base):
+    __tablename__ = "dashboard_containers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    container_key = Column(String(100), unique=True, index=True)
+    title = Column(String(255))
+    subtitle = Column(String(255), default="")
+    category = Column(String(100), default="general") # tet, textbooks, news, tamil_reading, english_reading, online_class, nmms, treast, other
+    description = Column(Text, default="")
+    badge_text = Column(String(100), default="")
+    button_text = Column(String(100), default="OPEN →")
+    action_url = Column(String(500), default="")
+    content_body = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    icon_name = Column(String(50), default="BookOpen")
+    order_index = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)

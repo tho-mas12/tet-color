@@ -21,3 +21,6 @@ backend/uploads/*
 .env.local
 .vscode/
 .idea/
+google_sign_in.json
+scratch/
+*.tar.gz

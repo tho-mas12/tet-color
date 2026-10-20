@@ -7,13 +7,24 @@ import {
   CheckCircle2, 
   FileText, 
   X,
-  Languages
+  Languages,
+  Share2
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
 
-export default function MaterialsPage({ lang = "en" }) {
-  const [selectedClass, setSelectedClass] = useState(10);
+export default function MaterialsPage({ lang = "en", onShare }) {
+  const [selectedClass, setSelectedClass] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get("class");
+      if (q) {
+        const parsed = parseInt(q, 10);
+        if (parsed >= 1 && parsed <= 12) return parsed;
+      }
+    } catch (e) {}
+    return 10;
+  });
   const [selectedSubject, setSelectedSubject] = useState("Tamil");
   const [selectedMedium, setSelectedMedium] = useState("Tamil Medium");
   const [selectedTerm, setSelectedTerm] = useState("Term-1");
@@ -22,6 +33,15 @@ export default function MaterialsPage({ lang = "en" }) {
   const [activePdfModal, setActivePdfModal] = useState(null);
 
   const t = translations[lang] || translations.en;
+
+  // Sync selectedClass to URL query param
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("class", selectedClass.toString());
+      window.history.replaceState(null, "", url.pathname + url.search);
+    } catch (e) {}
+  }, [selectedClass]);
 
   const classes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   
@@ -92,17 +112,29 @@ export default function MaterialsPage({ lang = "en" }) {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#071c38]">
       
       {/* Header Banner */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-xs">
-        <div className="flex items-center space-x-2 text-[#0055ff] mb-1.5 font-bold text-xs uppercase tracking-wider">
-          <Layers className="w-4 h-4" />
-          <span>Curriculum Material Repository</span>
+      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center space-x-2 text-[#0055ff] mb-1.5 font-bold text-xs uppercase tracking-wider">
+            <Layers className="w-4 h-4" />
+            <span>Curriculum Material Repository</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">
+            {t.materials}
+          </h1>
+          <p className="text-xs text-slate-500 mt-1 max-w-2xl font-medium">
+            Filter by Grade (1-12), Subject, Medium (Tamil / English), and Term across the 4-grid interface to preview or download official study resources.
+          </p>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-[#093c85] tracking-tight">
-          {t.materials}
-        </h1>
-        <p className="text-xs text-slate-500 mt-1 max-w-2xl font-medium">
-          Filter by Grade (1-12), Subject, Medium (Tamil / English), and Term across the 4-grid interface to preview or download official study resources.
-        </p>
+
+        {onShare && (
+          <button
+            onClick={onShare}
+            className="self-start sm:self-center px-4 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] border border-blue-200 font-extrabold text-xs flex items-center space-x-2 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
+          >
+            <Share2 className="w-4 h-4 text-[#0055ff]" />
+            <span>{lang === "ta" ? "வகுப்பு இணைப்பு பகிர்க" : "Share Class Link"}</span>
+          </button>
+        )}
       </div>
 
       {/* ================= 4 GRID LAYOUT ================= */}
