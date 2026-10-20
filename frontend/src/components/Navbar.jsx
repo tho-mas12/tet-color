@@ -45,10 +45,10 @@ export default function Navbar({
             />
           </div>
           <div>
-            <span className="text-sm sm:text-lg font-bold text-white tracking-tight block leading-tight">
+            <span className="text-xs sm:text-base md:text-lg font-bold text-white tracking-tight block leading-tight truncate max-w-[155px] xs:max-w-none">
               {lang === "ta" ? "பாடப்புத்தகங்கள்" : t.brandTitle}
             </span>
-            <span className="block text-[9px] sm:text-[10px] text-sky-200 uppercase tracking-wider font-medium -mt-0.5">
+            <span className="block text-[9px] sm:text-[10px] text-sky-200 uppercase tracking-wider font-medium -mt-0.5 truncate max-w-[155px] xs:max-w-none">
               {lang === "ta" ? "அனைத்து வகுப்புகளுக்கும்" : t.brandSubtitle}
             </span>
           </div>
@@ -167,7 +167,10 @@ export default function Navbar({
       </div>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav aria-label="Mobile Navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#061b36]/95 backdrop-blur-md border-t border-white/15 px-3 py-1.5 flex items-center justify-around shadow-2xl">
+      <nav 
+        aria-label="Mobile Navigation" 
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#061b36]/95 backdrop-blur-md border-t border-white/15 px-3 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] flex items-center justify-around shadow-2xl"
+      >
         {user ? (
           isAdmin ? (
             <button

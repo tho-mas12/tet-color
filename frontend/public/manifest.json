@@ -1,0 +1,64 @@
+{
+  "name": "TN Teachers • தமிழ்நாடு ஆசிரியர் தகுதித் தேர்வு தளம்",
+  "short_name": "TN Teachers",
+  "description": "Tamil Nadu Teachers Eligibility Benchmark Portal for TET Paper 1, Paper 2 & Competitive Exams",
+  "start_url": "/student",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#061b36",
+  "theme_color": "#0055ff",
+  "lang": "ta-IN",
+  "dir": "ltr",
+  "categories": ["education", "books", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Student Dashboard",
+      "short_name": "Dashboard",
+      "description": "Open student learning dashboard",
+      "url": "/student",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Textbooks & Materials",
+      "short_name": "Materials",
+      "description": "Access School Textbooks & Materials",
+      "url": "/materials",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Live News Feed",
+      "short_name": "News",
+      "description": "Latest educational news updates",
+      "url": "/news",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

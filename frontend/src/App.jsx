@@ -197,14 +197,33 @@ export default function App() {
   });
 
   const [lang, setLang] = useState("en"); // "en" or "ta"
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
   // Initialize route from current browser URL
   const initialRoute = resolveRoute(window.location.pathname, window.location.search, user);
-  const [activeTab, setActiveTab] = useState(initialRoute.tab);
+
+  // Open AuthModal immediately if user is not authenticated on a protected URL
+  const [isAuthOpen, setIsAuthOpen] = useState(() => {
+    if (initialRoute.requiresAuth && !user) {
+      const full = window.location.pathname + window.location.search;
+      try {
+        sessionStorage.setItem("intended_redirect", full);
+        localStorage.setItem("intended_redirect", full);
+      } catch (e) {}
+      return true;
+    }
+    return false;
+  });
+
+  const [activeTab, setActiveTab] = useState(() => {
+    if (initialRoute.requiresAuth && !user) {
+      return "home";
+    }
+    return initialRoute.tab;
+  });
+
   const [directLesson, setDirectLesson] = useState(
-    initialRoute.directLessonId 
+    initialRoute.directLessonId && user
       ? { lessonId: initialRoute.directLessonId, stage: initialRoute.directStage || 1 } 
       : null
   );
@@ -250,6 +269,7 @@ export default function App() {
       // Check authentication requirement
       if (route.requiresAuth && !user) {
         sessionStorage.setItem("intended_redirect", fullUrl);
+        localStorage.setItem("intended_redirect", fullUrl);
         setIsAuthOpen(true);
         showToast(lang === "ta" ? "இப்பக்கத்தை அணுக உள்நுழைக" : "Please sign in to access this page");
         return;
@@ -292,7 +312,9 @@ export default function App() {
     const handlePopState = () => {
       const route = resolveRoute(window.location.pathname, window.location.search, user);
       if (route.requiresAuth && !user) {
-        sessionStorage.setItem("intended_redirect", window.location.pathname + window.location.search);
+        const full = window.location.pathname + window.location.search;
+        sessionStorage.setItem("intended_redirect", full);
+        localStorage.setItem("intended_redirect", full);
         setIsAuthOpen(true);
         setActiveTab("home");
       } else {
@@ -324,6 +346,7 @@ export default function App() {
     if (route.requiresAuth && !user) {
       const full = pathname + search;
       sessionStorage.setItem("intended_redirect", full);
+      localStorage.setItem("intended_redirect", full);
       setIsAuthOpen(true);
       showToast(lang === "ta" ? "பாடத்திற்குச் செல்ல உள்நுழையவும்" : "Please sign in to view this shared lesson");
     } else {
@@ -350,6 +373,7 @@ export default function App() {
     // When admin signs in, redirect directly only to https://tnteachers.in/admin
     if (u && u.role === "admin") {
       sessionStorage.removeItem("intended_redirect");
+      localStorage.removeItem("intended_redirect");
       if (window.location.hostname.includes("tnteachers.in")) {
         window.location.href = "https://tnteachers.in/admin";
       } else {
@@ -358,15 +382,33 @@ export default function App() {
       return;
     }
 
-    // Check if user came from a shared URL
-    const intended = sessionStorage.getItem("intended_redirect");
+    // Check if user came from a specific shared / deep-link URL (e.g. /learning/lesson/3?stage=2)
+    const intended = sessionStorage.getItem("intended_redirect") || localStorage.getItem("intended_redirect");
     sessionStorage.removeItem("intended_redirect");
+    localStorage.removeItem("intended_redirect");
 
-    if (intended && intended !== "/" && intended !== "/home" && intended !== "/admin") {
-      showToast(lang === "ta" ? "பகிரப்பட்ட பக்கத்திற்கு செல்கிறது..." : "Redirecting to shared page...");
-      navigateTo(intended, true);
+    const isSpecificDeepLink = intended && 
+      intended !== "/" && 
+      intended !== "/home" && 
+      intended !== "/admin" && 
+      intended !== "/student" && 
+      intended !== "/dashboard";
+
+    if (isSpecificDeepLink) {
+      showToast(lang === "ta" ? "பாடத்திற்குச் செல்கிறது..." : "Redirecting to your lesson...");
+      if (window.location.hostname.includes("tnteachers.in")) {
+        window.location.href = `https://tnteachers.in${intended.startsWith("/") ? "" : "/"}${intended}`;
+      } else {
+        window.location.href = intended;
+      }
+      return;
+    }
+
+    // Normal student login: redirect strictly only to https://tnteachers.in/student
+    if (window.location.hostname.includes("tnteachers.in")) {
+      window.location.href = "https://tnteachers.in/student";
     } else {
-      navigateTo("/student", true);
+      window.location.href = "/student";
     }
   };
 
@@ -570,7 +612,13 @@ export default function App() {
       {isAuthOpen && (
         <AuthModal
           isOpen={isAuthOpen}
-          onClose={() => setIsAuthOpen(false)}
+          onClose={() => {
+            setIsAuthOpen(false);
+            const route = resolveRoute(window.location.pathname, window.location.search, user);
+            if (route.requiresAuth && !user) {
+              navigateTo("/home", true);
+            }
+          }}
           onAuthSuccess={handleAuthSuccess}
           lang={lang}
         />
