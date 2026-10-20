@@ -1409,6 +1409,9 @@ def admin_generate_lesson_quiz(
 
     for q in questions:
         q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
+        q["options"] = [ai_generator.sanitize_tamil_text(str(o)) for o in q.get("options", [])]
+        if q.get("explanation"):
+            q["explanation"] = ai_generator.sanitize_tamil_text(str(q.get("explanation", "")))
 
     questions_json = json.dumps(questions, ensure_ascii=False)
     if quiz_type == "type2":
@@ -1484,6 +1487,9 @@ def admin_upload_quiz_pdf(
     for idx, q in enumerate(extracted_questions, 1):
         q["id"] = idx
         q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
+        q["options"] = [ai_generator.sanitize_tamil_text(str(o)) for o in q.get("options", [])]
+        if q.get("explanation"):
+            q["explanation"] = ai_generator.sanitize_tamil_text(str(q.get("explanation", "")))
 
     questions_json = json.dumps(extracted_questions, ensure_ascii=False)
     if quiz_type == "type2":
@@ -1511,11 +1517,14 @@ def admin_save_lesson_quiz(
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
 
-    # Sanitize each question stem
+    # Sanitize each question stem, options, and explanation
     cleaned_questions = []
     for idx, q in enumerate(payload.questions, 1):
         q["id"] = idx
         q["question"] = ai_generator.clean_question_text(q.get("question", ""), lesson.title)
+        q["options"] = [ai_generator.sanitize_tamil_text(str(o)) for o in q.get("options", [])]
+        if q.get("explanation"):
+            q["explanation"] = ai_generator.sanitize_tamil_text(str(q.get("explanation", "")))
         cleaned_questions.append(q)
 
     questions_json = json.dumps(cleaned_questions, ensure_ascii=False)

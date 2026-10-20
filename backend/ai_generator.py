@@ -49,30 +49,86 @@ def sanitize_tamil_text(t: str) -> str:
     """
     Cleans and repairs Tamil text encodings, OCR glitches, and pulli/vowel misplacements:
     1. Unicode NFC normalization.
-    2. Strips unicode replacement character \ufffd.
+    2. Strips unicode replacement character \ufffd and Private Use / Tofu characters (U+E000-U+F8FF, U+F0000-U+10FFFF).
     3. Replaces rogue newlines that split words or pullis.
     4. Removes rogue spaces between base consonants and pullis / vowel signs.
-    5. Deduplicates consecutive pulli (U+0BCD) marks.
-    6. Removes OCR glitches like 'F' inside words.
-    7. Cleans quotes, ellipses, and trims excess whitespace.
+    5. Deduplicates combining vowel signs (கொொ -> கொ, நோோ -> நோ).
+    6. Deduplicates consecutive pulli (U+0BCD) marks.
+    7. Collapses duplicate identical consonants without pulli (e.g. கக -> க, தத -> த).
+    8. Repairs split conjuncts with rogue spaces (e.g. ற் றை -> ற்றை, சொ ன்னார் -> சொன்னார்).
+    9. Removes OCR artifacts like 'F' inside words.
+    10. Cleans quotes, ellipses, and trims excess whitespace.
     """
     if not t or not isinstance(t, str):
         return ""
     t = unicodedata.normalize('NFC', t)
-    t = t.replace('\ufffd', '')
     
-    # Fix newlines splitting words or pulli: e.g. 'உயர\n் சிந\n்தைன'
-    t = re.sub(r'([\u0B80-\u0BFF])\s*\n\s*([\u0B80-\u0BFF])', r'\1\2', t)
+    # 1. Filter out unprintable, replacement, or private use characters (including tofu 􀄠)
+    filtered = []
+    for c in t:
+        cp = ord(c)
+        if cp == 0xFFFD or (0 <= cp <= 8) or (11 <= cp <= 12) or (14 <= cp <= 31) or (127 <= cp <= 159):
+            continue
+        if (0xE000 <= cp <= 0xF8FF) or (0xF0000 <= cp <= 0x10FFFD) or (0xD800 <= cp <= 0xDFFF):
+            continue
+        filtered.append(c)
+    t = ''.join(filtered)
     
-    # Fix spaces before pullis or vowel signs: e.g. 'நல்் ல' -> 'நல்ல', 'அவ்் வளவு' -> 'அவ்வளவு'
+    # 2. Remove OCR noise character 'F' inside words (e.g. நோFோக்கங்கள் -> நோக்கங்கள்)
+    t = re.sub(r'([\u0B80-\u0BFF])F([\u0B80-\u0BFF])', r'\1\2', t)
+    
+    # 3. Fix newlines splitting words or pulli / vowel signs
+    t = re.sub(r'([\u0B80-\u0BFF])\s*\n\s*([\u0BCD\u0BBE-\u0BCC])', r'\1\2', t)
+    t = re.sub(r'([\u0B80-\u0BFF])\n([\u0B80-\u0BFF])', r'\1 \2', t)
+    
+    # 4. Deduplicate combining vowel signs (கொொ -> கொ, நோோ -> நோ, காா -> கா)
+    t = re.sub(r'(\u0BCA|\u0BCB|\u0BCC)+', r'\1', t)
+    t = re.sub(r'(\u0BBE|\u0BBF|\u0BC0|\u0BC1|\u0BC2|\u0BC6|\u0BC7|\u0BC8)+', r'\1', t)
+    
+    # 5. Fix spaces before pullis or vowel signs: e.g. 'நல்் ல' -> 'நல்ல', 'சொ ன்னார்' -> 'சொன்னார்'
     t = re.sub(r'\s+([\u0BCD\u0BBE-\u0BCC])', r'\1', t)
     
-    # Fix duplicate pulli (e.g. 'ற்்ற' -> 'ற்ற', 'ந்்த' -> 'ந்த')
+    # 6. Deduplicate consecutive pulli (U+0BCD)
     t = re.sub('\u0BCD+', '\u0BCD', t)
-    t = re.sub(r'([\u0B85-\u0BB9])\u0BCD\1\u0BCD', '\\1\u0BCD\\1', t)
-
-    # Remove rogue OCR artifacts like 'நோFோக்கங்கள்' -> 'நோக்கங்கள்'
-    t = re.sub(r'(\u0B92|\u0B93|\u0BA8\u0BCC|\u0BA8\u0BCB|[^\s])F(\u0BCB|\u0BCA)', r'\1\2', t)
+    
+    # 7. Fix double pulli across identical consonants
+    t = re.sub(r'([\u0B85-\u0BB9])\u0BCD\1\u0BCD', '\\g<1>\u0BCD\\g<1>', t)
+    
+    # 8. Collapse duplicate identical consonants without pulli: (e.g. கக -> க, தத -> த, றற -> ற, னன -> ன)
+    t = re.sub(r'([\u0B95-\u0BB9])\1+', r'\1', t)
+    
+    # 9. Fix split conjuncts with rogue spaces inside words
+    split_conjuncts = [
+        (r'ற்\s+றை', 'ற்றை'),
+        (r'ற்\s+ற', 'ற்ற'),
+        (r'ந்\s+தை', 'ந்தை'),
+        (r'ந்\s+த', 'ந்த'),
+        (r'ன்\s+ன', 'ன்ன'),
+        (r'ன்\s+ற', 'ன்ற'),
+        (r'ட்\s+ட', 'ட்ட'),
+        (r'ப்\s+ப', 'ப்ப'),
+        (r'த்\s+த', 'த்த'),
+        (r'க்\s+க', 'க்க'),
+        (r'ச்\s+ச', 'ச்ச'),
+        (r'ச்\s+சி', 'ச்சி'),
+        (r'ச்\s+சொ\s*ன்ன', 'ச்சொன்ன'),
+        (r'சொ\s+ன்ன', 'சொன்ன'),
+        (r'ள்\s+ள', 'ள்ள'),
+        (r'ல்\s+ல', 'ல்ல'),
+        (r'ண்\s+ட', 'ண்ட'),
+        (r'ங்\s+க', 'ங்க'),
+        (r'பின்ன\s+ர்', 'பின்னர்'),
+        (r'இன\s+த்தின்', 'இனத்தின்'),
+        (r'என\s+ப்படுகிறது', 'எனப்படுகிறது'),
+        (r'கொ\s+ள்வதன்', 'க்கொள்வதன்'),
+        (r'கற்றுக்கொ\s+ள்', 'கற்றுக்கொள்'),
+        (r'உடை\s+டைய', 'உடைய'),
+    ]
+    for pat, rep in split_conjuncts:
+        t = re.sub(pat, rep, t)
+        
+    # 10. Clean chapter headings at start like 'அலகு 1 ', 'அலகு1 '
+    t = re.sub(r'^அலகு\s*\d+\s*', '', t)
     
     # Clean excessive whitespace
     t = re.sub(r'[ \t]+', ' ', t)
@@ -88,14 +144,16 @@ def clean_question_text(q_text: str, lesson_title: str = "") -> str:
         return ""
 
     # 1. Strip repetitive boilerplate phrases requested by user:
-    # "கீழ்கண்ட கூற்றுகளுள் எது பாடப்புத்தகத் தகவல்களின்படி..."
+    # "பாடப்பகுதியின் தகவல்களின்படி, பின்வரும் கூற்றுகளில் எது சரியானது?..."
     q_text = re.sub(
-        r'^(?:கீழ்க்கண்ட|கீழ்கண்ட|பின்வரும்)\s*கூற்றுகளு(?:ள்|ளில்)\s*(?:எது|எவை)\s*பாடப்புத்தகத்?\s*தகவல்களின்படி\s*(?:சரியான\s*)?(?:கொள்குறி\s*)?விடையாகும்\??\s*(?:\n*தகவல்\s*பகுதி\s*:\s*[\'\"]?)?',
+        r'^(?:பாடப்பகுதியின்\s*(?:வரலாற்றுத்\s*)?தகவல்களின்படி,?\s*)?(?:கீழ்க்கண்ட|கீழ்கண்ட|பின்வரும்|கீழ்க்காணும்)\s*(?:கூற்றுகளு(?:ள்|ளில்)|கருத்துக்களில்)?\s*(?:எது|எவை)\s*(?:பாடப்புத்தகத்?\s*தகவல்களின்படி\s*)?(?:சரியான(?:து|தாகும்| விடையாகும்| கூற்று)|தவறானது)\??\s*(?:\n*தகவல்\s*பகுதி\s*:\s*[\'\"]?)?',
         '',
         q_text,
         flags=re.IGNORECASE
     )
+    q_text = re.sub(r'^பாடப்பகுதியின்\s*(?:வரலாற்றுத்\s*)?தகவல்களின்படி,?\s*(?:பின்வரும்|கீழ்க்கண்ட)?\s*கூற்றுகளில்\s*(?:எது|எவை)\s*சரியானது\??\s*[\'\"]?', '', q_text, flags=re.IGNORECASE)
     q_text = re.sub(r'^(?:தகவல்\s*பகுதி|தகவலின்படி)\s*:\s*[\'\"]?', '', q_text, flags=re.IGNORECASE)
+    q_text = re.sub(r'^பாடநூல்\s*விளக்கம்\s*:\s*[\'\"]?', '', q_text, flags=re.IGNORECASE)
     
     # Strip control characters (which cause tofu / empty box symbols)
     q_text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', q_text)
@@ -167,6 +225,10 @@ def clean_question_text(q_text: str, lesson_title: str = "") -> str:
 
     q_text = sanitize_tamil_text(q_text)
     q_text = q_text.strip("'\" \t\r\n")
+
+    # If question is wrapped in quotes, strip them
+    if (q_text.startswith("'") and q_text.endswith("'")) or (q_text.startswith('"') and q_text.endswith('"')):
+        q_text = q_text[1:-1].strip()
 
     if q_text and q_text[0].isascii() and q_text[0].isalpha():
         q_text = q_text[0].upper() + q_text[1:]
@@ -289,11 +351,12 @@ def clean_and_extract_sentences(text: str, min_words: int = 4, max_words: int = 
     """
     Parses substantive sentences from raw PDF text.
     Removes footers, page headers, URLs, and duplicate lines.
+    Thoroughly sanitizes Tamil text, removing tofu, duplicate letters, and rogue spaces.
     """
     if not text:
         return []
 
-    text = unicodedata.normalize('NFKC', text)
+    text = sanitize_tamil_text(text)
     lines = text.splitlines()
     cleaned_lines = []
     for line in lines:
@@ -304,6 +367,8 @@ def clean_and_extract_sentences(text: str, min_words: int = 4, max_words: int = 
             continue
         if re.search(r'https?://|www\.', l):
             continue
+        # Skip dialogue character tags like தமிழினி:, அம்மா:
+        l = re.sub(r'^(?:தமிழினி|அம்மா|ஆசிரியர்|மாணவர்|தகவல்பேழை)\s*[:：\-]\s*', '', l)
         cleaned_lines.append(l)
 
     full_clean = " ".join(cleaned_lines)
@@ -312,12 +377,16 @@ def clean_and_extract_sentences(text: str, min_words: int = 4, max_words: int = 
     seen = set()
 
     for s in raw_sentences:
-        s = re.sub(r'\s+', ' ', s).strip()
+        s = sanitize_tamil_text(s)
         s = re.sub(r'^[\d\.\-\*\•\)\(ivxlcdmIVXLCDM]+\s*', '', s).strip()
+        s = s.strip("'\"“”‘’ ")
         words = s.split()
         if min_words <= len(words) <= max_words:
             norm = s.lower()
-            if norm not in seen and len(s) >= 15:
+            if norm not in seen and len(s) >= 20:
+                # Exclude trivial conversational fragments
+                if s.endswith("அம்மா") or s.startswith("அப்படியா") or s.startswith("நன்று") or s.startswith("சரி"):
+                    continue
                 seen.add(norm)
                 meaningful.append(s)
 
@@ -347,7 +416,7 @@ def deduplicate_questions(questions: list) -> list:
 
 
 def split_sentence_for_match(sentence: str, lang: str = "Tamil"):
-    sentence = sentence.strip()
+    sentence = sanitize_tamil_text(sentence.strip())
     words = sentence.split()
     if len(words) >= 6:
         split_idx = max(2, min(5, len(words) // 2))
@@ -402,7 +471,7 @@ def _build_pdf_strict_questions(
 ) -> list:
     """
     Synthesizes the exact 6 types of questions strictly derived from PDF sentences.
-    Guarantees zero outside questions, zero duplication, and strict adherence to target counts.
+    Guarantees zero outside questions, zero duplication, clean professional stems, and authentic options.
     """
     sentences = clean_and_extract_sentences(pdf_text)
     if not sentences:
@@ -436,51 +505,76 @@ def _build_pdf_strict_questions(
             seen_stems.add(stem)
             q["question"] = clean_q
             q["question_type"] = norm_t
+            q["options"] = [sanitize_tamil_text(str(o)) for o in q.get("options", [])]
+            q["explanation"] = sanitize_tamil_text(str(q.get("explanation", "")))
             type_buckets[norm_t].append(q)
 
     def get_next_sentence():
         nonlocal sent_idx
         s = sentences[sent_idx % sent_len]
         sent_idx += 1
-        return s
+        return sanitize_tamil_text(s)
 
-    def get_distinct_sentences(k=3, avoid=None):
-        nonlocal sent_idx
-        res = []
-        attempts = 0
-        while len(res) < k and attempts < sent_len * 2:
-            s = sentences[(sent_idx + attempts) % sent_len]
-            attempts += 1
-            if s != avoid and s not in res:
-                res.append(s)
-        while len(res) < k:
-            res.append(sentences[len(res) % sent_len])
-        return res
+    def get_widely_spaced_distractors(target_sent: str, count: int = 3, current_index: int = 0) -> list:
+        """
+        Picks distractors widely separated across the document so consecutive questions
+        never share overlapping options or sentences from adjacent lines.
+        """
+        stride = max(2, sent_len // (count + 1))
+        distractors = []
+        for step in range(1, count + 1):
+            offset_idx = (current_index + step * stride) % sent_len
+            cand = sanitize_tamil_text(sentences[offset_idx])
+            attempts = 0
+            while (cand == target_sent or cand in distractors) and attempts < 10:
+                offset_idx = (offset_idx + 1) % sent_len
+                cand = sanitize_tamil_text(sentences[offset_idx])
+                attempts += 1
+            if cand not in distractors and cand != target_sent:
+                distractors.append(cand)
+        while len(distractors) < count:
+            fallback = sanitize_tamil_text(sentences[(current_index + len(distractors) + 5) % sent_len])
+            distractors.append(fallback)
+        return distractors
 
     # 1. MCQ (கொள்குறி வினாக்கள்)
+    mcq_stems_en = [
+        "According to the lesson material, which of the following statements is factual and correct?",
+        "Based on the textbook content, identify the correct statement from the following options:",
+        "Which of the following represents an accurate concept directly stated in this lesson?",
+        "Carefully evaluate the following options and select the correct factual statement:"
+    ]
+    mcq_stems_ta = [
+        "பாடப்பகுதியின் வரலாற்றுத் தகவல்களின் அடிப்படையில், கீழ்க்காணும் கூற்றுகளில் எது சரியானது?",
+        "பாடநூலின் கருத்துப்படி, பின்வரும் கூற்றுகளில் உண்மையான கூற்றைத் தேர்ந்தெடுக்க:",
+        "கீழ்க்கண்டவற்றுள் எது பாடப்பகுதியோடு முழுமையாகப் பொருந்தும் சரியான தகவலாகும்?",
+        "கீழ்க்காணும் கூற்றுகளைக் கவனித்து, அவற்றுள் சரியான கூற்றைக் கண்டறிக:"
+    ]
+
     needed = target_counts.get("MCQ", 0) - len(type_buckets["MCQ"])
     attempts = 0
     while len(type_buckets["MCQ"]) < target_counts.get("MCQ", 0) and attempts < (needed + 10) * 20:
         attempts += 1
+        q_idx = len(type_buckets["MCQ"])
         correct_s = get_next_sentence()
-        target_ans = len(type_buckets["MCQ"]) % 4
-        distractors = get_distinct_sentences(3, avoid=correct_s)
-        opts = list(distractors)
+        target_ans = q_idx % 4
+        distractors = get_widely_spaced_distractors(correct_s, count=3, current_index=sent_idx)
+        opts = [sanitize_tamil_text(d) for d in distractors]
         opts.insert(target_ans, correct_s)
 
         if is_english:
-            q_text = f"Which of the following concepts is directly supported by the lesson material?\n'{correct_s}'"
+            stem_template = mcq_stems_en[q_idx % len(mcq_stems_en)]
             exp = f"Textbook Reference: '{correct_s}' is stated directly in the lesson material."
         else:
-            q_text = f"பாடப்பகுதியின் தகவல்களின்படி, பின்வரும் கூற்றுகளில் எது சரியானது?\n'{correct_s}'"
-            exp = f"பாடநூல் விளக்கம்: '{correct_s}' என்பது பாடப்பகுதியில் தெளிவாகக் குறிப்பிடப்பட்டுள்ள உண்மையாகும்."
+            stem_template = mcq_stems_ta[q_idx % len(mcq_stems_ta)]
+            exp = f"பாடநூல் விளக்கம்: '{correct_s}' என்பது பாடப்பகுதியில் தெளிவாகக் குறிப்பிடப்பட்டுள்ள சரியான உண்மையாகும்."
 
-        clean_q = clean_question_text(q_text, lesson_title)
+        clean_q = clean_question_text(stem_template, lesson_title)
         stem = normalize_stem(clean_q)
         base_clean_q = clean_q
         attempt = 1
         while stem in seen_stems:
-            clean_q = f"{base_clean_q} (வினா எண் {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (Ref #{len(seen_stems) + attempt})"
+            clean_q = f"{base_clean_q} (வினா #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (Set #{len(seen_stems) + attempt})"
             stem = normalize_stem(clean_q)
             attempt += 1
         seen_stems.add(stem)
@@ -490,33 +584,47 @@ def _build_pdf_strict_questions(
             "question": clean_q,
             "options": opts,
             "answer_index": target_ans,
-            "explanation": exp
+            "explanation": sanitize_tamil_text(exp)
         })
 
     # 2. உயர் சிந்தனை வினாக்கள் (HOTS)
+    hots_stems_en = [
+        "Critically analyze the core concept of this chapter and select the valid analytical conclusion:",
+        "From an analytical perspective, which of the following represents a profound conceptual truth of the lesson?",
+        "Which of the following statements demonstrates the deepest conceptual understanding of the chapter?",
+        "Evaluating the cause-and-effect relationships in the lesson, choose the most accurate conclusion:"
+    ]
+    hots_stems_ta = [
+        "பாடப்பகுதியின் மையக்கருத்தை ஆழமாகப் பகுப்பாய்வு செய்து, கீழ்க்கண்டவற்றுள் பொருத்தமான முடிவைத் தேர்ந்தெடுக்க:",
+        "வரலாற்றுத் தரவுகளின் அடிப்படையில், கீழ்க்காணும் கூற்றுகளுள் ஆழமான புரிதலை வெளிப்படுத்தும் முடிவு எது?",
+        "பின்வரும் கருத்துருக்களுள் வரலாற்றுப் புரிதலுக்கு வழிகோலும் மிகச் சரியான விளக்கம் எது?",
+        "பாடக் கருத்துக்களின் பயன்பாட்டு நோக்கத்தின்படி, பின்வருவனவற்றுள் சரியான பகுப்பாய்வுக் கூற்றைத் தேர்வு செய்க:"
+    ]
+
     needed = target_counts.get("உயர் சிந்தனை வினாக்கள்", 0) - len(type_buckets["உயர் சிந்தனை வினாக்கள்"])
     attempts = 0
     while len(type_buckets["உயர் சிந்தனை வினாக்கள்"]) < target_counts.get("உயர் சிந்தனை வினாக்கள்", 0) and attempts < (needed + 10) * 20:
         attempts += 1
+        q_idx = len(type_buckets["உயர் சிந்தனை வினாக்கள்"])
         hots_s = get_next_sentence()
-        target_ans = len(type_buckets["உயர் சிந்தனை வினாக்கள்"]) % 4
-        distractors = get_distinct_sentences(3, avoid=hots_s)
-        opts = list(distractors)
+        target_ans = q_idx % 4
+        distractors = get_widely_spaced_distractors(hots_s, count=3, current_index=sent_idx)
+        opts = [sanitize_tamil_text(d) for d in distractors]
         opts.insert(target_ans, hots_s)
 
         if is_english:
-            q_text = f"Analyze the following statement and select the valid conclusion:\n'{hots_s}'"
+            stem_template = hots_stems_en[q_idx % len(hots_stems_en)]
             exp = f"Analytical Reference: '{hots_s}' represents a key conceptual foundation."
         else:
-            q_text = f"பின்வரும் கருத்தை ஆராய்ந்து சரியான முடிவைத் தேர்ந்தெடுக்க:\n'{hots_s}'"
+            stem_template = hots_stems_ta[q_idx % len(hots_stems_ta)]
             exp = f"விளக்கம்: பாடநூலின் கருத்துப்படி, '{hots_s}' என்பது ஆழமான புரிதலுக்கான மையக் கருத்தாகும்."
 
-        clean_q = clean_question_text(q_text, lesson_title)
+        clean_q = clean_question_text(stem_template, lesson_title)
         stem = normalize_stem(clean_q)
         base_clean_q = clean_q
         attempt = 1
         while stem in seen_stems:
-            clean_q = f"{base_clean_q} (பகுப்பாய்வு {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (Analysis #{len(seen_stems) + attempt})"
+            clean_q = f"{base_clean_q} (பகுப்பாய்வு #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (Analysis #{len(seen_stems) + attempt})"
             stem = normalize_stem(clean_q)
             attempt += 1
         seen_stems.add(stem)
@@ -526,7 +634,7 @@ def _build_pdf_strict_questions(
             "question": clean_q,
             "options": opts,
             "answer_index": target_ans,
-            "explanation": exp
+            "explanation": sanitize_tamil_text(exp)
         })
 
     # 3. பொருத்துக வகை வினாக்கள் (Match the following)
@@ -574,7 +682,7 @@ def _build_pdf_strict_questions(
         base_clean_q = clean_q
         attempt = 1
         while stem in seen_stems:
-            clean_q = f"{base_clean_q}\n(பொருத்துக வினா {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Match Set #{len(seen_stems) + attempt})"
+            clean_q = f"{base_clean_q}\n(பொருத்துக வினா #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Match Set #{len(seen_stems) + attempt})"
             stem = normalize_stem(clean_q)
             attempt += 1
         seen_stems.add(stem)
@@ -582,9 +690,9 @@ def _build_pdf_strict_questions(
             "id": 0,
             "question_type": "பொருத்துக வகை வினாக்கள்",
             "question": clean_q,
-            "options": opts,
+            "options": [sanitize_tamil_text(o) for o in opts],
             "answer_index": target_ans,
-            "explanation": exp
+            "explanation": sanitize_tamil_text(exp)
         })
 
     # 4. பல்கூற்று வகை வினாக்கள் (Multi-Statement Analysis)
@@ -634,7 +742,7 @@ def _build_pdf_strict_questions(
         base_clean_q = clean_q
         attempt = 1
         while stem in seen_stems:
-            clean_q = f"{base_clean_q}\n(பல்கூற்று ஆய்வு {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Multi-analysis #{len(seen_stems) + attempt})"
+            clean_q = f"{base_clean_q}\n(பல்கூற்று ஆய்வு #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Multi-analysis #{len(seen_stems) + attempt})"
             stem = normalize_stem(clean_q)
             attempt += 1
         seen_stems.add(stem)
@@ -642,9 +750,9 @@ def _build_pdf_strict_questions(
             "id": 0,
             "question_type": "பல்கூற்று வகை வினாக்கள்",
             "question": clean_q,
-            "options": all_opts,
+            "options": [sanitize_tamil_text(o) for o in all_opts],
             "answer_index": target_ans,
-            "explanation": exp
+            "explanation": sanitize_tamil_text(exp)
         })
 
     # 5. கூற்று காரணம் வகை வினாக்கள் (Assertion & Reason)
@@ -689,7 +797,7 @@ def _build_pdf_strict_questions(
         base_clean_q = clean_q
         attempt = 1
         while stem in seen_stems:
-            clean_q = f"{base_clean_q}\n(கூற்று-காரணம் {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(A-R #{len(seen_stems) + attempt})"
+            clean_q = f"{base_clean_q}\n(கூற்று-காரணம் #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(A-R #{len(seen_stems) + attempt})"
             stem = normalize_stem(clean_q)
             attempt += 1
         seen_stems.add(stem)
@@ -697,9 +805,9 @@ def _build_pdf_strict_questions(
             "id": 0,
             "question_type": "கூற்று காரணம் வகை வினாக்கள்",
             "question": clean_q,
-            "options": all_opts,
+            "options": [sanitize_tamil_text(o) for o in all_opts],
             "answer_index": target_ans,
-            "explanation": exp
+            "explanation": sanitize_tamil_text(exp)
         })
 
     # 6. கால வரிசைப்படுத்துதல் வினாக்கள் (Chronological Ordering)
@@ -741,7 +849,7 @@ def _build_pdf_strict_questions(
         base_clean_q = clean_q
         attempt = 1
         while stem in seen_stems:
-            clean_q = f"{base_clean_q}\n(வரிசைப்படுத்துதல் {len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Sequence #{len(seen_stems) + attempt})"
+            clean_q = f"{base_clean_q}\n(வரிசைப்படுத்துதல் #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q}\n(Sequence #{len(seen_stems) + attempt})"
             stem = normalize_stem(clean_q)
             attempt += 1
         seen_stems.add(stem)
@@ -749,10 +857,22 @@ def _build_pdf_strict_questions(
             "id": 0,
             "question_type": "கால வரிசைப்படுத்துதல் வினாக்கள்",
             "question": clean_q,
-            "options": all_opts,
+            "options": [sanitize_tamil_text(o) for o in all_opts],
             "answer_index": target_ans,
-            "explanation": exp
+            "explanation": sanitize_tamil_text(exp)
         })
+
+    final_questions = (
+        type_buckets["MCQ"] +
+        type_buckets["உயர் சிந்தனை வினாக்கள்"] +
+        type_buckets["பொருத்துக வகை வினாக்கள்"] +
+        type_buckets["பல்கூற்று வகை வினாக்கள்"] +
+        type_buckets["கூற்று காரணம் வகை வினாக்கள்"] +
+        type_buckets["கால வரிசைப்படுத்துதல் வினாக்கள்"]
+    )
+    for idx, q in enumerate(final_questions, 1):
+        q["id"] = idx
+    return final_questions
 
     final_questions = (
         type_buckets["MCQ"] +
@@ -989,7 +1109,7 @@ def _query_gemini_json(prompt: str, api_key: str) -> list:
     if not api_key or not api_key.strip():
         return []
     clean_key = api_key.strip()
-    for model_name in ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest']:
+    for model_name in ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-flash-latest']:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={clean_key}"
             payload = {
