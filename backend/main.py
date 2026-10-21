@@ -17,6 +17,11 @@ import models, schemas, ai_generator
 # DB file & migration
 db_file = os.path.join(os.path.dirname(__file__), "tet_platform.db")
 
+IST_TZ = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+
+def get_ist_now():
+    return datetime.datetime.now(IST_TZ)
+
 def run_sqlite_migrations():
     try:
         import sqlite3
@@ -608,7 +613,9 @@ def get_learning_structure(
     result_terms = []
 
     previous_term_completed = True
-    now_iso = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M")
+    now_ist = get_ist_now()
+    now_iso = now_ist.strftime("%Y-%m-%dT%H:%M")
+    now_hm = now_ist.strftime("%H:%M")
 
     for term_name in terms:
         query = db.query(models.Lesson).filter(
@@ -664,7 +671,10 @@ def get_learning_structure(
                 "is_disabled_by_schedule": is_scheduled_future,
                 "stage4_unlock_time": les.stage4_unlock_time or "20:00",
                 "stage4_force_open": bool(les.stage4_force_open),
-                "is_stage4_locked_by_time": (not bool(les.stage4_force_open)) and (datetime.datetime.now().strftime("%H:%M") < (les.stage4_unlock_time or "20:00")),
+                "is_stage4_locked_by_time": (not bool(les.stage4_force_open)) and (now_hm < (les.stage4_unlock_time or "20:00")),
+                "stage5_unlock_time": getattr(les, "stage5_unlock_time", None) or les.stage4_unlock_time or "20:00",
+                "stage5_force_open": bool(getattr(les, "stage5_force_open", False) or les.stage4_force_open),
+                "is_stage5_locked_by_time": (not bool(getattr(les, "stage5_force_open", False) or les.stage4_force_open)) and (now_hm < (getattr(les, "stage5_unlock_time", None) or les.stage4_unlock_time or "20:00")),
                 "has_quiz_type1": bool(les.quiz_type1),
                 "has_quiz_type2": bool(les.quiz_type2),
                 "stage1_pdf": s1,
@@ -730,10 +740,11 @@ def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: S
         user.last_login = datetime.datetime.utcnow()
         db.commit()
 
-    now_iso = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M")
+    now_ist = get_ist_now()
+    now_iso = now_ist.strftime("%Y-%m-%dT%H:%M")
     is_scheduled_future = bool(lesson.available_at and lesson.available_at > now_iso)
     
-    now_hm = datetime.datetime.now().strftime("%H:%M")
+    now_hm = now_ist.strftime("%H:%M")
     stage4_time = lesson.stage4_unlock_time or "20:00"
     is_stage4_time_locked = False
     if not lesson.stage4_force_open:
@@ -983,12 +994,14 @@ def generate_test(
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
 
-    now_hm = datetime.datetime.now().strftime("%H:%M")
-    target_hm = lesson.stage4_unlock_time or "20:00"
-    if not lesson.stage4_force_open and now_hm < target_hm:
+    now_ist = get_ist_now()
+    now_hm = now_ist.strftime("%H:%M")
+    target_hm = getattr(lesson, "stage5_unlock_time", None) or lesson.stage4_unlock_time or "20:00"
+    is_forced = bool(getattr(lesson, "stage5_force_open", False) or lesson.stage4_force_open)
+    if not is_forced and now_hm < target_hm:
         raise HTTPException(
             status_code=403,
-            detail=f"Stage 4 Final Exam opens daily at 8:00 PM ({target_hm}). Current time is {now_hm}. Please prepare using Stage 1 and Stage 3 until 8:00 PM."
+            detail=f"Stage 5 Final Exam opens daily at 8:00 PM ({target_hm}) IST. Current time is {now_hm} IST. Please prepare using Stage 1, 2, 3 and 4 until 8:00 PM."
         )
 
     settings = db.query(models.AdminSettings).first()

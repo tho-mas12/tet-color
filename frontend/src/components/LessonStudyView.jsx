@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   FileText, 
   Video, 
@@ -27,6 +27,9 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeStage, setActiveStage] = useState(Number(initialStage) || 1);
+
+  const hasInitializedStage = useRef(false);
+  const hasTriggeredUnlockRef = useRef(false);
 
   const [isVideoModal, setIsVideoModal] = useState(false);
 
@@ -95,6 +98,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
 
   useEffect(() => {
     if (!isTimeLocked) return;
+    hasTriggeredUnlockRef.current = false;
     const updateCountdown = () => {
       const now = new Date();
       const target = new Date();
@@ -104,7 +108,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
       const diff = target.getTime() - now.getTime();
       if (diff <= 0) {
         setCountdownStr("00:00:00");
-        loadLessonDetails();
+        if (!hasTriggeredUnlockRef.current) {
+          hasTriggeredUnlockRef.current = true;
+          loadLessonDetails(false);
+        }
         return;
       }
       const hrs = Math.floor(diff / (1000 * 60 * 60));
@@ -151,23 +158,26 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
     return () => clearInterval(timer);
   }, [testActive, timeLeft]);
 
-  const loadLessonDetails = async () => {
-    setLoading(true);
+  const loadLessonDetails = async (showSpinner = true) => {
+    if (showSpinner && !lessonData) setLoading(true);
     try {
       const email = user ? user.email : "candidate@tet.com";
       const res = await fetchApi(`/learning/lesson/${lessonId}?user_email=${encodeURIComponent(email)}`);
       setLessonData(res.lesson);
       setProgress(res.progress);
 
-      const requestedStage = Number(initialStage);
-      if (requestedStage && [1, 2, 3, 4, 5].includes(requestedStage)) {
-        setActiveStage(requestedStage);
-      } else {
-        if (!res.progress.stage1_pdf) setActiveStage(1);
-        else if (!res.progress.stage2_short_notes) setActiveStage(2);
-        else if (!res.progress.stage2_video) setActiveStage(3);
-        else if (!res.progress.stage3_questions) setActiveStage(4);
-        else setActiveStage(5);
+      if (!hasInitializedStage.current) {
+        hasInitializedStage.current = true;
+        const requestedStage = Number(initialStage);
+        if (requestedStage && [1, 2, 3, 4, 5].includes(requestedStage)) {
+          setActiveStage(requestedStage);
+        } else {
+          if (!res.progress.stage1_pdf) setActiveStage(1);
+          else if (!res.progress.stage2_short_notes) setActiveStage(2);
+          else if (!res.progress.stage2_video) setActiveStage(3);
+          else if (!res.progress.stage3_questions) setActiveStage(4);
+          else setActiveStage(5);
+        }
       }
     } catch (err) {
       console.error("Lesson details error:", err);
@@ -519,22 +529,54 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                 </p>
               </div>
 
-              <button
-                onClick={() => markStageComplete(1)}
-                className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-xs cursor-pointer min-h-[42px]"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{pdfDone ? `${t.markStageDone} ✓` : t.markStageDone}</span>
-              </button>
+              <div className="flex items-center space-x-2.5">
+                {lessonData?.pdf_url && (
+                  <a
+                    href={lessonData.pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-[#0055ff] text-xs sm:text-sm font-bold border border-slate-200 cursor-pointer min-h-[42px]"
+                    title="Open PDF in a new window"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Open in New Tab ↗</span>
+                  </a>
+                )}
+
+                <button
+                  onClick={() => markStageComplete(1)}
+                  className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-xs cursor-pointer min-h-[42px]"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{pdfDone ? `${t.markStageDone} ✓` : t.markStageDone}</span>
+                </button>
+              </div>
             </div>
 
-            <div className="w-full h-[520px] sm:h-[650px] bg-slate-100 rounded-2xl overflow-hidden border border-slate-200">
-              <iframe
-                src={lessonData.pdf_url}
-                className="w-full h-full border-none"
-                title="Lesson PDF Material"
-              />
-            </div>
+            {lessonData?.pdf_url ? (
+              <div className="w-full h-[540px] sm:h-[680px] bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-2xs">
+                <iframe
+                  key={lessonData.pdf_url}
+                  src={lessonData.pdf_url}
+                  className="w-full h-full border-none"
+                  title="Lesson PDF Material"
+                />
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <FileText className="w-12 h-12 text-[#0055ff] mx-auto opacity-70" />
+                <h4 className="text-base font-bold text-[#061b36]">No PDF Document Attached</h4>
+                <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
+                  The lesson PDF is being prepared. You can mark this stage as complete and proceed to Short Notes and Video.
+                </p>
+                <button
+                  onClick={() => markStageComplete(1)}
+                  className="px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                >
+                  Mark Complete & Proceed →
+                </button>
+              </div>
+            )}
           </div>
         )}
 
