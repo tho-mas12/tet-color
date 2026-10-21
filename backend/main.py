@@ -3,7 +3,7 @@ import re
 import shutil
 import datetime
 import json
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Body
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Body, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -1177,7 +1177,17 @@ def get_admin_stats(db: Session = Depends(get_db)):
     }
 
 @app.get("/api/admin/vps-status")
-def get_admin_vps_status(db: Session = Depends(get_db)):
+def get_admin_vps_status(
+    password: Optional[str] = Query(None),
+    x_vps_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    auth_key = password or x_vps_password
+    if auth_key != "tnteachers.in":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid VPS password. Entry denied without authorization."
+        )
     import platform
     import subprocess
     import shutil

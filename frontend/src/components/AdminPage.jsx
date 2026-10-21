@@ -55,7 +55,9 @@ import {
   HardDrive,
   Cpu,
   Terminal,
-  Database
+  Database,
+  EyeOff,
+  ShieldAlert
 } from "lucide-react";
 import { fetchApi, saveUploadedMaterialClient, saveUploadedLessonClient } from "../api";
 import { translations } from "../translations";
@@ -400,6 +402,47 @@ export default function AdminPage({ user, lang = "en" }) {
   const [vpsSshCopied, setVpsSshCopied] = useState(false);
   const [vpsMysqlCopied, setVpsMysqlCopied] = useState(false);
 
+  // VPS Access Password Gate State (tnteachers.in)
+  const [isVpsUnlocked, setIsVpsUnlocked] = useState(() => {
+    try {
+      return sessionStorage.getItem("vps_tab_unlocked") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [vpsPasswordInput, setVpsPasswordInput] = useState("");
+  const [vpsPasswordError, setVpsPasswordError] = useState(null);
+  const [showVpsPassword, setShowVpsPassword] = useState(false);
+
+  const handleUnlockVps = (e) => {
+    if (e) e.preventDefault();
+    if (vpsPasswordInput.trim() === "tnteachers.in") {
+      setIsVpsUnlocked(true);
+      setVpsPasswordError(null);
+      try {
+        sessionStorage.setItem("vps_tab_unlocked", "true");
+        sessionStorage.setItem("vps_access_key", "tnteachers.in");
+      } catch {}
+      loadVpsStatus("tnteachers.in");
+      showToast("VPS Infrastructure Unlocked Successfully!", "success");
+    } else {
+      setVpsPasswordError("Incorrect Password. Entry Denied.");
+      showToast("Access Denied: Incorrect Password", "error");
+    }
+  };
+
+  const handleLockVps = () => {
+    setIsVpsUnlocked(false);
+    setVpsStatus(null);
+    setVpsPasswordInput("");
+    setVpsPasswordError(null);
+    try {
+      sessionStorage.removeItem("vps_tab_unlocked");
+      sessionStorage.removeItem("vps_access_key");
+    } catch {}
+    showToast("VPS & Server Status Tab Locked", "info");
+  };
+
   const t = translations[lang] || translations.en;
 
   // Catalog Filter States
@@ -630,48 +673,22 @@ export default function AdminPage({ user, lang = "en" }) {
     loadMeetings();
     loadDailyPractices();
     loadEnrollments();
-    loadVpsStatus();
+    if (sessionStorage.getItem("vps_tab_unlocked") === "true") {
+      loadVpsStatus("tnteachers.in");
+    }
   }, []);
 
-  const loadVpsStatus = async () => {
+  const loadVpsStatus = async (overridePw) => {
+    const pw = overridePw || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vps_access_key") : null) || "tnteachers.in";
     setVpsLoading(true);
     try {
-      const data = await fetchApi("/admin/vps-status");
-      if (data) setVpsStatus(data);
+      const data = await fetchApi(`/admin/vps-status?password=${encodeURIComponent(pw)}`);
+      if (data) {
+        setVpsStatus(data);
+      }
     } catch (err) {
       console.error("VPS status error:", err);
-      // Fallback data if server endpoint is loading
-      setVpsStatus(prev => prev || {
-        status: "online",
-        server_ip: "66.116.250.237",
-        domain: "https://tnteachers.in",
-        phpmyadmin_url: "https://tnteachers.in/phpmyadmin",
-        os_name: "AlmaLinux 9.8 (Olive Jaguar)",
-        kernel: "5.14.0-611.54.3.el9_7.x86_64",
-        uptime: "1d 11h",
-        load_avg: [0.08, 0.06, 0.01],
-        memory: { total_mb: 11698.3, used_mb: 1112.6, available_mb: 10585.7, percent: 9.5 },
-        disk: { total_gb: 343.4, used_gb: 4.6, free_gb: 324.6, percent: 1.4 },
-        services: [
-          { name: "tet-backend", label: "FastAPI Python Backend", port: "8000", status: "active", is_running: true, description: "Core Uvicorn server handling question generation & auth" },
-          { name: "nginx", label: "Nginx Web Server", port: "80, 443 (SSL)", status: "active", is_running: true, description: "Reverse proxy & SSL certification" },
-          { name: "mariadb", label: "MariaDB / MySQL Server", port: "3306", status: "active", is_running: true, description: "Relational database engine hosting 'tet_platform'" },
-          { name: "php-fpm", label: "PHP FastCGI (phpMyAdmin)", port: "UNIX Socket", status: "active", is_running: true, description: "Powering phpMyAdmin web GUI" }
-        ],
-        database: {
-          name: "tet_platform",
-          user: "tet_user",
-          host: "localhost:3306",
-          charset: "utf8mb4",
-          tables: [
-            { name: "lessons", rows: Array.isArray(lessonsList) ? lessonsList.length : 26, desc: "TET syllabus modules, PDF links & quizzes" },
-            { name: "users", rows: Array.isArray(usersList) ? usersList.length : 5, desc: "Registered student and administrator accounts" },
-            { name: "enrollments", rows: Array.isArray(enrollmentsList) ? enrollmentsList.length : 2, desc: "Student course enrollment leads and subscribers" }
-          ]
-        },
-        uploads: { count: 31, size_mb: 114.0, recent: [] },
-        recent_logs: "Live service journal active on VPS."
-      });
+      showToast("Unable to fetch live VPS telemetry from server.", "error");
     } finally {
       setVpsLoading(false);
     }
@@ -2003,7 +2020,7 @@ export default function AdminPage({ user, lang = "en" }) {
     { id: "announcements", label: "Announcements", icon: Bell, badge: Array.isArray(announcementsList) ? announcementsList.length : 0 },
     { id: "settings", label: "Settings", icon: Settings, badge: null },
     { id: "tet_cards", label: "Dashboard Containers", icon: LayoutGrid, badge: Array.isArray(adminContainers) ? adminContainers.length : 0 },
-    { id: "vps_status", label: "VPS & Server Status", icon: Server, badge: "Live" }
+    { id: "vps_status", label: "VPS & Server Status", icon: isVpsUnlocked ? Server : Lock, badge: isVpsUnlocked ? "Live" : "Key Req." }
   ];
 
   return (
@@ -5324,9 +5341,82 @@ export default function AdminPage({ user, lang = "en" }) {
             </div>
           )}
 
-          {/* ================= TAB 11: VPS & SERVER STATUS ================= */}
+          {/* ================= TAB 11: VPS & SERVER STATUS (PASSWORD PROTECTED) ================= */}
           {activeTab === "vps_status" && (
-            <div className="space-y-6 animate-fade-in">
+            !isVpsUnlocked ? (
+              <div className="max-w-md mx-auto py-12 px-4 animate-fade-in">
+                <div className="bg-white border-2 border-slate-200/90 rounded-3xl p-7 sm:p-9 shadow-xl space-y-6 text-center">
+                  
+                  {/* Security Lock Icon */}
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#061b36] via-[#092d62] to-[#0055ff] text-white flex items-center justify-center mx-auto shadow-lg ring-8 ring-blue-50">
+                    <Lock className="w-10 h-10 text-white" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                      <span>Password Protected Area</span>
+                    </span>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                      VPS & Server Status Access
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-sm mx-auto leading-relaxed">
+                      This administrative module contains sensitive server hardware telemetry, running systemd services, MySQL database metrics, and live system journals. Password verification is strictly required.
+                    </p>
+                  </div>
+
+                  {/* Password Verification Form */}
+                  <form onSubmit={handleUnlockVps} className="space-y-4 max-w-sm mx-auto text-left">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                        Access Password:
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showVpsPassword ? "text" : "password"}
+                          value={vpsPasswordInput}
+                          onChange={(e) => {
+                            setVpsPasswordInput(e.target.value);
+                            if (vpsPasswordError) setVpsPasswordError(null);
+                          }}
+                          placeholder="Enter server access password"
+                          className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-2 border-slate-200 text-slate-900 text-sm font-semibold focus:outline-none focus:border-[#0055ff] focus:bg-white transition pr-11"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowVpsPassword(!showVpsPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition p-1 cursor-pointer"
+                          title={showVpsPassword ? "Hide password" : "Show password"}
+                        >
+                          {showVpsPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {vpsPasswordError && (
+                        <p className="text-xs font-bold text-rose-600 mt-2 flex items-center space-x-1 animate-shake">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{vpsPasswordError}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#0055ff] to-[#061b36] hover:from-blue-700 hover:to-slate-900 text-white font-black text-sm shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                    >
+                      <Key className="w-4 h-4" />
+                      <span>Authenticate & Access Server →</span>
+                    </button>
+                  </form>
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-center space-x-2 text-[11px] text-slate-400 font-semibold">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Authorized Administrative Access Only</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 animate-fade-in">
               
               {/* Header Title & Quick Actions */}
               <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
@@ -5385,6 +5475,15 @@ export default function AdminPage({ user, lang = "en" }) {
                     <Database className="w-4 h-4" />
                     <span>Open phpMyAdmin ↗</span>
                   </a>
+
+                  <button
+                    onClick={handleLockVps}
+                    className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs transition cursor-pointer shadow-2xs"
+                    title="Lock VPS & Server Status Tab"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Lock Tab</span>
+                  </button>
                 </div>
               </div>
 
@@ -5864,6 +5963,7 @@ export default function AdminPage({ user, lang = "en" }) {
               </div>
 
             </div>
+            )
           )}
 
         </main>
