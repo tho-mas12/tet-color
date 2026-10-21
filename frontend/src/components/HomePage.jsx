@@ -8,9 +8,9 @@ import {
   ArrowRight, 
   ShieldCheck, 
   Users, 
-  Sparkles, 
   LogIn, 
   FileText, 
+  FileCheck,
   GraduationCap, 
   TrendingUp, 
   Layers,
@@ -94,14 +94,14 @@ export default function HomePage({ onOpenLogin, onOpenRegister, onNavigateMateri
                 <>
                   தமிழ்நாடு ஆசிரியர் தகுதித் தேர்வு <br className="hidden sm:inline" />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0055ff] via-[#0284c7] to-[#061b36]">
-                    அதிகாரப்பூர்வ கற்றல் மற்றும் பயிற்சி தளம்
+                    முழுமையான கற்றல் & தேர்வுப் பயிற்சி தளம்
                   </span>
                 </>
               ) : (
                 <>
                   Tamil Nadu Teacher Eligibility Test <br className="hidden sm:inline" />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0055ff] via-[#0284c7] to-[#061b36]">
-                    Official Academic Learning & Exam Portal
+                    Comprehensive Academic Learning & Exam Portal
                   </span>
                 </>
               )}
@@ -110,9 +110,9 @@ export default function HomePage({ onOpenLogin, onOpenRegister, onNavigateMateri
             {/* Subtitle */}
             <p className="text-sm sm:text-base text-slate-600 max-w-2xl font-medium leading-relaxed mx-auto lg:mx-0">
               {isTa ? (
-                "வகுப்பு 1 முதல் 12 வரையிலான தமிழ்நாடு SCERT பாடப்புத்தகக் குறிப்புகள், 4 படிநிலை பாடத் திட்டங்கள், 80% தேர்ச்சி தினசரி மாதிரித் தேர்வுகள் மற்றும் நேரடி ஆசிரியர் பயிற்சி வகுப்புகள்."
+                "வகுப்பு 1 முதல் 12 வரையிலான பள்ளிப் பாடப்புத்தகக் குறிப்புகள், 5-படிநிலை தொடர் கற்றல் முறை, 80% தேர்ச்சி தினசரி மாதிரித் தேர்வுகள் மற்றும் ஆசிரியர் வழிகாட்டல் வகுப்புகள்."
               ) : (
-                "Official Class 1–12 SCERT textbook curriculum, 4-stage mastery modules, timed daily practice exams with 80% passing criteria, and live Google Meet faculty guidance."
+                "Class 1–12 school textbook curriculum, 5-stage sequential mastery modules, timed daily practice exams with 80% passing criteria, and live faculty guidance."
               )}
             </p>
 
@@ -334,7 +334,7 @@ export default function HomePage({ onOpenLogin, onOpenRegister, onNavigateMateri
       </section>
 
 
-      {/* ================= 4 CORE PEDAGOGICAL PILLARS ================= */}
+      {/* ================= 5 CORE PEDAGOGICAL PILLARS ================= */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
         <div className="text-center max-w-2xl mx-auto space-y-2">
@@ -342,41 +342,57 @@ export default function HomePage({ onOpenLogin, onOpenRegister, onNavigateMateri
             {isTa ? "கற்றல் கட்டமைப்பு" : "Pedagogical Architecture"}
           </span>
           <h2 className="text-2xl sm:text-4xl font-black text-[#061b36] tracking-tight">
-            {isTa ? "வெற்றிக்கான 4 படிநிலைக் கற்றல் முறை" : "Engineered for TNTET Examination Success"}
+            {isTa ? "வெற்றிக்கான 5 படிநிலைக் கற்றல் முறை" : "5-Stage Sequential Mastery Engine"}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 font-medium">
             {isTa 
-              ? "பாடப்புத்தகக் குறிப்புகள் முதல் மாதிரித் தேர்வுகள் வரை அனைத்தும் ஒரே தளத்தில்." 
-              : "Structured syllabus progression combining textbook materials, video lessons, and timed exams."}
+              ? "பாடப்புத்தகம் முதல் சுருக்கக் குறிப்புகள், வீடியோ, பயிற்சி மற்றும் 80% மாதிரித் தேர்வு வரை அனைத்தும் ஒரே தளத்தில்." 
+              : "Structured 5-stage syllabus progression combining textbook materials, concise notes, video lessons, practice MCQs, and timed exams."}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           
-          {/* Card 1 */}
-          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs hover:shadow-md hover:border-[#0055ff]/40 transition group space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#0055ff] flex items-center justify-center font-bold group-hover:scale-105 transition-transform shadow-2xs">
-              <BookOpen className="w-6 h-6" />
+          {/* Stage 1: Book PDF */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs hover:shadow-md hover:border-[#0055ff]/40 transition group space-y-2.5">
+            <div className="w-11 h-11 rounded-2xl bg-blue-50 text-[#0055ff] flex items-center justify-center font-bold group-hover:scale-105 transition-transform shadow-2xs">
+              <BookOpen className="w-5 h-5" />
             </div>
-            <span className="text-[11px] font-extrabold uppercase text-[#0055ff] tracking-wider block">Stage 1</span>
-            <h3 className="text-base font-black text-[#061b36]">
-              {isTa ? "SCERT பாடக் குறிப்புகள்" : "SCERT E-Materials"}
+            <span className="text-[10px] font-black uppercase text-[#0055ff] tracking-wider block">Stage 1 • BOOK</span>
+            <h3 className="text-sm sm:text-base font-black text-[#061b36]">
+              {isTa ? "பாடப்புத்தகம் (Book)" : "Textbook PDF"}
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed font-medium">
               {isTa 
-                ? "1 முதல் 12-ஆம் வகுப்பு வரையிலான தமிழ் மற்றும் ஆங்கில வழி அரசுப் பாடப்புத்தகக் குறிப்புகள் மற்றும் PDF தொகுப்புகள்."
-                : "Official Class 1–12 textbook study notes for Tamil Medium & English Medium with instant printable PDF downloads."}
+                ? "1 முதல் 12-ஆம் வகுப்பு வரையிலான தமிழ் மற்றும் ஆங்கில வழி பள்ளிப் பாடப்புத்தகப் பகுதிகள் மற்றும் PDF தொகுப்புகள்."
+                : "Class 1–12 school textbook curriculum for Tamil Medium & English Medium with instant reading and downloads."}
             </p>
           </div>
 
-          {/* Card 2 */}
-          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition group space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform shadow-2xs">
-              <GraduationCap className="w-6 h-6" />
+          {/* Stage 2: Short Notes */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs hover:shadow-md hover:border-sky-500/40 transition group space-y-2.5">
+            <div className="w-11 h-11 rounded-2xl bg-sky-50 text-[#0284c7] flex items-center justify-center font-bold group-hover:scale-105 transition-transform shadow-2xs">
+              <FileCheck className="w-5 h-5" />
             </div>
-            <span className="text-[11px] font-extrabold uppercase text-emerald-600 tracking-wider block">Stage 2</span>
-            <h3 className="text-base font-black text-[#061b36]">
-              {isTa ? "கருத்து விளக்க வகுப்புகள்" : "Faculty Video Lectures"}
+            <span className="text-[10px] font-black uppercase text-[#0284c7] tracking-wider block">Stage 2 • NOTES</span>
+            <h3 className="text-sm sm:text-base font-black text-[#061b36]">
+              {isTa ? "சுருக்கக் குறிப்புகள் (Notes)" : "Short Study Notes"}
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              {isTa 
+                ? "தேர்வுக்குரிய முக்கிய கருத்துக்கள், சூத்திரங்கள் மற்றும் நினைவில் கொள்ள வேண்டிய உயர்தர சுருக்கக் குறிப்புகள்."
+                : "Concise exam-oriented revision notes, key concepts, and pedagogical points for rapid lesson revision."}
+            </p>
+          </div>
+
+          {/* Stage 3: Video Class */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition group space-y-2.5">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform shadow-2xs">
+              <Video className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider block">Stage 3 • VIDEO</span>
+            <h3 className="text-sm sm:text-base font-black text-[#061b36]">
+              {isTa ? "வீடியோ வகுப்புகள் (Video)" : "Video Classes"}
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed font-medium">
               {isTa 
@@ -385,34 +401,34 @@ export default function HomePage({ onOpenLogin, onOpenRegister, onNavigateMateri
             </p>
           </div>
 
-          {/* Card 3 */}
-          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs hover:shadow-md hover:border-orange-500/40 transition group space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform shadow-2xs">
-              <Clock className="w-6 h-6" />
+          {/* Stage 4: Practice MCQs */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs hover:shadow-md hover:border-orange-500/40 transition group space-y-2.5">
+            <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform shadow-2xs">
+              <HelpCircle className="w-5 h-5" />
             </div>
-            <span className="text-[11px] font-extrabold uppercase text-orange-600 tracking-wider block">Stage 3</span>
-            <h3 className="text-base font-black text-[#061b36]">
-              {isTa ? "பயிற்சி வினா வங்கி" : "Practice Question Bank"}
+            <span className="text-[10px] font-black uppercase text-orange-600 tracking-wider block">Stage 4 • PRACTICE</span>
+            <h3 className="text-sm sm:text-base font-black text-[#061b36]">
+              {isTa ? "பயிற்சி வினாக்கள் (Practice)" : "Practice MCQs"}
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed font-medium">
               {isTa 
-                ? "பாடவாரியான முக்கிய வினாக்களுடன் நேரக் கட்டுப்பாடற்ற சுய மதிப்பீட்டு மாதிரிப் பயிற்சி வினாக்கள்."
+                ? "பாடவாரியான மாதிரி வினாக்களுடன் உடனடி விடை சரிபார்ப்பு மற்றும் விரிவான விளக்கக் குறிப்புகள்."
                 : "Untimed diagnostic questions with instant answer explanations, pedagogical notes, and reference page links."}
             </p>
           </div>
 
-          {/* Card 4 */}
-          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs hover:shadow-md hover:border-purple-500/40 transition group space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform shadow-2xs">
-              <Award className="w-6 h-6" />
+          {/* Stage 5: 80% Benchmark Exam */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs hover:shadow-md hover:border-purple-500/40 transition group space-y-2.5">
+            <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform shadow-2xs">
+              <Award className="w-5 h-5" />
             </div>
-            <span className="text-[11px] font-extrabold uppercase text-purple-600 tracking-wider block">Stage 4</span>
-            <h3 className="text-base font-black text-[#061b36]">
-              {isTa ? "80% இறுதி மாதிரித் தேர்வு" : "80% Benchmark Exam"}
+            <span className="text-[10px] font-black uppercase text-purple-600 tracking-wider block">Stage 5 • EXAM (80%)</span>
+            <h3 className="text-sm sm:text-base font-black text-[#061b36]">
+              {isTa ? "80% மாதிரித் தேர்வு" : "80% Benchmark Exam"}
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed font-medium">
               {isTa 
-                ? "கட்டாய 80% தேர்ச்சி மதிப்பெண் கொண்ட நேரக் கட்டுப்பாடு தினசரி தேர்வு மற்றும் தொடர் கற்றல் அங்கீகாரம்."
+                ? "கட்டாய 80% தேர்ச்சி மதிப்பெண் கொண்ட நேரக் கட்டுப்பாடு மாதிரித் தேர்வு மற்றும் அடுத்த பாடம் திறக்கும் முறை."
                 : "Timed simulation requiring 80% pass mark to unlock next lessons, building real examination endurance and habits."}
             </p>
           </div>

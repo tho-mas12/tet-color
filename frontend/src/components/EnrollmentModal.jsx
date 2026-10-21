@@ -4,7 +4,7 @@ import {
   Lock, 
   CheckCircle2, 
   ShieldCheck, 
-  Sparkles, 
+  Award, 
   Phone, 
   Mail, 
   User, 
@@ -180,7 +180,7 @@ export default function EnrollmentModal({ isOpen, onClose, user, onEnrollmentSuc
 
           <div className="flex items-center space-x-2 mb-2">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-amber-400 text-slate-900 flex items-center space-x-1 shadow-xs">
-              <Sparkles className="w-3 h-3" />
+              <Award className="w-3 h-3" />
               <span>ALL-IN-ONE PASS</span>
             </span>
             <span className="text-sky-200 text-xs font-semibold">TET 2026 Batch</span>

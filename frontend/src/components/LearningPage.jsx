@@ -11,7 +11,10 @@ import {
   Info,
   UserCheck,
   Clock,
-  Sparkles,
+  Trophy,
+  FileText,
+  FileCheck,
+  HelpCircle,
   Zap,
   Crown,
   ShieldCheck,
@@ -237,7 +240,7 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
       name: lang === "ta" ? "180-நாள் வெற்றியாளர்" : "180-Day Titan",
       required_streak: 180,
       unlocked: streakCount >= 180,
-      icon: "Sparkles"
+      icon: "Trophy"
     },
     {
       id: "day365",
@@ -429,7 +432,7 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
                   ? "bg-white text-[#0055ff] border-blue-200"
                   : "bg-white text-indigo-700 border-indigo-200"
               }`}>
-                <Sparkles className="w-3.5 h-3.5" />
+                <GraduationCap className="w-3.5 h-3.5" />
                 <span>{motivationTitle}</span>
               </span>
 
@@ -495,7 +498,7 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
                         {b.id === "day15" && <Zap className="w-4 h-4 text-yellow-500 fill-yellow-400" />}
                         {b.id === "day30" && <Award className="w-4 h-4 text-orange-500" />}
                         {b.id === "day90" && <ShieldCheck className="w-4 h-4 text-indigo-600" />}
-                        {b.id === "day180" && <Sparkles className="w-4 h-4 text-emerald-600" />}
+                        {b.id === "day180" && <Trophy className="w-4 h-4 text-emerald-600" />}
                         {b.id === "day365" && <Crown className="w-4 h-4 text-[#0055ff] fill-[#0055ff]" />}
                       </div>
                     </div>
@@ -734,13 +737,28 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
                           <p className="text-xs sm:text-sm text-slate-600 font-normal mt-0.5 line-clamp-2 leading-relaxed">{les.description}</p>
                         </div>
 
-                        {/* 5 Stage Action Status Badges in Blue, Cyan, Green, Orange, Purple */}
-                        <div className="grid grid-cols-5 gap-1 py-2 border-y border-slate-100 text-[11px] font-black text-center">
-                          <span className={les.stage1_pdf ? "text-[#0055ff]" : "text-slate-300"}>📘 PDF</span>
-                          <span className={les.stage2_short_notes ? "text-[#0284c7]" : "text-slate-300"}>📄 NOTES</span>
-                          <span className={les.stage2_video ? "text-[#00a651]" : "text-slate-300"}>▶️ VIDEO</span>
-                          <span className={les.stage3_questions ? "text-[#ff7a00]" : "text-slate-300"}>❓ TEST</span>
-                          <span className={les.stage4_test ? "text-[#8a00e6]" : "text-slate-300"}>📝 EXAM</span>
+                        {/* 5 Stage Action Status Badges with Professional SVG Icons */}
+                        <div className="grid grid-cols-5 gap-1 py-2 border-y border-slate-100 text-[11px] font-black text-center items-center">
+                          <span className={`flex items-center justify-center space-x-1 ${les.stage1_pdf ? "text-[#0055ff]" : "text-slate-300"}`}>
+                            <FileText className="w-3 h-3" />
+                            <span>PDF</span>
+                          </span>
+                          <span className={`flex items-center justify-center space-x-1 ${les.stage2_short_notes ? "text-[#0284c7]" : "text-slate-300"}`}>
+                            <FileCheck className="w-3 h-3" />
+                            <span>NOTES</span>
+                          </span>
+                          <span className={`flex items-center justify-center space-x-1 ${les.stage2_video ? "text-[#00a651]" : "text-slate-300"}`}>
+                            <Video className="w-3 h-3" />
+                            <span>VIDEO</span>
+                          </span>
+                          <span className={`flex items-center justify-center space-x-1 ${les.stage3_questions ? "text-[#ff7a00]" : "text-slate-300"}`}>
+                            <HelpCircle className="w-3 h-3" />
+                            <span>TEST</span>
+                          </span>
+                          <span className={`flex items-center justify-center space-x-1 ${les.stage4_test ? "text-[#8a00e6]" : "text-slate-300"}`}>
+                            <Award className="w-3 h-3" />
+                            <span>EXAM</span>
+                          </span>
                         </div>
 
                         <button

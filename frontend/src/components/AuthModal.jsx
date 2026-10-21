@@ -10,7 +10,6 @@ import {
   KeyRound, 
   CheckCircle2, 
   AlertCircle,
-  Sparkles,
   Loader2
 } from "lucide-react";
 import { fetchApi } from "../api";

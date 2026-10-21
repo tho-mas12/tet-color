@@ -24,3 +24,5 @@ backend/uploads/*
 google_sign_in.json
 scratch/
 *.tar.gz
+*.csv
+rzp-key.csv

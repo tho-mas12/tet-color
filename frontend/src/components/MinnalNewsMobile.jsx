@@ -558,7 +558,7 @@ export default function MinnalNewsMobile({ onClose, isModal = true, lang = "ta" 
                     rel="noreferrer"
                     className="inline-flex items-center space-x-1.5 text-xs font-bold text-[#4fc3f7] hover:underline"
                   >
-                    <span>அதிகாரப்பூர்வ இணைப்பில் படிக்க</span>
+                    <span>முழு செய்தியைப் படிக்க</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>

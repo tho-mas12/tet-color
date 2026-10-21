@@ -430,7 +430,7 @@ export default function App() {
     if (navigator.share) {
       navigator.share({
         title: pageTitle,
-        text: "TN Teachers Eligibility Benchmark Portal - Official Exam Preparation & Textbooks",
+        text: "TN Teachers Eligibility Benchmark Portal - Exam Preparation & Textbooks",
         url: currentUrl
       }).catch(() => {
         // Fallback to clipboard if share dialog dismissed
@@ -488,7 +488,7 @@ export default function App() {
                   <span>
                     {lang === "ta" 
                       ? "அனைத்து பாடப்புத்தகங்களும் பொதுப் பார்வைக்கு கிடைக்கின்றன. மாதிரித் தேர்வுகள் எழுத உள்நுழையவும்."
-                      : "Official textbooks & materials are publicly accessible. Sign in to take timed benchmark quizzes."}
+                      : "School textbooks & study materials are publicly accessible. Sign in to take timed benchmark quizzes."}
                   </span>
                   <button
                     onClick={() => {

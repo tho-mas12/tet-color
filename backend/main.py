@@ -868,6 +868,18 @@ def get_stage3_practice_questions(lesson: models.Lesson, settings: Optional[mode
         if q.get("explanation"):
             q["explanation"] = ai_generator.sanitize_tamil_text(q.get("explanation", ""))
 
+        opts = q.get("options", [])
+        ans_idx = q.get("answer_index")
+        if ans_idx is None or not isinstance(ans_idx, int) or ans_idx < 0 or (opts and ans_idx >= len(opts)):
+            ans_str = str(q.get("answer", "")).strip().upper()
+            if ans_str in ["A", "B", "C", "D"]:
+                ans_idx = {"A": 0, "B": 1, "C": 2, "D": 3}[ans_str]
+            else:
+                ans_idx = next((i for i, o in enumerate(opts) if o.strip() == str(q.get("answer", "")).strip()), 0)
+        q["answer_index"] = ans_idx
+        if not q.get("answer") and opts and 0 <= ans_idx < len(opts):
+            q["answer"] = opts[ans_idx]
+
     total_len = len(pool)
     if total_len > 0:
         practice_target = getattr(settings, "practice_question_count", 100) or 100
@@ -906,6 +918,18 @@ def get_stage4_exam_questions(lesson: models.Lesson, settings: Optional[models.A
         if q.get("explanation"):
             q["explanation"] = ai_generator.sanitize_tamil_text(q.get("explanation", ""))
 
+        opts = q.get("options", [])
+        ans_idx = q.get("answer_index")
+        if ans_idx is None or not isinstance(ans_idx, int) or ans_idx < 0 or (opts and ans_idx >= len(opts)):
+            ans_str = str(q.get("answer", "")).strip().upper()
+            if ans_str in ["A", "B", "C", "D"]:
+                ans_idx = {"A": 0, "B": 1, "C": 2, "D": 3}[ans_str]
+            else:
+                ans_idx = next((i for i, o in enumerate(opts) if o.strip() == str(q.get("answer", "")).strip()), 0)
+        q["answer_index"] = ans_idx
+        if not q.get("answer") and opts and 0 <= ans_idx < len(opts):
+            q["answer"] = opts[ans_idx]
+
     stage3_count = len(stage3_questions)
     candidates = q2 if q2 else q1[stage3_count:]
 
@@ -924,10 +948,11 @@ def get_stage4_exam_questions(lesson: models.Lesson, settings: Optional[models.A
         seen_stems.add(stem)
         test_questions.append(q)
 
-    # 4. Fallback generation if no pre-generated questions remain
-    if not test_questions:
+    # 4. Fallback generation if no pre-generated questions remain or count is insufficient
+    test_count = getattr(settings, "test_question_count", 50) or 50
+    if len(test_questions) < test_count:
+        needed = test_count - len(test_questions)
         api_key = settings.gemini_api_key if settings else ""
-        test_count = getattr(settings, "test_question_count", 50) or 50
         type_counts = {
             "count_mcq": getattr(settings, "stage4_count_mcq", 20) or 20,
             "count_hots": getattr(settings, "stage4_count_hots", 10) or 10,
@@ -936,22 +961,29 @@ def get_stage4_exam_questions(lesson: models.Lesson, settings: Optional[models.A
             "count_assertion": getattr(settings, "stage4_count_assertion", 5) or 5,
             "count_chronological": getattr(settings, "stage4_count_chronological", 5) or 5,
         }
-        test_questions = ai_generator.generate_test_questions(
+        all_avoid = stage3_stems.union(seen_stems)
+        extra_questions = ai_generator.generate_test_questions(
             class_num=lesson.class_num,
             subject=lesson.subject,
             term=lesson.term,
             lesson_title=lesson.title,
-            count=test_count,
+            count=needed,
             api_key=api_key,
             medium=getattr(lesson, "medium", ""),
             description=getattr(lesson, "description", ""),
             pdf_url=getattr(lesson, "pdf_url", "") or "",
             type_counts=type_counts,
-            avoid_stems=stage3_stems
+            avoid_stems=all_avoid
         )
-        test_questions = [q for q in test_questions if normalize_stem(q.get("question", "")) not in stage3_stems]
+        for q in extra_questions:
+            stem = normalize_stem(q.get("question", ""))
+            if stem and stem not in all_avoid:
+                all_avoid.add(stem)
+                seen_stems.add(stem)
+                test_questions.append(q)
+            if len(test_questions) >= test_count:
+                break
 
-    test_count = getattr(settings, "test_question_count", 50) or 50
     if test_count and test_count > 0:
         test_questions = test_questions[:test_count]
 
@@ -1073,7 +1105,15 @@ def submit_test(
     for q in ref_questions:
         q_id = str(q["id"])
         user_ans = submission.user_answers.get(q_id, None)
-        is_correct = (user_ans == q["answer_index"])
+        ans_idx = q.get("answer_index")
+        if ans_idx is None or not isinstance(ans_idx, int) or ans_idx < 0:
+            ans_str = str(q.get("answer", "")).strip().upper()
+            if ans_str in ["A", "B", "C", "D"]:
+                ans_idx = {"A": 0, "B": 1, "C": 2, "D": 3}[ans_str]
+            else:
+                opts = q.get("options", [])
+                ans_idx = next((i for i, o in enumerate(opts) if o.strip() == str(q.get("answer", "")).strip()), 0)
+        is_correct = (user_ans == ans_idx)
         if is_correct:
             correct_count += 1
         
@@ -1083,9 +1123,9 @@ def submit_test(
             "question": q["question"],
             "options": q.get("options", []),
             "user_answer": user_ans,
-            "correct_answer": q["answer_index"],
+            "correct_answer": ans_idx,
             "is_correct": is_correct,
-            "explanation": q["explanation"]
+            "explanation": q.get("explanation", "")
         })
 
     score_percent = int((correct_count / max(1, len(ref_questions))) * 100)

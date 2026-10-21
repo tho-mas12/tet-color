@@ -7,7 +7,6 @@ import {
   Award,
   CheckCircle2,
   Clock,
-  Sparkles,
   Download,
   AlertCircle,
   ExternalLink,
@@ -232,7 +231,7 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
         </div>
 
         <div className="hidden md:flex items-center space-x-2 text-xs text-slate-500 font-semibold">
-          <span>TN TET Official Practice Portal • Full Workspace</span>
+          <span>TN TET Practice Portal • Full Workspace</span>
         </div>
       </div>
 
@@ -246,10 +245,10 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
               <div>
                 <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
                   <FileText className="w-5 h-5 text-[#0055ff]" />
-                  <span>பாடக் குறிப்புகள் & அதிகாரப்பூர்வ பாடப்பொருள் (Official Study Material)</span>
+                  <span>பாடக் குறிப்புகள் & பாடப்பொருள் (Study Material & Notes)</span>
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                  Review official TN textbook syllabus and key takeaways for this daily practice.
+                  Review textbook syllabus and key takeaways for this daily practice.
                 </p>
               </div>
 

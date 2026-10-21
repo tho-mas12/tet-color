@@ -438,6 +438,14 @@ def clean_and_extract_sentences(text: str, min_words: int = 4, max_words: int = 
         if re.search(r'\.indd', s, re.IGNORECASE) or re.search(r'\d{1,2}/\d{1,2}/\d{2,4}\s+\d{1,2}:\d{2}', s):
             continue
 
+        # Exclude textbook exercises, activities, question headers, and option blocks
+        if re.search(r'(?:கோடிட்ட\s*இடங்களை|சரியான\s*விடையைத்|பொருத்துக|செயல்பாடுகள்|செய்முறைகள்|வினாக்களுக்கு\s*விடையளி|பின்வரும்\s*வினா|உயர்\s*சிந்தனை\s*வினா|வாழ்வியல்\s*திறன்|இணைய\s*வளங்கள்|விளக்குக|விவரி|குறிப்பிடுக|எழுதுக)', s):
+            continue
+        if re.search(r'[அஆஇஈ]\)\s+.*?[ஆஇஈ]\)', s) or re.search(r'\([a-d]\)\s+.*?\([b-d]\)', s, re.IGNORECASE):
+            continue
+        if '________' in s or '-------' in s:
+            continue
+
         words = s.split()
         if min_words <= len(words) <= max_words:
             norm = s.lower()
@@ -616,91 +624,47 @@ def _build_pdf_strict_questions(
         "கீழ்க்காணும் கூற்றுகளைக் கவனித்து, அவற்றுள் சரியான கூற்றைக் கண்டறிக:"
     ]
 
-    needed = target_counts.get("MCQ", 0) - len(type_buckets["MCQ"])
-    attempts = 0
-    while len(type_buckets["MCQ"]) < target_counts.get("MCQ", 0) and attempts < (needed + 10) * 20:
-        attempts += 1
-        q_idx = len(type_buckets["MCQ"])
-        correct_s = get_next_sentence()
-        target_ans = q_idx % 4
-        distractors = get_widely_spaced_distractors(correct_s, count=3, current_index=sent_idx)
-        opts = [sanitize_tamil_text(d) for d in distractors]
-        opts.insert(target_ans, correct_s)
+    # 1. MCQ (கொள்குறி வினாக்கள்) - pull genuine questions if needed
+    needed_mcq = target_counts.get("MCQ", 0) - len(type_buckets["MCQ"])
+    if needed_mcq > 0:
+        curriculum_qs = _build_tntet_paper2_questions(
+            class_num=6,
+            subject=lesson_title,
+            term="Term 1",
+            lesson_title=lesson_title,
+            count=needed_mcq * 3,
+            lang=lang,
+            target_counts={"MCQ": needed_mcq, "count_mcq": needed_mcq},
+            avoid_stems=seen_stems
+        )
+        for cq in curriculum_qs:
+            stem = normalize_stem(cq.get("question", ""))
+            if stem and stem not in seen_stems and cq.get("question_type") == "MCQ":
+                seen_stems.add(stem)
+                type_buckets["MCQ"].append(cq)
+            if len(type_buckets["MCQ"]) >= target_counts.get("MCQ", 0):
+                break
 
-        if is_english:
-            stem_template = mcq_stems_en[q_idx % len(mcq_stems_en)]
-            exp = f"Textbook Reference: '{correct_s}' is stated directly in the lesson material."
-        else:
-            stem_template = mcq_stems_ta[q_idx % len(mcq_stems_ta)]
-            exp = f"பாடநூல் விளக்கம்: '{correct_s}' என்பது பாடப்பகுதியில் தெளிவாகக் குறிப்பிடப்பட்டுள்ள சரியான உண்மையாகும்."
-
-        clean_q = clean_question_text(stem_template, lesson_title)
-        stem = normalize_stem(clean_q)
-        base_clean_q = clean_q
-        attempt = 1
-        while stem in seen_stems:
-            clean_q = f"{base_clean_q} (வினா #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (Set #{len(seen_stems) + attempt})"
-            stem = normalize_stem(clean_q)
-            attempt += 1
-        seen_stems.add(stem)
-        type_buckets["MCQ"].append({
-            "id": 0,
-            "question_type": "MCQ",
-            "question": clean_q,
-            "options": opts,
-            "answer_index": target_ans,
-            "explanation": sanitize_tamil_text(exp)
-        })
-
-    # 2. உயர் சிந்தனை வினாக்கள் (HOTS)
-    hots_stems_en = [
-        "Critically analyze the core concept of this chapter and select the valid analytical conclusion:",
-        "From an analytical perspective, which of the following represents a profound conceptual truth of the lesson?",
-        "Which of the following statements demonstrates the deepest conceptual understanding of the chapter?",
-        "Evaluating the cause-and-effect relationships in the lesson, choose the most accurate conclusion:"
-    ]
-    hots_stems_ta = [
-        "பாடப்பகுதியின் மையக்கருத்தை ஆழமாகப் பகுப்பாய்வு செய்து, கீழ்க்கண்டவற்றுள் பொருத்தமான முடிவைத் தேர்ந்தெடுக்க:",
-        "பாடக் கருத்துக்களின் அடிப்படையில், கீழ்க்காணும் கூற்றுகளுள் ஆழமான புரிதலை வெளிப்படுத்தும் முடிவு எது?",
-        "பின்வரும் கருத்துருக்களுள் பாடப் புரிதலுக்கு வழிகோலும் மிகச் சரியான விளக்கம் எது?",
-        "பாடக் கருத்துக்களின் பயன்பாட்டு நோக்கத்தின்படி, பின்வருவனவற்றுள் சரியான பகுப்பாய்வுக் கூற்றைத் தேர்வு செய்க:"
-    ]
-
-    needed = target_counts.get("உயர் சிந்தனை வினாக்கள்", 0) - len(type_buckets["உயர் சிந்தனை வினாக்கள்"])
-    attempts = 0
-    while len(type_buckets["உயர் சிந்தனை வினாக்கள்"]) < target_counts.get("உயர் சிந்தனை வினாக்கள்", 0) and attempts < (needed + 10) * 20:
-        attempts += 1
-        q_idx = len(type_buckets["உயர் சிந்தனை வினாக்கள்"])
-        hots_s = get_next_sentence()
-        target_ans = q_idx % 4
-        distractors = get_widely_spaced_distractors(hots_s, count=3, current_index=sent_idx)
-        opts = [sanitize_tamil_text(d) for d in distractors]
-        opts.insert(target_ans, hots_s)
-
-        if is_english:
-            stem_template = hots_stems_en[q_idx % len(hots_stems_en)]
-            exp = f"Analytical Reference: '{hots_s}' represents a key conceptual foundation."
-        else:
-            stem_template = hots_stems_ta[q_idx % len(hots_stems_ta)]
-            exp = f"விளக்கம்: பாடநூலின் கருத்துப்படி, '{hots_s}' என்பது ஆழமான புரிதலுக்கான மையக் கருத்தாகும்."
-
-        clean_q = clean_question_text(stem_template, lesson_title)
-        stem = normalize_stem(clean_q)
-        base_clean_q = clean_q
-        attempt = 1
-        while stem in seen_stems:
-            clean_q = f"{base_clean_q} (பகுப்பாய்வு #{len(seen_stems) + attempt})" if not is_english else f"{base_clean_q} (Analysis #{len(seen_stems) + attempt})"
-            stem = normalize_stem(clean_q)
-            attempt += 1
-        seen_stems.add(stem)
-        type_buckets["உயர் சிந்தனை வினாக்கள்"].append({
-            "id": 0,
-            "question_type": "உயர் சிந்தனை வினாக்கள்",
-            "question": clean_q,
-            "options": opts,
-            "answer_index": target_ans,
-            "explanation": sanitize_tamil_text(exp)
-        })
+    # 2. உயர் சிந்தனை வினாக்கள் (HOTS) - pull genuine questions if needed
+    needed_hots = target_counts.get("உயர் சிந்தனை வினாக்கள்", 0) - len(type_buckets["உயர் சிந்தனை வினாக்கள்"])
+    if needed_hots > 0:
+        curriculum_qs = _build_tntet_paper2_questions(
+            class_num=6,
+            subject=lesson_title,
+            term="Term 1",
+            lesson_title=lesson_title,
+            count=needed_hots * 3,
+            lang=lang,
+            target_counts={"உயர் சிந்தனை வினாக்கள்": needed_hots, "count_hots": needed_hots},
+            avoid_stems=seen_stems
+        )
+        for cq in curriculum_qs:
+            stem = normalize_stem(cq.get("question", ""))
+            if stem and stem not in seen_stems and cq.get("question_type") == "உயர் சிந்தனை வினாக்கள்":
+                seen_stems.add(stem)
+                type_buckets["உயர் சிந்தனை வினாக்கள்"].append(cq)
+            if len(type_buckets["உயர் சிந்தனை வினாக்கள்"]) >= target_counts.get("உயர் சிந்தனை வினாக்கள்", 0):
+                break
 
     # 3. பொருத்துக வகை வினாக்கள் (Match the following)
     needed = target_counts.get("பொருத்துக வகை வினாக்கள்", 0) - len(type_buckets["பொருத்துக வகை வினாக்கள்"])
@@ -1014,42 +978,37 @@ def generate_practice_questions(
             else:
                 avoid_section = f"\nமுக்கிய நிபந்தனை: Quiz Type 1-ல் பயன்படுத்தப்பட்ட பின்வரும் தலைப்புகள் / வினாக்களைத் தவிர்த்து புதிய வினாக்களை உருவாக்குக:\n" + "\n".join([f"- {s[:60]}" for s in sample_avoid])
 
-        # BATCH 1: Standard MCQs & HOTS Questions (capped to fast 15-question chunks for instant Gemini generation)
-        prompt_mcq = min(mcq_count, 15)
-        prompt_hots = min(hots_count, 10)
-        if prompt_mcq > 0 or prompt_hots > 0:
+        # BATCH 1: Standard MCQs - generate in batches of 20 to fulfill full mcq_count
+        gen_mcqs = []
+        mcq_attempts = 0
+        while len(gen_mcqs) < mcq_count and mcq_attempts < 4:
+            mcq_attempts += 1
+            batch_size = min(20, mcq_count - len(gen_mcqs))
+            curr_avoid = list(avoid_stems or set()) + [normalize_stem(q["question"]) for q in gen_mcqs]
+            sample_avoid = curr_avoid[:25]
             if lang == "English":
-                prompt_b1 = f"""You are a Senior Chief Examiner for the Tamil Nadu Teacher Eligibility Test (TN TET) Paper 2.
+                batch_avoid = "\nCRITICAL: Do not repeat these questions:\n" + "\n".join([f"- {s[:60]}" for s in sample_avoid])
+                prompt_mcq = f"""You are a Senior Chief Examiner for TN TET Paper 2.
 Curriculum Context: Standard {class_num} | Subject: {subject} | Term: {term} | Lesson: '{lesson_title}'
-Generate {prompt_mcq} Standard MCQs and {prompt_hots} HOTS (Higher Order Thinking) questions in academic ENGLISH.
+Generate {batch_size} Standard MCQs in academic English based strictly on the material below.
 Rules:
-1. Question numbers 1., 2.
-2. Exactly 4 options per question. Distribute correct answers across indices 0 (A), 1 (B), 2 (C), 3 (D) evenly.
-3. No file names or page numbers in text.
-4. Return strict JSON array with schema: [ {{"question_type": "MCQ" or "உயர் சிந்தனை வினாக்கள்", "question": "...", "options": ["A", "B", "C", "D"], "answer_index": 0, "explanation": "..."}} ]
+1. Exactly 4 options per question. Distribute correct answers across indices 0 (A), 1 (B), 2 (C), 3 (D) evenly.
+2. Direct subject questions only. No textbook exercise fragments or fillers.
+3. Return strict JSON array with schema: [ {{"question_type": "MCQ", "question": "...", "options": ["A", "B", "C", "D"], "answer_index": 0, "explanation": "..."}} ]
 {pdf_section}
-{avoid_section}"""
+{batch_avoid}"""
             else:
-                prompt_b1 = f"""நீ ஒரு TNTET Paper 2 நிபுணர்.
-கொடுக்கப்பட்டுள்ள PDF-இல் உள்ள அனைத்து பக்கங்களையும் முழுமையாக படிக்கவும். பிறகு முக்கியமான பக்கங்கள் மற்றும் பெட்டியில் (Box) உள்ள உள்ளடக்கங்களின் அடிப்படையில் மட்டும் கீழ்க்கண்ட வினாக்களைத் தமிழில் உருவாக்கு:
+                batch_avoid = "\nமுக்கிய நிபந்தனை: ஏற்கனவே உள்ள பின்வரும் வினாக்களைத் தவிர்த்து புதிய வினாக்களை உருவாக்குக:\n" + "\n".join([f"- {s[:60]}" for s in sample_avoid])
+                prompt_mcq = f"""நீ ஒரு TNTET Paper 2 தேர்வு நிபுணர்.
 வகுப்பு: {class_num} | பாடம்: {subject} | பருவம்: {term} | பாடம் தலைப்பு: '{lesson_title}'
-
-1. வழக்கமான முக்கியமான MCQ வினாக்கள்: {prompt_mcq} வினாக்கள்.
-கண்டிப்பாகப் பின்பற்ற வேண்டிய விதிமுறைகள்:
-- ஒவ்வொரு கேள்விக்கும் முன் 1., 2. என்று கேள்வி எண் இருக்க வேண்டும்.
-- 4 ஆப்சன்கள் (A, B, C, D). விடைகள் சமமாக கலந்து (Randomize) இருக்க வேண்டும்.
-- எந்தக் கேள்வியிலும் கோப்பின் பெயரோ, பாடத்தொகுதி எண்ணோ அல்லது பக்க எண்களோ சேர்க்கக் கூடாது.
-- TNTET Paper 2 தரத்திற்கு ஏற்ப ஆழமான புரிதலைச் சோதிக்கும் வகையில் அமைய வேண்டும்.
-
-2. HOTS (உயர் சிந்தனை) வினாக்கள்: {prompt_hots} வினாக்கள்.
-கண்டிப்பாகப் பின்பற்ற வேண்டிய விதிமுறைகள்:
-- மாணவர்களின் உயர் சிந்தனை (Application, Analysis, Problem-solving) திறனைச் சோதிக்கும் வினாக்கள்.
-- 4 ஆப்சன்கள், விடைகள் A, B, C, D சமமாக கலந்து இருக்க வேண்டும்.
-- கோப்பின் பெயர், பக்க எண்கள் தடை.
-
+கொடுக்கப்பட்டுள்ள PDF பாடப்பகுதியிலிருந்து மிகத் துல்லியமான {batch_size} வழக்கமான கொள்குறி வினாக்களை (MCQ) தமிழில் உருவாக்குக.
+விதிமுறைகள்:
+1. வினாக்கள் ஆழமாகவும், TNTET Paper 2 தரத்திலும் இருக்க வேண்டும்.
+2. 4 தெளிவான ஆப்ஷன்கள் (A, B, C, D). விடைகள் சமமாகப் பரவி இருக்க வேண்டும்.
+3. எந்தக் காரணத்தைக் கொண்டும் '(வினா #..)' அல்லது பக்க எண்கள் இருக்கக் கூடாது.
+4. ஆப்ஷன்களில் பாடநூல் பயிற்சிகள் அல்லது வெற்று வாக்கியங்கள் இருக்கக் கூடாது.
 {pdf_section}
-{avoid_section}
-
+{batch_avoid}
 வெளியீட்டு வடிவம் (Strict JSON Array):
 [
   {{
@@ -1060,14 +1019,70 @@ Rules:
     "explanation": "விளக்கம்..."
   }}
 ]"""
-            qs_b1 = _query_gemini_json(prompt_b1, clean_key)
+            qs_b1 = _query_gemini_json(prompt_mcq, clean_key)
+            if not qs_b1:
+                break
             for q in qs_b1:
                 if isinstance(q, dict) and "options" in q and len(q["options"]) == 4:
                     q["question"] = clean_question_text(q.get("question", ""), lesson_title)
                     q["options"] = [sanitize_tamil_text(str(o)) for o in q.get("options", [])]
                     q["explanation"] = sanitize_tamil_text(str(q.get("explanation", "")))
-                    q["question_type"] = normalize_question_type(q.get("question_type", "MCQ"))
+                    q["question_type"] = "MCQ"
+                    gen_mcqs.append(q)
                     ai_questions.append(q)
+                if len(gen_mcqs) >= mcq_count:
+                    break
+
+        # BATCH 2: HOTS Questions - generate in batches of 15 to fulfill full hots_count
+        gen_hots = []
+        hots_attempts = 0
+        while len(gen_hots) < hots_count and hots_attempts < 4:
+            hots_attempts += 1
+            batch_size = min(15, hots_count - len(gen_hots))
+            curr_avoid = list(avoid_stems or set()) + [normalize_stem(q["question"]) for q in gen_hots]
+            sample_avoid = curr_avoid[:25]
+            if lang == "English":
+                batch_avoid = "\nCRITICAL: Do not repeat these questions:\n" + "\n".join([f"- {s[:60]}" for s in sample_avoid])
+                prompt_hots = f"""You are a Senior Chief Examiner for TN TET Paper 2.
+Curriculum Context: Standard {class_num} | Subject: {subject} | Term: {term} | Lesson: '{lesson_title}'
+Generate {batch_size} Higher Order Thinking (HOTS) questions in academic English testing Application and Analysis.
+{pdf_section}
+{batch_avoid}
+Return strict JSON array with schema: [ {{"question_type": "உயர் சிந்தனை வினாக்கள்", "question": "...", "options": ["A", "B", "C", "D"], "answer_index": 0, "explanation": "..."}} ]"""
+            else:
+                batch_avoid = "\nமுக்கிய நிபந்தனை: ஏற்கனவே உள்ள பின்வரும் வினாக்களைத் தவிர்த்து புதிய வினாக்களை உருவாக்குக:\n" + "\n".join([f"- {s[:60]}" for s in sample_avoid])
+                prompt_hots = f"""நீ ஒரு TNTET Paper 2 தேர்வு நிபுணர்.
+வகுப்பு: {class_num} | பாடம்: {subject} | பருவம்: {term} | பாடம் தலைப்பு: '{lesson_title}'
+கொடுக்கப்பட்டுள்ள PDF பாடப்பகுதியிலிருந்து மாணவர்களின் உயர் சிந்தனை (Application, Analysis, Evaluation) திறனைச் சோதிக்கும் {batch_size} உயர் சிந்தனை வினாக்களை (HOTS) தமிழில் உருவாக்குக.
+விதிமுறைகள்:
+1. வினாக்கள் நடைமுறைச் சூழல், காரண-காரிய ஆய்வு மற்றும் ஆழமான சிந்தனையைச் சோதிப்பதாக இருக்க வேண்டும்.
+2. 4 தெளிவான ஆப்ஷன்கள் (A, B, C, D). விடைகள் சமமாகப் பரவி இருக்க வேண்டும்.
+3. எந்தக் காரணத்தைக் கொண்டும் '(பகுப்பாய்வு #..)' அல்லது பக்க எண்கள் இருக்கக் கூடாது.
+{pdf_section}
+{batch_avoid}
+வெளியீட்டு வடிவம் (Strict JSON Array):
+[
+  {{
+    "question_type": "உயர் சிந்தனை வினாக்கள்",
+    "question": "வினா...",
+    "options": ["விருப்பம் A", "விருப்பம் B", "விருப்பம் C", "விருப்பம் D"],
+    "answer_index": 0,
+    "explanation": "விளக்கம்..."
+  }}
+]"""
+            qs_hots = _query_gemini_json(prompt_hots, clean_key)
+            if not qs_hots:
+                break
+            for q in qs_hots:
+                if isinstance(q, dict) and "options" in q and len(q["options"]) == 4:
+                    q["question"] = clean_question_text(q.get("question", ""), lesson_title)
+                    q["options"] = [sanitize_tamil_text(str(o)) for o in q.get("options", [])]
+                    q["explanation"] = sanitize_tamil_text(str(q.get("explanation", "")))
+                    q["question_type"] = "உயர் சிந்தனை வினாக்கள்"
+                    gen_hots.append(q)
+                    ai_questions.append(q)
+                if len(gen_hots) >= hots_count:
+                    break
 
         # BATCH 2: Match, Chronological, Multi-statement, and Assertion & Reasoning (capped to fast chunks)
         prompt_match = min(match_count, 5)

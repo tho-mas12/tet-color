@@ -133,7 +133,7 @@ export default function MaterialsPage({ lang = "en", onShare }) {
             {t.materials}
           </h1>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl font-medium">
-            Filter by Grade (1-12), Subject, Medium (Tamil / English), and Term across the 4-grid interface to preview or download official study resources.
+            Filter by Grade (1-12), Subject, Medium (Tamil / English), and Term across the 4-grid interface to preview or download study resources.
           </p>
         </div>
 

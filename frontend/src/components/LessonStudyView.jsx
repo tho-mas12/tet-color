@@ -7,7 +7,6 @@ import {
   Lock, 
   ArrowLeft, 
   Clock, 
-  Sparkles, 
   Award, 
   ChevronRight, 
   Maximize2, 
@@ -15,7 +14,9 @@ import {
   RotateCcw,
   Download,
   BookOpen,
-  FileCheck
+  FileCheck,
+  GraduationCap,
+  CheckSquare
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { fetchApi, getEmbedYoutubeUrl } from "../api";
@@ -368,7 +369,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
         </div>
 
         <div className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-bold flex items-center space-x-2 shrink-0">
-          <Sparkles className="w-4 h-4 text-[#0055ff]" />
+          <GraduationCap className="w-4 h-4 text-[#0055ff]" />
           <span className="text-slate-500">Lesson Status:</span>
           <span className={testDone ? "text-emerald-600 font-extrabold" : "text-amber-600 font-extrabold"}>
             {testDone ? `${t.completedBadge} (Passed ≥80%)` : "IN PROGRESS"}
@@ -507,7 +508,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
           </div>
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage5Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">
-            {!isTimeLocked ? "✨ Unlocked & Live Now • Click to Start Exam" : t.stage5Desc}
+            {!isTimeLocked ? "🔓 Unlocked & Live Now • Click to Start Exam" : t.stage5Desc}
           </span>
         </button>
       </div>
@@ -700,7 +701,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
               <div>
                 <div className="flex items-center space-x-2">
                   <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
-                    <Sparkles className="w-5 h-5 text-[#ff7a00]" />
+                    <CheckSquare className="w-5 h-5 text-[#ff7a00]" />
                     <span>{t.stage4Title}</span>
                   </h3>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${
@@ -778,12 +779,22 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                       </h4>
 
                       {/* Options in 2 columns: A & B on line 1, C & D on line 2 */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1">
-                        {q.options.map((opt, optIdx) => {
-                          const isSelected = userPracticeAnswers[q.id] === optIdx;
-                          const isCorrect = q.answer_index === optIdx;
-                          let btnClass = "bg-white border-slate-200 text-[#061b36] hover:bg-orange-50/50 hover:border-orange-300";
-                          let badgeClass = "bg-slate-100 text-slate-700";
+                      {(() => {
+                        const mapLetterToIdx = { A: 0, B: 1, C: 2, D: 3 };
+                        const ansStr = typeof q.answer === "string" ? q.answer.trim().toUpperCase() : "";
+                        const resolvedCorrectIdx = typeof q.answer_index === "number" && q.answer_index >= 0
+                          ? q.answer_index
+                          : ["A", "B", "C", "D"].includes(ansStr)
+                          ? mapLetterToIdx[ansStr]
+                          : (q.options || []).findIndex(o => o && o.trim() === q.answer?.trim());
+
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1">
+                            {q.options.map((opt, optIdx) => {
+                              const isSelected = userPracticeAnswers[q.id] === optIdx;
+                              const isCorrect = resolvedCorrectIdx >= 0 ? (resolvedCorrectIdx === optIdx) : (q.answer_index === optIdx);
+                              let btnClass = "bg-white border-slate-200 text-[#061b36] hover:bg-orange-50/50 hover:border-orange-300";
+                              let badgeClass = "bg-slate-100 text-slate-700";
 
                           if (hasAnswered) {
                             if (isCorrect) {
@@ -815,12 +826,14 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                             </button>
                           );
                         })}
-                      </div>
+                        </div>
+                      );
+                    })()}
 
                       {hasAnswered && (
                         <div className="p-4 rounded-xl bg-blue-50/90 border border-[#0055ff]/30 text-xs sm:text-sm text-[#061b36] font-medium leading-relaxed mt-2 animate-fade-in">
                           <div className="flex items-center space-x-1.5 font-black text-[#0055ff] mb-1">
-                            <Sparkles className="w-4 h-4" />
+                            <BookOpen className="w-4 h-4" />
                             <span>{t.explanationTitle} (விரிவான விளக்கம்):</span>
                           </div>
                           <p className="text-slate-800 leading-relaxed font-normal">{q.explanation}</p>
@@ -887,7 +900,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
 
                   <p className="text-sm font-medium max-w-lg mx-auto leading-relaxed">
                     {testResult.passed
-                      ? "Great job! You achieved the required 80% pass mark. This lesson is officially marked as complete and your daily streak is recorded!"
+                      ? "Great job! You achieved the required 80% pass mark. This lesson is successfully marked as complete and your daily streak is recorded!"
                       : "To successfully complete this lesson and unlock subsequent modules, you must achieve at least 80%. Please restudy Stage 4 with the alternate Type 2 question set before retaking the exam."}
                   </p>
 
@@ -910,7 +923,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                       }}
                       className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black shadow-md cursor-pointer min-h-[42px] animate-pulse"
                     >
-                      <Sparkles className="w-4 h-4 text-purple-200" />
+                      <RotateCcw className="w-4 h-4 text-purple-200" />
                       <span>🔄 Restudy Stage 4 with Type 2 Questions (வகை 2 மறுபயிற்சி)</span>
                     </button>
                   )}
@@ -945,7 +958,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                   <div className="space-y-4 pt-6 border-t border-slate-200 text-left animate-slide-up">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
                       <h4 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
-                        <Sparkles className="w-5 h-5 text-[#0055ff]" />
+                        <FileCheck className="w-5 h-5 text-[#0055ff]" />
                         <span>Question-by-Question Solution Review ({testResult.detailed_results.length} Questions)</span>
                       </h4>
                       <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200">
@@ -1032,7 +1045,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                       Stage 5 Final Timed Exam Opens at {unlockTimeStr} (8:00 PM)
                     </h4>
                     <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto font-medium leading-relaxed">
-                      TET-1 மற்றும் TET-2 பாடங்களுக்கான மாதிரித் தேர்வு தினமும் இரவு 8:00 மணிக்கு அதிகாரப்பூர்வமாக திறக்கப்படும். அதுவரை நீங்கள் Stage 1 பாடப்புத்தகம், Stage 2 சுருக்கக் குறிப்புகள், Stage 3 வீடியோ மற்றும் Stage 4 பயிற்சி வினாக்களை நிறைவு செய்து தேர்வுக்கு தயாராகுங்கள்.
+                      TET-1 மற்றும் TET-2 பாடங்களுக்கான மாதிரித் தேர்வு தினமும் இரவு 8:00 மணிக்கு நேரடியாக திறக்கப்படும். அதுவரை நீங்கள் Stage 1 பாடப்புத்தகம், Stage 2 சுருக்கக் குறிப்புகள், Stage 3 வீடியோ மற்றும் Stage 4 பயிற்சி வினாக்களை நிறைவு செய்து தேர்வுக்கு தயாராகுங்கள்.
                     </p>
                   </div>
 
@@ -1109,7 +1122,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
               <div className="py-20 text-center space-y-4">
                 <div className="w-12 h-12 border-4 border-[#0055ff] border-t-transparent rounded-full animate-spin mx-auto" />
                 <p className="text-sm font-bold text-[#061b36]">
-                  Preparing official TN TET Paper 2 exam questions...
+                  Preparing TN TET exam questions...
                 </p>
               </div>
             ) : (

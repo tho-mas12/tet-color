@@ -9,7 +9,9 @@ import {
   Globe, 
   FileText, 
   Clock, 
-  Sparkles, 
+  Trophy, 
+  FileCheck,
+  HelpCircle,
   Download,
   GraduationCap,
   Library,
@@ -166,7 +168,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       subtitle: "Class 1 to 12 School Books",
       category: "textbooks",
       description: "தமிழ்நாடு அரசு பாடநூல் கழகத்தின் 1 முதல் 12 ஆம் வகுப்பு அனைத்துப் பாடப் புத்தகங்கள் (PDF) & கையேடுகள்",
-      badge_text: "Official Books",
+      badge_text: "Textbooks",
       button_text: "EXPLORE BOOKS →",
       action_url: "textbooks",
       icon_name: "Library",
@@ -247,7 +249,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       badge_text: "Talent Search",
       button_text: "OPEN TREAST →",
       action_url: "treast",
-      icon_name: "Sparkles",
+      icon_name: "Trophy",
       order_index: 9,
       is_active: true
     }
@@ -278,7 +280,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       case "Languages": return <Languages className="w-5 h-5 text-violet-600" />;
       case "Video": return <Video className="w-5 h-5 text-rose-600" />;
       case "Award": return <Award className="w-5 h-5 text-amber-600" />;
-      case "Sparkles": return <Sparkles className="w-5 h-5 text-teal-600" />;
+      case "Trophy": return <Trophy className="w-5 h-5 text-teal-600" />;
+      case "Sparkles": return <Trophy className="w-5 h-5 text-teal-600" />;
       default: return <BookOpen className="w-5 h-5 text-[#0055ff]" />;
     }
   };
@@ -376,23 +379,27 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
           </div>
         </div>
 
-        {/* 4 Stages Pills */}
-        <div className="mt-3 pt-2.5 border-t border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
-          <div className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center space-x-1 font-bold">
-            <Check className="w-3 h-3 text-emerald-600" />
-            <span>1. Notes</span>
+        {/* 5 Stages Sequential Learning Progress Indicators */}
+        <div className="mt-3 pt-2.5 border-t border-slate-200/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 text-[11px]">
+          <div className="px-2 py-1 rounded-lg bg-blue-50 text-[#0055ff] border border-blue-200 flex items-center justify-center space-x-1 font-bold">
+            <BookOpen className="w-3 h-3 text-[#0055ff]" />
+            <span>1. Book PDF</span>
           </div>
-          <div className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center space-x-1 font-bold">
-            <Check className="w-3 h-3 text-emerald-600" />
-            <span>2. Video</span>
+          <div className="px-2 py-1 rounded-lg bg-sky-50 text-[#0284c7] border border-sky-200 flex items-center justify-center space-x-1 font-bold">
+            <FileCheck className="w-3 h-3 text-[#0284c7]" />
+            <span>2. Notes</span>
           </div>
-          <div className="px-2 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 flex items-center justify-center space-x-1 font-bold">
-            <Check className="w-3 h-3 text-blue-600" />
-            <span>3. Practice</span>
+          <div className="px-2 py-1 rounded-lg bg-emerald-50 text-[#00a651] border border-emerald-200 flex items-center justify-center space-x-1 font-bold">
+            <Video className="w-3 h-3 text-[#00a651]" />
+            <span>3. Video</span>
           </div>
-          <div className="px-2 py-1 rounded-lg bg-orange-50 text-orange-800 border border-orange-200 flex items-center justify-center space-x-1 font-bold">
-            <Check className="w-3 h-3 text-orange-600" />
-            <span>4. Test 80%</span>
+          <div className="px-2 py-1 rounded-lg bg-orange-50 text-[#ff7a00] border border-orange-200 flex items-center justify-center space-x-1 font-bold">
+            <HelpCircle className="w-3 h-3 text-[#ff7a00]" />
+            <span>4. Practice</span>
+          </div>
+          <div className="px-2 py-1 rounded-lg bg-purple-50 text-[#8a00e6] border border-purple-200 flex items-center justify-center space-x-1 font-bold col-span-2 sm:col-span-1">
+            <Award className="w-3 h-3 text-[#8a00e6]" />
+            <span>5. Exam 80%</span>
           </div>
         </div>
 
@@ -535,19 +542,22 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {(Array.isArray(dp.active_stages) ? dp.active_stages : (typeof dp.active_stages === "string" ? dp.active_stages.split(",").map(Number).filter(n => !isNaN(n)) : [1, 3, 4])).map((stg) => {
-                        const labels = {
-                          1: "Stage 1: Book PDF",
-                          2: "Stage 2: Short Notes",
-                          3: "Stage 3: Video",
-                          4: "Stage 4: Practice",
-                          5: "Stage 5: Online Test (80%)"
+                        const stageConfigs = {
+                          1: { label: "Stage 1: Book PDF", icon: BookOpen, color: "text-[#0055ff] bg-blue-50 border-blue-200" },
+                          2: { label: "Stage 2: Short Notes", icon: FileCheck, color: "text-[#0284c7] bg-sky-50 border-sky-200" },
+                          3: { label: "Stage 3: Video Class", icon: Video, color: "text-[#00a651] bg-emerald-50 border-emerald-200" },
+                          4: { label: "Stage 4: Practice MCQs", icon: HelpCircle, color: "text-[#ff7a00] bg-orange-50 border-orange-200" },
+                          5: { label: "Stage 5: Online Test (80%)", icon: Award, color: "text-[#8a00e6] bg-purple-50 border-purple-200" }
                         };
+                        const conf = stageConfigs[stg] || { label: `Stage ${stg}`, icon: CheckCircle2, color: "text-slate-700 bg-slate-50 border-slate-200" };
+                        const StageIcon = conf.icon;
                         return (
                           <span
                             key={stg}
-                            className="px-2.5 py-1 rounded-lg bg-blue-50 text-[#0055ff] border border-blue-200/80 text-[11px] font-bold"
+                            className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center space-x-1 ${conf.color}`}
                           >
-                            ✓ {labels[stg] || `Stage ${stg}`}
+                            <StageIcon className="w-3 h-3" />
+                            <span>{conf.label}</span>
                           </span>
                         );
                       })}
@@ -581,7 +591,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         <div className="flex items-center justify-between px-1">
           <div>
             <h3 className="text-base sm:text-lg font-black uppercase tracking-wider text-[#061b36] flex items-center space-x-2">
-              <Sparkles className="w-5 h-5 text-[#0055ff]" />
+              <GraduationCap className="w-5 h-5 text-[#0055ff]" />
               <span>TN Teachers Educational Portal & Learning Hub</span>
             </h3>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">
@@ -1030,7 +1040,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center space-x-2.5">
                 <div className="p-2 rounded-xl bg-teal-50 border border-teal-200 text-teal-700">
-                  <Sparkles className="w-5 h-5" />
+                  <Trophy className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-[#061b36]">ஊரகத் திறனாய்வுத் தேர்வு (TRUST / TREAST)</h3>

@@ -9,7 +9,8 @@ import {
   FileText, 
   Trash2, 
   Key, 
-  Sparkles,
+  FilePlus,
+  FileCheck,
   Award,
   Plus,
   BookOpen,
@@ -3092,9 +3093,9 @@ export default function AdminPage({ user, lang = "en" }) {
                                 {generatingDpId === dp.id ? (
                                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                 ) : (
-                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <FilePlus className="w-3.5 h-3.5" />
                                 )}
-                                <span>{generatingDpId === dp.id ? "Generating..." : "⚡ AI Quiz"}</span>
+                                <span>{generatingDpId === dp.id ? "Generating..." : "Generate Quiz"}</span>
                               </button>
 
                               {/* DELETE */}
@@ -3574,7 +3575,7 @@ export default function AdminPage({ user, lang = "en" }) {
                           <div>
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-black text-[#0284C7] uppercase tracking-wider flex items-center space-x-1.5">
-                                <Sparkles className="w-3.5 h-3.5" />
+                                <HelpCircle className="w-3.5 h-3.5" />
                                 <span>Type 1 Quiz (Stage 4 Standard Practice)</span>
                               </span>
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${lesson.has_quiz_type1 ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-amber-100 text-amber-800 border border-amber-300"}`}>
@@ -3592,8 +3593,8 @@ export default function AdminPage({ user, lang = "en" }) {
                               disabled={generatingQuizKey === `${lesson.id}_type1`}
                               className="flex items-center justify-center space-x-1 px-2.5 py-2 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold transition shadow-xs cursor-pointer"
                             >
-                              {generatingQuizKey === `${lesson.id}_type1` ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                              <span>{generatingQuizKey === `${lesson.id}_type1` ? "Working..." : "AI Generate"}</span>
+                              {generatingQuizKey === `${lesson.id}_type1` ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FilePlus className="w-3.5 h-3.5" />}
+                              <span>{generatingQuizKey === `${lesson.id}_type1` ? "Working..." : "Auto Generate"}</span>
                             </button>
 
                             <button
@@ -3660,8 +3661,8 @@ export default function AdminPage({ user, lang = "en" }) {
                               disabled={generatingQuizKey === `${lesson.id}_type2`}
                               className="flex items-center justify-center space-x-1 px-2.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
                             >
-                              {generatingQuizKey === `${lesson.id}_type2` ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                              <span>{generatingQuizKey === `${lesson.id}_type2` ? "Working..." : "AI Generate"}</span>
+                              {generatingQuizKey === `${lesson.id}_type2` ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FilePlus className="w-3.5 h-3.5" />}
+                              <span>{generatingQuizKey === `${lesson.id}_type2` ? "Working..." : "Auto Generate"}</span>
                             </button>
 
                             <button
@@ -3745,8 +3746,8 @@ export default function AdminPage({ user, lang = "en" }) {
                       className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-[#0284C7] text-xs font-bold border border-sky-200 transition cursor-pointer flex items-center space-x-1"
                       title="Quick fill working Google Meet demo details"
                     >
-                      <Sparkles className="w-3 h-3 text-[#0284C7]" />
-                      <span>⚡ Insert Demo Link</span>
+                      <Video className="w-3 h-3 text-[#0284C7]" />
+                      <span>Insert Demo Link</span>
                     </button>
                   </div>
 
@@ -4126,17 +4127,17 @@ export default function AdminPage({ user, lang = "en" }) {
           {activeTab === "settings" && (
             <div className="bg-white border border-sky-100 rounded-3xl p-6 sm:p-7 shadow-xs max-w-2xl mx-auto space-y-5">
               <h3 className="text-lg font-bold text-[#1E3A8A] flex items-center space-x-2 border-b border-sky-100 pb-3.5">
-                <Sparkles className="w-5 h-5 text-[#0284C7]" />
-                <span>Gemini AI & Test Engine Configuration</span>
+                <Cpu className="w-5 h-5 text-[#0284C7]" />
+                <span>Gemini Test Engine Configuration</span>
               </h3>
 
               {/* Clickable Link to Get Gemini API Key */}
               <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-between">
                 <div className="flex items-center space-x-2.5">
-                  <Sparkles className="w-5 h-5 text-[#0284C7]" />
+                  <Key className="w-5 h-5 text-[#0284C7]" />
                   <div>
-                    <span className="text-xs font-bold text-[#1E3A8A] block">Google Gemini AI API Portal</span>
-                    <span className="text-[11px] text-slate-500 font-medium">Generate your API key for live AI test question generation</span>
+                    <span className="text-xs font-bold text-[#1E3A8A] block">Google Gemini API Portal</span>
+                    <span className="text-[11px] text-slate-500 font-medium">Generate your API key for live test question generation</span>
                   </div>
                 </div>
 
@@ -4220,26 +4221,144 @@ export default function AdminPage({ user, lang = "en" }) {
                   </div>
                 </div>
 
-                {/* DUAL QUESTION TYPE DISTRIBUTION: STAGE 3 & STAGE 4 */}
+                {/* DUAL QUESTION TYPE DISTRIBUTION: STAGE 4 PRACTICE & STAGE 5 TIMED TEST */}
                 {(() => {
-                  const stage3Total = Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
-                  const stage4Total = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
+                  const currentCounts4 = [
+                    Number(countMcq || 0),
+                    Number(countHots || 0),
+                    Number(countMatch || 0),
+                    Number(countMultiStmt || 0),
+                    Number(countAssertion || 0),
+                    Number(countChronological || 0),
+                  ];
+                  const setters4 = [
+                    setCountMcq,
+                    setCountHots,
+                    setCountMatch,
+                    setCountMultiStmt,
+                    setCountAssertion,
+                    setCountChronological,
+                  ];
+                  const stage3Total = currentCounts4.reduce((a, b) => a + b, 0);
+
+                  const currentCounts5 = [
+                    Number(stage4CountMcq || 0),
+                    Number(stage4CountHots || 0),
+                    Number(stage4CountMatch || 0),
+                    Number(stage4CountMultiStmt || 0),
+                    Number(stage4CountAssertion || 0),
+                    Number(stage4CountChronological || 0),
+                  ];
+                  const setters5 = [
+                    setStage4CountMcq,
+                    setStage4CountHots,
+                    setStage4CountMatch,
+                    setStage4CountMultiStmt,
+                    setStage4CountAssertion,
+                    setStage4CountChronological,
+                  ];
+                  const stage4Total = currentCounts5.reduce((a, b) => a + b, 0);
+
+                  // Calculate sequential From & To question number ranges for Stage 4
+                  let runStart4 = 1;
+                  const s4Types = [
+                    { id: "mcq", title: "1. MCQ (கொள்குறி)", sub: "Multiple Choice", placeholder: "40", badgeColor: "bg-blue-100 text-blue-800 border-blue-200" },
+                    { id: "hots", title: "2. உயர் சிந்தனை (HOTS)", sub: "Higher Order", placeholder: "20", badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+                    { id: "match", title: "3. பொருத்துக (Match)", sub: "Matching", placeholder: "10", badgeColor: "bg-purple-100 text-purple-800 border-purple-200" },
+                    { id: "multi", title: "4. பல்கூற்று (Multi-Stmt)", sub: "Analysis", placeholder: "10", badgeColor: "bg-amber-100 text-amber-800 border-amber-200" },
+                    { id: "assertion", title: "5. கூற்று காரணம்", sub: "Assertion", placeholder: "10", badgeColor: "bg-rose-100 text-rose-800 border-rose-200" },
+                    { id: "chrono", title: "6. கால வரிசை", sub: "Chronological", placeholder: "10", badgeColor: "bg-cyan-100 text-cyan-800 border-cyan-200" },
+                  ].map((item, idx) => {
+                    const c = currentCounts4[idx];
+                    const from = c > 0 ? runStart4 : runStart4;
+                    const to = c > 0 ? runStart4 + c - 1 : runStart4 - 1;
+                    if (c > 0) runStart4 = to + 1;
+                    return { ...item, count: c, from, to, index: idx };
+                  });
+
+                  // Calculate sequential From & To question number ranges for Stage 5
+                  let runStart5 = 1;
+                  const s5Types = [
+                    { id: "mcq", title: "1. MCQ (கொள்குறி)", sub: "Multiple Choice", placeholder: "20", badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+                    { id: "hots", title: "2. உயர் சிந்தனை (HOTS)", sub: "Higher Order", placeholder: "10", badgeColor: "bg-teal-100 text-teal-800 border-teal-200" },
+                    { id: "match", title: "3. பொருத்துக (Match)", sub: "Matching", placeholder: "5", badgeColor: "bg-violet-100 text-violet-800 border-violet-200" },
+                    { id: "multi", title: "4. பல்கூற்று (Multi-Stmt)", sub: "Analysis", placeholder: "5", badgeColor: "bg-orange-100 text-orange-800 border-orange-200" },
+                    { id: "assertion", title: "5. கூற்று காரணம்", sub: "Assertion", placeholder: "5", badgeColor: "bg-red-100 text-red-800 border-red-200" },
+                    { id: "chrono", title: "6. கால வரிசை", sub: "Chronological", placeholder: "5", badgeColor: "bg-sky-100 text-sky-800 border-sky-200" },
+                  ].map((item, idx) => {
+                    const c = currentCounts5[idx];
+                    const from = c > 0 ? runStart5 : runStart5;
+                    const to = c > 0 ? runStart5 + c - 1 : runStart5 - 1;
+                    if (c > 0) runStart5 = to + 1;
+                    return { ...item, count: c, from, to, index: idx };
+                  });
+
+                  const handleUpdateStage4 = (index, field, value) => {
+                    const counts = [...currentCounts4];
+                    const numVal = Math.max(0, parseInt(value, 10) || 0);
+
+                    if (field === "count") {
+                      setters4[index](numVal);
+                      counts[index] = numVal;
+                    } else if (field === "to") {
+                      const from = s4Types[index].from;
+                      const newCount = Math.max(0, numVal >= from ? numVal - from + 1 : 0);
+                      setters4[index](newCount);
+                      counts[index] = newCount;
+                    }
+                    const newTotal = counts.reduce((a, b) => a + b, 0);
+                    setPracticeCount(newTotal);
+                  };
+
+                  const handleUpdateStage5 = (index, field, value) => {
+                    const counts = [...currentCounts5];
+                    const numVal = Math.max(0, parseInt(value, 10) || 0);
+
+                    if (field === "count") {
+                      setters5[index](numVal);
+                      counts[index] = numVal;
+                    } else if (field === "to") {
+                      const from = s5Types[index].from;
+                      const newCount = Math.max(0, numVal >= from ? numVal - from + 1 : 0);
+                      setters5[index](newCount);
+                      counts[index] = newCount;
+                    }
+                    const newTotal = counts.reduce((a, b) => a + b, 0);
+                    setTestCount(newTotal);
+                  };
+
                   return (
                     <div className="pt-3 border-t border-slate-200/80 space-y-6">
                       
                       {/* 1. STAGE 4 PRACTICE QUESTION DISTRIBUTION */}
-                      <div className="space-y-3 bg-blue-50/40 p-4 rounded-3xl border border-blue-100">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-3.5 bg-blue-50/40 p-4 sm:p-5 rounded-3xl border border-blue-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                           <div>
-                            <h4 className="text-xs font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
+                            <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
                               <SlidersHorizontal className="w-4 h-4 text-[#0055ff]" />
                               <span>Stage 4 Practice Question Types Distribution (நிலை 4 வினா ஒதுக்கீடு)</span>
                             </h4>
                             <p className="text-[11px] text-slate-500 font-medium">
-                              Exact breakdown for Stage 4 Practice. Matches Stage 4 Practice Count ({practiceCount} Qs).
+                              Specify the exact question range (From Q# to To Q#) or count for each question type. Matches Stage 4 Practice Count ({practiceCount} Qs).
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCountMcq(40);
+                                setCountHots(20);
+                                setCountMatch(10);
+                                setCountMultiStmt(10);
+                                setCountAssertion(10);
+                                setCountChronological(10);
+                                setPracticeCount(100);
+                              }}
+                              className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-[#0055ff] border border-blue-200 hover:bg-blue-100 transition cursor-pointer"
+                              title="Reset Stage 4 distribution to standard ratio (40 MCQ, 20 HOTS, 10 Match, 10 Multi, 10 Assertion, 10 Chrono = 100 Qs)"
+                            >
+                              Standard (40 MCQ / 100 Qs)
+                            </button>
                             <span className={`text-xs font-black px-2.5 py-1 rounded-lg border shrink-0 ${
                               stage3Total === Number(practiceCount)
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-300"
@@ -4250,148 +4369,118 @@ export default function AdminPage({ user, lang = "en" }) {
                           </div>
                         </div>
 
+                        {/* Visual Range Timeline Bar */}
+                        <div className="p-2.5 rounded-2xl bg-white border border-slate-200/90 flex flex-wrap items-center gap-1.5 text-[11px]">
+                          <span className="text-[10px] font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
+                            <span>Question Number Sequence:</span>
+                          </span>
+                          {s4Types.map(t => (
+                            <span
+                              key={t.id}
+                              className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold ${t.badgeColor}`}
+                            >
+                              {t.title.split(' ')[1]}: {t.count > 0 ? `Q${t.from} – Q${t.to}` : "None"} ({t.count} Qs)
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* 6 Question Type Cards */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                          {/* 1. MCQ */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">1. MCQ (கொள்குறி)</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Multiple Choice</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={countMcq}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCountMcq(val);
-                                const newTotal = Number(val || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
-                                setPracticeCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                              placeholder="40"
-                            />
-                          </div>
+                          {s4Types.map((item) => (
+                            <div
+                              key={item.id}
+                              className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2 shadow-2xs hover:border-blue-300 transition-all"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <label className="text-xs font-black text-[#061b36] block">
+                                    {item.title}
+                                  </label>
+                                  <span className="text-[10px] font-semibold text-slate-400">
+                                    {item.sub}
+                                  </span>
+                                </div>
+                                <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md border shrink-0 ${item.badgeColor}`}>
+                                  {item.count > 0 ? `Q${item.from} – Q${item.to}` : "0 Qs"}
+                                </span>
+                              </div>
 
-                          {/* 2. HOTS */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">2. உயர் சிந்தனை (HOTS)</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Higher Order</span>
+                              <div className="grid grid-cols-3 gap-2 pt-1">
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                    From Q#
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={item.from}
+                                    readOnly
+                                    className="w-full p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs font-black text-center cursor-not-allowed select-none"
+                                    title={`Starts at Question #${item.from}`}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                    To Q#
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={item.from}
+                                    value={item.count > 0 ? item.to : ""}
+                                    placeholder={item.count > 0 ? String(item.to) : "-"}
+                                    onChange={(e) => handleUpdateStage4(item.index, "to", e.target.value)}
+                                    className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-black text-center focus:outline-none focus:border-[#0055ff] focus:bg-white"
+                                    title={`Specify end question number for ${item.title}`}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                    Count (Qs)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={item.count}
+                                    placeholder={item.placeholder}
+                                    onChange={(e) => handleUpdateStage4(item.index, "count", e.target.value)}
+                                    className="w-full p-2 rounded-xl bg-blue-50/50 border border-blue-200 text-[#0055ff] text-xs font-black text-center focus:outline-none focus:border-[#0055ff] focus:bg-white"
+                                    title={`Total questions for ${item.title}`}
+                                  />
+                                </div>
+                              </div>
                             </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={countHots}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCountHots(val);
-                                const newTotal = Number(countMcq || 0) + Number(val || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
-                                setPracticeCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                              placeholder="20"
-                            />
-                          </div>
-
-                          {/* 3. Match */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">3. பொருத்துக (Match)</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Matching</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={countMatch}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCountMatch(val);
-                                const newTotal = Number(countMcq || 0) + Number(countHots || 0) + Number(val || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
-                                setPracticeCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                              placeholder="10"
-                            />
-                          </div>
-
-                          {/* 4. Multi-Statement */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">4. பல்கூற்று (Multi-Stmt)</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Analysis</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={countMultiStmt}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCountMultiStmt(val);
-                                const newTotal = Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(val || 0) + Number(countAssertion || 0) + Number(countChronological || 0);
-                                setPracticeCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                              placeholder="10"
-                            />
-                          </div>
-
-                          {/* 5. Assertion & Reason */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">5. கூற்று காரணம்</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Assertion</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={countAssertion}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCountAssertion(val);
-                                const newTotal = Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(val || 0) + Number(countChronological || 0);
-                                setPracticeCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                              placeholder="10"
-                            />
-                          </div>
-
-                          {/* 6. Chronological */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">6. கால வரிசை</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Chronological</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={countChronological}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCountChronological(val);
-                                const newTotal = Number(countMcq || 0) + Number(countHots || 0) + Number(countMatch || 0) + Number(countMultiStmt || 0) + Number(countAssertion || 0) + Number(val || 0);
-                                setPracticeCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-[#0055ff]"
-                              placeholder="10"
-                            />
-                          </div>
+                          ))}
                         </div>
                       </div>
 
                       {/* 2. STAGE 5 TIMED TEST QUESTION DISTRIBUTION */}
-                      <div className="space-y-3 bg-indigo-50/40 p-4 rounded-3xl border border-indigo-100">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-3.5 bg-indigo-50/40 p-4 sm:p-5 rounded-3xl border border-indigo-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                           <div>
-                            <h4 className="text-xs font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
+                            <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
                               <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
                               <span>Stage 5 Timed Test Question Types Distribution (நிலை 5 தேர்வு ஒதுக்கீடு)</span>
                             </h4>
                             <p className="text-[11px] text-slate-500 font-medium">
-                              Exact breakdown for Stage 5 Timed Test. Matches Stage 5 Question Count ({testCount} Qs).
+                              Specify the exact question range (From Q# to To Q#) or count for each question type. Matches Stage 5 Question Count ({testCount} Qs).
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStage4CountMcq(20);
+                                setStage4CountHots(10);
+                                setStage4CountMatch(5);
+                                setStage4CountMultiStmt(5);
+                                setStage4CountAssertion(5);
+                                setStage4CountChronological(5);
+                                setTestCount(50);
+                              }}
+                              className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition cursor-pointer"
+                              title="Reset Stage 5 distribution to standard ratio (20 MCQ, 10 HOTS, 5 Match, 5 Multi, 5 Assertion, 5 Chrono = 50 Qs)"
+                            >
+                              Standard (20 MCQ / 50 Qs)
+                            </button>
                             <span className={`text-xs font-black px-2.5 py-1 rounded-lg border shrink-0 ${
                               stage4Total === Number(testCount)
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-300"
@@ -4402,132 +4491,86 @@ export default function AdminPage({ user, lang = "en" }) {
                           </div>
                         </div>
 
+                        {/* Visual Range Timeline Bar */}
+                        <div className="p-2.5 rounded-2xl bg-white border border-slate-200/90 flex flex-wrap items-center gap-1.5 text-[11px]">
+                          <span className="text-[10px] font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
+                            <span>Question Number Sequence:</span>
+                          </span>
+                          {s5Types.map(t => (
+                            <span
+                              key={t.id}
+                              className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold ${t.badgeColor}`}
+                            >
+                              {t.title.split(' ')[1]}: {t.count > 0 ? `Q${t.from} – Q${t.to}` : "None"} ({t.count} Qs)
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* 6 Question Type Cards */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                          {/* 1. MCQ */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">1. MCQ (கொள்குறி)</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Multiple Choice</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={stage4CountMcq}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setStage4CountMcq(val);
-                                const newTotal = Number(val || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
-                                setTestCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
-                              placeholder="20"
-                            />
-                          </div>
+                          {s5Types.map((item) => (
+                            <div
+                              key={item.id}
+                              className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2 shadow-2xs hover:border-indigo-300 transition-all"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <label className="text-xs font-black text-[#061b36] block">
+                                    {item.title}
+                                  </label>
+                                  <span className="text-[10px] font-semibold text-slate-400">
+                                    {item.sub}
+                                  </span>
+                                </div>
+                                <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md border shrink-0 ${item.badgeColor}`}>
+                                  {item.count > 0 ? `Q${item.from} – Q${item.to}` : "0 Qs"}
+                                </span>
+                              </div>
 
-                          {/* 2. HOTS */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">2. உயர் சிந்தனை (HOTS)</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Higher Order</span>
+                              <div className="grid grid-cols-3 gap-2 pt-1">
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                    From Q#
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={item.from}
+                                    readOnly
+                                    className="w-full p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs font-black text-center cursor-not-allowed select-none"
+                                    title={`Starts at Question #${item.from}`}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                    To Q#
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={item.from}
+                                    value={item.count > 0 ? item.to : ""}
+                                    placeholder={item.count > 0 ? String(item.to) : "-"}
+                                    onChange={(e) => handleUpdateStage5(item.index, "to", e.target.value)}
+                                    className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-black text-center focus:outline-none focus:border-indigo-600 focus:bg-white"
+                                    title={`Specify end question number for ${item.title}`}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                    Count (Qs)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={item.count}
+                                    placeholder={item.placeholder}
+                                    onChange={(e) => handleUpdateStage5(item.index, "count", e.target.value)}
+                                    className="w-full p-2 rounded-xl bg-indigo-50/50 border border-indigo-200 text-indigo-700 text-xs font-black text-center focus:outline-none focus:border-indigo-600 focus:bg-white"
+                                    title={`Total questions for ${item.title}`}
+                                  />
+                                </div>
+                              </div>
                             </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={stage4CountHots}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setStage4CountHots(val);
-                                const newTotal = Number(stage4CountMcq || 0) + Number(val || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
-                                setTestCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
-                              placeholder="10"
-                            />
-                          </div>
-
-                          {/* 3. Match */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">3. பொருத்துக (Match)</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Matching</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={stage4CountMatch}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setStage4CountMatch(val);
-                                const newTotal = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(val || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
-                                setTestCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
-                              placeholder="5"
-                            />
-                          </div>
-
-                          {/* 4. Multi-Statement */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">4. பல்கூற்று (Multi-Stmt)</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Analysis</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={stage4CountMultiStmt}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setStage4CountMultiStmt(val);
-                                const newTotal = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(val || 0) + Number(stage4CountAssertion || 0) + Number(stage4CountChronological || 0);
-                                setTestCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
-                              placeholder="5"
-                            />
-                          </div>
-
-                          {/* 5. Assertion & Reason */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">5. கூற்று காரணம்</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Assertion</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={stage4CountAssertion}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setStage4CountAssertion(val);
-                                const newTotal = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(val || 0) + Number(stage4CountChronological || 0);
-                                setTestCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
-                              placeholder="5"
-                            />
-                          </div>
-
-                          {/* 6. Chronological */}
-                          <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-[#061b36]">6. கால வரிசை</label>
-                              <span className="text-[10px] font-semibold text-slate-400">Chronological</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              value={stage4CountChronological}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setStage4CountChronological(val);
-                                const newTotal = Number(stage4CountMcq || 0) + Number(stage4CountHots || 0) + Number(stage4CountMatch || 0) + Number(stage4CountMultiStmt || 0) + Number(stage4CountAssertion || 0) + Number(val || 0);
-                                setTestCount(newTotal);
-                              }}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-600"
-                              placeholder="5"
-                            />
-                          </div>
+                          ))}
                         </div>
                       </div>
 
@@ -4987,7 +5030,7 @@ export default function AdminPage({ user, lang = "en" }) {
                             type="text"
                             value={cBadgeInput}
                             onChange={(e) => setCBadgeInput(e.target.value)}
-                            placeholder="e.g. Scholarship, Official"
+                            placeholder="e.g. Scholarship, Preparation"
                             className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-[#0055ff]"
                           />
                         </div>
@@ -5031,7 +5074,7 @@ export default function AdminPage({ user, lang = "en" }) {
                             <option value="Languages">Languages (English Reading)</option>
                             <option value="Video">Video (Online Class)</option>
                             <option value="Award">Award (NMMS)</option>
-                            <option value="Sparkles">Sparkles (TREAST)</option>
+                            <option value="Trophy">Trophy (TREAST)</option>
                           </select>
                         </div>
 
@@ -6590,7 +6633,7 @@ export default function AdminPage({ user, lang = "en" }) {
                           {isExplanationRevealed && q.explanation ? (
                             <div className="p-3 rounded-xl bg-blue-50/90 border border-blue-200 text-xs text-[#0369a1] space-y-1 animate-fade-in">
                               <div className="font-bold flex items-center space-x-1.5 text-[#0284C7]">
-                                <Sparkles className="w-3.5 h-3.5" />
+                                <BookOpen className="w-3.5 h-3.5" />
                                 <span>விளக்கம் (Explanation):</span>
                               </div>
                               <p className="font-medium text-slate-800 leading-relaxed pl-5">
@@ -7067,7 +7110,7 @@ export default function AdminPage({ user, lang = "en" }) {
                       {q.explanation && (
                         <div className="ml-9 p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-950 space-y-1">
                           <div className="font-bold flex items-center space-x-1 text-amber-900">
-                            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                            <BookOpen className="w-3.5 h-3.5 text-amber-600" />
                             <span>விளக்கம் (Pedagogical Explanation):</span>
                           </div>
                           <p className="font-medium leading-relaxed">{q.explanation}</p>
@@ -7139,7 +7182,7 @@ export default function AdminPage({ user, lang = "en" }) {
               <div className="p-3.5 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950 text-xs flex items-start gap-2.5">
                 <FileText className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <strong className="block font-bold">Automated AI Extraction & Digitization</strong>
+                  <strong className="block font-bold">Automated PDF Extraction & Digitization</strong>
                   <span className="text-sky-800 leading-relaxed font-medium">
                     Upload an existing question paper PDF. The system will automatically parse questions, 4 options (A, B, C, D), and answer keys, and save them directly into this lesson quiz!
                   </span>
@@ -7205,7 +7248,7 @@ export default function AdminPage({ user, lang = "en" }) {
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4" />
+                      <FileCheck className="w-4 h-4" />
                       <span>Extract & Save Quiz</span>
                     </>
                   )}
