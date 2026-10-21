@@ -61,7 +61,7 @@ function resolveRoute(pathname, search, currentUser) {
     const lessonId = parseInt(lessonMatch ? lessonMatch[1] : queryLesson, 10);
     const stageParam = params.get("stage");
     const stageNum = stageParam ? parseInt(stageParam, 10) : 1;
-    const stage = [1, 2, 3, 4].includes(stageNum) ? stageNum : 1;
+    const stage = [1, 2, 3, 4, 5].includes(stageNum) ? stageNum : 1;
     return {
       tab: "learning",
       requiresAuth: true,

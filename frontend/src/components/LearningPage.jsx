@@ -734,12 +734,13 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
                           <p className="text-xs sm:text-sm text-slate-600 font-normal mt-0.5 line-clamp-2 leading-relaxed">{les.description}</p>
                         </div>
 
-                        {/* 4 Stage Action Status Badges in Blue, Green, Orange, Purple */}
-                        <div className="grid grid-cols-4 gap-1 py-2 border-y border-slate-100 text-xs font-black text-center">
-                          <span className={les.stage1_pdf ? "text-[#0055ff]" : "text-slate-300"}>📘 BOOK</span>
+                        {/* 5 Stage Action Status Badges in Blue, Cyan, Green, Orange, Purple */}
+                        <div className="grid grid-cols-5 gap-1 py-2 border-y border-slate-100 text-[11px] font-black text-center">
+                          <span className={les.stage1_pdf ? "text-[#0055ff]" : "text-slate-300"}>📘 PDF</span>
+                          <span className={les.stage2_short_notes ? "text-[#0284c7]" : "text-slate-300"}>📄 NOTES</span>
                           <span className={les.stage2_video ? "text-[#00a651]" : "text-slate-300"}>▶️ VIDEO</span>
-                          <span className={les.stage3_questions ? "text-[#ff7a00]" : "text-slate-300"}>❓ Qs</span>
-                          <span className={les.stage4_test ? "text-[#8a00e6]" : "text-slate-300"}>📝 QUIZ</span>
+                          <span className={les.stage3_questions ? "text-[#ff7a00]" : "text-slate-300"}>❓ TEST</span>
+                          <span className={les.stage4_test ? "text-[#8a00e6]" : "text-slate-300"}>📝 EXAM</span>
                         </div>
 
                         <button

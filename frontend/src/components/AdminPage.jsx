@@ -144,7 +144,7 @@ function ShareLessonMessageModal({ lesson, onClose, showToast }) {
   const [subjectTitle, setSubjectTitle] = useState(() => tamilSubjectMap[lesson.subject] || lesson.subject);
   const [unitTitle, setUnitTitle] = useState(() => `அலகு ${lesson.lesson_order || 1}`);
   const [lessonTitle, setLessonTitle] = useState(() => `பாடம் ${lesson.title}`);
-  const [stage4Status, setStage4Status] = useState(() => lesson.stage4_force_open ? "TEST LINK OPEN (திறக்கப்பட்டது)" : "TEST LJNK  OPEN 8:00 PM");
+  const [stage5Status, setStage5Status] = useState(() => (lesson.stage5_force_open ?? lesson.stage4_force_open) ? "TEST LINK OPEN (திறக்கப்பட்டது)" : "TEST LINK OPEN 8:00 PM");
   const [copied, setCopied] = useState(false);
 
   const origin = typeof window !== "undefined" && window.location.origin ? window.location.origin : "https://tnteachers.in";
@@ -152,8 +152,9 @@ function ShareLessonMessageModal({ lesson, onClose, showToast }) {
   const stage2Url = `${origin}/learning/lesson/${lesson.id}?stage=2`;
   const stage3Url = `${origin}/learning/lesson/${lesson.id}?stage=3`;
   const stage4Url = `${origin}/learning/lesson/${lesson.id}?stage=4`;
+  const stage5Url = `${origin}/learning/lesson/${lesson.id}?stage=5`;
 
-  const fullMessage = `${dayTitle} \n\n ${paperTitle} \n\n${classTitle}\n ${subjectTitle} \n${unitTitle}\n ${lessonTitle} \n\nStage 1 \nLESSON PDF LINK \n${stage1Url}\n\nstage 2 \nLESSON VIDEO LINK\n${stage2Url}\n\nstage 3 \nPRACTICE QA LINK\n${stage3Url}\n\nstage 4\n${stage4Status} \n${stage4Url}`;
+  const fullMessage = `${dayTitle} \n\n ${paperTitle} \n\n${classTitle}\n ${subjectTitle} \n${unitTitle}\n ${lessonTitle} \n\nStage 1 \nLESSON PDF LINK \n${stage1Url}\n\nStage 2 \nSHORT NOTES LINK\n${stage2Url}\n\nStage 3 \nLESSON VIDEO LINK\n${stage3Url}\n\nStage 4 \nPRACTICE QA LINK\n${stage4Url}\n\nStage 5\n${stage5Status} \n${stage5Url}`;
 
   const handleCopy = () => {
     try {
@@ -200,7 +201,7 @@ function ShareLessonMessageModal({ lesson, onClose, showToast }) {
                 தினசரி பயிற்சிப் பகிர்வுச் செய்தி (Daily Study Plan Message)
               </h3>
               <p className="text-xs text-slate-500 font-medium">
-                மாணவர்கள் நேரடியாக பாடத்திற்குச் செல்லக்கூடிய 4 நிலை நேரடி இணைப்புகளுடன்
+                மாணவர்கள் நேரடியாக பாடத்திற்குச் செல்லக்கூடிய 5 நிலை நேரடி இணைப்புகளுடன்
               </p>
             </div>
           </div>
@@ -269,11 +270,11 @@ function ShareLessonMessageModal({ lesson, onClose, showToast }) {
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="block font-bold text-slate-700 mb-1">நிலை 4 தேர்வு நிலை (Stage 4 Status / Unlock Time)</label>
+            <label className="block font-bold text-slate-700 mb-1">நிலை 5 தேர்வு நிலை (Stage 5 Status / Unlock Time)</label>
             <input
               type="text"
-              value={stage4Status}
-              onChange={(e) => setStage4Status(e.target.value)}
+              value={stage5Status}
+              onChange={(e) => setStage5Status(e.target.value)}
               className="w-full p-2 rounded-xl bg-white border border-slate-200 font-semibold focus:outline-none focus:border-[#0055ff]"
             />
           </div>
@@ -286,7 +287,7 @@ function ShareLessonMessageModal({ lesson, onClose, showToast }) {
               <span>நேரடி முன்னோட்டம் (WhatsApp Message Preview):</span>
             </span>
             <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              ✓ Direct Auto-Login Deep Links
+              ✓ Direct Auto-Login Deep Links (5 Stages)
             </span>
           </div>
           <div className="bg-[#e7f8ee] border border-emerald-200/90 rounded-2xl p-4 text-xs font-mono text-slate-800 whitespace-pre-wrap leading-relaxed shadow-inner max-h-56 overflow-y-auto select-all">
@@ -310,25 +311,33 @@ function ShareLessonMessageModal({ lesson, onClose, showToast }) {
               href={stage2Url}
               target="_blank"
               rel="noreferrer"
-              className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 font-bold text-[11px] transition"
+              className="px-2.5 py-1 rounded-lg bg-teal-100 text-teal-800 hover:bg-teal-200 font-bold text-[11px] transition"
             >
-              Stage 2 (Video) ↗
+              Stage 2 (Notes) ↗
             </a>
             <a
               href={stage3Url}
               target="_blank"
               rel="noreferrer"
-              className="px-2.5 py-1 rounded-lg bg-blue-100 text-[#0055ff] hover:bg-blue-200 font-bold text-[11px] transition"
+              className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 font-bold text-[11px] transition"
             >
-              Stage 3 (QA) ↗
+              Stage 3 (Video) ↗
             </a>
             <a
               href={stage4Url}
               target="_blank"
               rel="noreferrer"
+              className="px-2.5 py-1 rounded-lg bg-blue-100 text-[#0055ff] hover:bg-blue-200 font-bold text-[11px] transition"
+            >
+              Stage 4 (Practice) ↗
+            </a>
+            <a
+              href={stage5Url}
+              target="_blank"
+              rel="noreferrer"
               className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-bold text-[11px] transition"
             >
-              Stage 4 (Exam) ↗
+              Stage 5 (Exam) ↗
             </a>
           </div>
         </div>
@@ -425,6 +434,10 @@ export default function AdminPage({ user, lang = "en" }) {
   const [lesAvailableAt, setLesAvailableAt] = useState("");
   const [lessonsList, setLessonsList] = useState([]);
   const [uploadingLes, setUploadingLes] = useState(false);
+  const [lesShortNotesFile, setLesShortNotesFile] = useState(null);
+  const [uploadShortNotesModal, setUploadShortNotesModal] = useState(null);
+  const [uploadingShortNotes, setUploadingShortNotes] = useState(false);
+  const [shortNotesFile, setShortNotesFile] = useState(null);
 
   // Edit Lesson Modal State
   const [isEditLessonModalOpen, setIsEditLessonModalOpen] = useState(false);
@@ -1157,6 +1170,7 @@ export default function AdminPage({ user, lang = "en" }) {
       formData.append("video_url", lesVideoUrl);
       if (lesAvailableAt) formData.append("available_at", lesAvailableAt);
       if (lesFile) formData.append("file", lesFile);
+      if (lesShortNotesFile) formData.append("short_notes_file", lesShortNotesFile);
 
       await fetch("/api/admin/lessons", {
         method: "POST",
@@ -1170,6 +1184,7 @@ export default function AdminPage({ user, lang = "en" }) {
       setCustomLesSubject("");
       setIsCustomLesSubject(false);
       setLesFile(null);
+      setLesShortNotesFile(null);
       setLesAvailableAt("");
       loadLessons();
       loadStats();
@@ -1178,10 +1193,39 @@ export default function AdminPage({ user, lang = "en" }) {
       showToast("Learning Portal Lesson module published successfully!");
       setLesTitle("");
       setLesDesc("");
+      setLesShortNotesFile(null);
       setLesAvailableAt("");
       loadLessons();
     } finally {
       setUploadingLes(false);
+    }
+  };
+
+  const handleUploadShortNotesSubmit = async (e) => {
+    e.preventDefault();
+    if (!uploadShortNotesModal?.lesson?.id || !shortNotesFile) {
+      return showToast("Please select a PDF file.", "error");
+    }
+    setUploadingShortNotes(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", shortNotesFile);
+      const res = await fetch(`/api/admin/lessons/${uploadShortNotesModal.lesson.id}/upload-short-notes`, {
+        method: "POST",
+        body: formData
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Upload failed");
+      }
+      showToast("Stage 2 Short Notes PDF uploaded successfully!", "success");
+      setUploadShortNotesModal(null);
+      setShortNotesFile(null);
+      loadLessons();
+    } catch (err) {
+      showToast(err.message || "Failed to upload Short Notes PDF.", "error");
+    } finally {
+      setUploadingShortNotes(false);
     }
   };
 
@@ -3189,23 +3233,35 @@ export default function AdminPage({ user, lang = "en" }) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Stage 2 Video Embed URL</label>
+                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Stage 1 Lesson Book PDF (பாடப்பகுதி PDF)</label>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setLesFile(e.target.files[0])}
+                      className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#0284c7] mb-1">
+                      Stage 2 Short Notes PDF (சுருக்கக் குறிப்புகள் PDF - விருப்பத்தேர்வு)
+                    </label>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setLesShortNotesFile(e.target.files[0])}
+                      className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Stage 3 Video Embed URL (காணொளி விளக்கம்)</label>
                     <input
                       type="text"
                       placeholder="https://www.youtube.com/embed/..."
                       value={lesVideoUrl}
                       onChange={(e) => setLesVideoUrl(e.target.value)}
                       className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Stage 1 Lesson Notes PDF</label>
-                    <input
-                      type="file"
-                      accept="application/pdf"
-                      onChange={(e) => setLesFile(e.target.files[0])}
-                      className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
                     />
                   </div>
 
@@ -3268,6 +3324,21 @@ export default function AdminPage({ user, lang = "en" }) {
                             {/* Share, Edit & Delete Action Buttons */}
                             <div className="flex items-center space-x-1.5 shrink-0">
                               <button
+                                onClick={() => {
+                                  setShortNotesFile(null);
+                                  setUploadShortNotesModal({ lesson: l });
+                                }}
+                                title="Upload Stage 2 Short Notes PDF"
+                                className={`px-2 py-1 text-xs font-bold rounded-lg cursor-pointer transition flex items-center space-x-1 shadow-2xs ${
+                                  l.short_notes_pdf_url
+                                    ? "bg-sky-100 text-[#0284c7] hover:bg-sky-200 border border-sky-300"
+                                    : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-300"
+                                }`}
+                              >
+                                <FileText className="w-3.5 h-3.5 text-[#0284c7]" />
+                                <span>{l.short_notes_pdf_url ? "Notes ✓" : "+ Notes"}</span>
+                              </button>
+                              <button
                                 onClick={() => setSharingLesson(l)}
                                 title="Share Lesson Message (வாட்ஸ்அப் / டெலிகிராம் செய்தி)"
                                 className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer transition flex items-center space-x-1 shadow-2xs"
@@ -3311,6 +3382,10 @@ export default function AdminPage({ user, lang = "en" }) {
                                 ⚡ Immediate Release
                               </span>
                             )}
+
+                            <span className={`px-2 py-0.5 rounded-full font-bold ${l.short_notes_pdf_url ? "bg-sky-100 text-[#0284c7]" : "bg-slate-200 text-slate-600"}`}>
+                              Stage 2 Notes: {l.short_notes_pdf_url ? "✅ PDF Ready" : "❌ None"}
+                            </span>
 
                             <span className={`px-2 py-0.5 rounded-full font-bold ${l.has_quiz_type1 ? "bg-blue-100 text-[#0284C7]" : "bg-slate-200 text-slate-600"}`}>
                               Type 1 Quiz: {l.has_quiz_type1 ? `✅ Ready (${l.quiz_type1_count} Qs)` : "❌ None"}
@@ -3379,9 +3454,9 @@ export default function AdminPage({ user, lang = "en" }) {
                       type="button"
                       onClick={handleUnlockAllStage4}
                       className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs shadow-sm flex items-center space-x-1.5 cursor-pointer whitespace-nowrap"
-                      title="Force unlock all lessons Stage 4 Timed Exams immediately today"
+                      title="Force unlock all lessons Stage 5 Timed Exams immediately today"
                     >
-                      <span>🔓 Unlock All Stage 4 Today</span>
+                      <span>🔓 Unlock All Stage 5 Today</span>
                     </button>
                   </div>
                 </div>
@@ -3412,8 +3487,25 @@ export default function AdminPage({ user, lang = "en" }) {
                           </span>
                         </div>
 
-                        {/* Stage 4 Manual Unlock / Lock Toggle & Share Message */}
+                        {/* Stage 2 Notes PDF, Stage 5 Manual Unlock & Share Message */}
                         <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShortNotesFile(null);
+                              setUploadShortNotesModal({ lesson });
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer shadow-xs ${
+                              lesson.short_notes_pdf_url 
+                                ? "bg-sky-100 hover:bg-sky-200 text-[#0284c7] border border-sky-300"
+                                : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-300"
+                            }`}
+                            title="Upload Stage 2 Short Notes PDF"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-[#0284c7]" />
+                            <span>{lesson.short_notes_pdf_url ? "📄 Notes PDF ✓" : "+ Notes PDF"}</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => setSharingLesson(lesson)}
@@ -3428,22 +3520,22 @@ export default function AdminPage({ user, lang = "en" }) {
                             type="button"
                             onClick={() => handleToggleLessonStage4(lesson.id)}
                             className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition border cursor-pointer flex items-center space-x-2 ${
-                              lesson.stage4_force_open
+                              (lesson.stage5_force_open ?? lesson.stage4_force_open)
                                 ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 shadow-md ring-2 ring-emerald-300"
                                 : "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
                             }`}
-                            title={lesson.stage4_force_open ? "Click to lock Stage 4 back to 8:00 PM schedule" : "Click to force unlock Stage 4 immediately"}
+                            title={(lesson.stage5_force_open ?? lesson.stage4_force_open) ? "Click to lock Stage 5 back to 8:00 PM schedule" : "Click to force unlock Stage 5 immediately"}
                           >
-                            {lesson.stage4_force_open ? (
+                            {(lesson.stage5_force_open ?? lesson.stage4_force_open) ? (
                               <>
                                 <span className="flex h-2 w-2 relative">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-100"></span>
                                 </span>
-                                <span>🔓 Stage 4: UNLOCKED (திறக்கப்பட்டது)</span>
+                                <span>🔓 Stage 5: UNLOCKED (திறக்கப்பட்டது)</span>
                               </>
                             ) : (
-                              <span>🔒 Stage 4: Opens 8:00 PM</span>
+                              <span>🔒 Stage 5: Opens 8:00 PM</span>
                             )}
                           </button>
                         </div>
@@ -7007,6 +7099,122 @@ export default function AdminPage({ user, lang = "en" }) {
                     <>
                       <Sparkles className="w-4 h-4" />
                       <span>Extract & Save Quiz</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: UPLOAD STAGE 2 SHORT NOTES PDF ================= */}
+      {uploadShortNotesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full flex flex-col overflow-hidden border border-slate-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#0284c7] via-[#0369a1] to-[#0055ff] text-white p-5 flex items-start justify-between gap-4 shrink-0">
+              <div className="space-y-1">
+                <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white font-black text-xs uppercase">
+                  Class {uploadShortNotesModal.lesson?.class_num} • {uploadShortNotesModal.lesson?.subject}
+                </span>
+                <h3 className="text-base sm:text-lg font-black flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-sky-200" />
+                  <span>Upload Stage 2 Short Notes PDF</span>
+                </h3>
+                <p className="text-xs text-blue-100 font-medium">
+                  {uploadShortNotesModal.lesson?.title}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setUploadShortNotesModal(null);
+                  setShortNotesFile(null);
+                }}
+                disabled={uploadingShortNotes}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                title="Close Modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleUploadShortNotesSubmit} className="p-6 space-y-4">
+              <div className="p-3.5 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950 text-xs flex items-start gap-2.5">
+                <FileText className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <strong className="block font-bold">Stage 2: Short Notes (சுருக்கக் குறிப்புகள்)</strong>
+                  <span className="text-sky-800 leading-relaxed font-medium">
+                    Upload a revision notes PDF for this lesson. Students can review these concise notes in Stage 2 before watching the video explanation.
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  Select Short Notes PDF <span className="text-red-500">*</span>
+                </label>
+                <div className="border-2 border-dashed border-slate-300 hover:border-[#0284c7] rounded-2xl p-6 transition flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-50/80 cursor-pointer relative">
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    required
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setShortNotesFile(e.target.files[0]);
+                      }
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    disabled={uploadingShortNotes}
+                  />
+                  <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                  {shortNotesFile ? (
+                    <div className="text-center space-y-1">
+                      <p className="text-xs font-bold text-slate-800">{shortNotesFile.name}</p>
+                      <p className="text-[11px] text-slate-500">{(shortNotesFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <span className="inline-block text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Ready to upload
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-1">
+                      <p className="text-xs font-bold text-slate-700">Click to browse or drop PDF here</p>
+                      <p className="text-[11px] text-slate-400">PDF file containing summary / short notes</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadShortNotesModal(null);
+                    setShortNotesFile(null);
+                  }}
+                  disabled={uploadingShortNotes}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!shortNotesFile || uploadingShortNotes}
+                  className="px-5 py-2.5 rounded-xl bg-[#0284c7] hover:bg-sky-700 text-white font-bold text-xs shadow-md hover:shadow-lg transition flex items-center space-x-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploadingShortNotes ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Uploading PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Upload & Save Notes PDF</span>
                     </>
                   )}
                 </button>

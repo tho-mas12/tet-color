@@ -714,6 +714,7 @@ def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: S
             user_id=user_id,
             lesson_id=lesson_id,
             stage1_pdf=False,
+            stage2_short_notes=False,
             stage2_video=False,
             stage3_questions=False,
             stage4_test=False,
@@ -739,6 +740,13 @@ def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: S
         if now_hm < stage4_time:
             is_stage4_time_locked = True
 
+    stage5_time = getattr(lesson, "stage5_unlock_time", None) or stage4_time
+    is_stage5_force = bool(getattr(lesson, "stage5_force_open", False) or lesson.stage4_force_open)
+    is_stage5_time_locked = False
+    if not is_stage5_force:
+        if now_hm < stage5_time:
+            is_stage5_time_locked = True
+
     return {
         "lesson": {
             "id": lesson.id,
@@ -749,17 +757,22 @@ def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: S
             "title": lesson.title,
             "description": lesson.description,
             "pdf_url": lesson.pdf_url,
+            "short_notes_pdf_url": getattr(lesson, "short_notes_pdf_url", "") or "",
             "video_url": lesson.video_url,
             "available_at": lesson.available_at,
             "is_disabled_by_schedule": is_scheduled_future,
             "stage4_unlock_time": stage4_time,
             "stage4_force_open": bool(lesson.stage4_force_open),
             "is_stage4_locked_by_time": is_stage4_time_locked,
+            "stage5_unlock_time": stage5_time,
+            "stage5_force_open": is_stage5_force,
+            "is_stage5_locked_by_time": is_stage5_time_locked,
             "has_quiz_type1": bool(lesson.quiz_type1),
             "has_quiz_type2": bool(lesson.quiz_type2),
         },
         "progress": {
             "stage1_pdf": prog.stage1_pdf,
+            "stage2_short_notes": getattr(prog, "stage2_short_notes", False),
             "stage2_video": prog.stage2_video,
             "stage3_questions": prog.stage3_questions,
             "stage4_test": prog.stage4_test,
@@ -786,13 +799,17 @@ def complete_stage(lesson_id: int, stage_num: int, user_email: str = "student@te
     if stage_num == 1:
         prog.stage1_pdf = True
     elif stage_num == 2:
-        if not prog.stage1_pdf:
-            raise HTTPException(status_code=400, detail="Stage 1 must be completed first!")
-        prog.stage2_video = True
+        # Stage 2: Short Notes PDF
+        prog.stage2_short_notes = True
     elif stage_num == 3:
-        if not prog.stage2_video:
-            raise HTTPException(status_code=400, detail="Stage 2 must be completed first!")
+        # Stage 3: YouTube Video Explanation
+        prog.stage2_video = True
+    elif stage_num == 4:
+        # Stage 4: Practice Test
         prog.stage3_questions = True
+    elif stage_num == 5:
+        # Stage 5: Online Timed Test
+        prog.stage4_test = True
     
     db.commit()
     return {"message": f"Stage {stage_num} marked as done successfully!"}
@@ -1071,6 +1088,7 @@ def submit_test(
         db.add(prog)
 
     prog.stage1_pdf = True
+    prog.stage2_short_notes = True
     prog.stage2_video = True
     prog.stage3_questions = True
     prog.stage4_test = passed
@@ -1455,8 +1473,13 @@ def admin_get_lessons(db: Session = Depends(get_db)):
             "title": l.title,
             "description": l.description,
             "pdf_url": l.pdf_url,
+            "short_notes_pdf_url": getattr(l, "short_notes_pdf_url", "") or "",
             "video_url": l.video_url,
             "available_at": l.available_at,
+            "stage4_unlock_time": l.stage4_unlock_time,
+            "stage4_force_open": bool(l.stage4_force_open),
+            "stage5_unlock_time": getattr(l, "stage5_unlock_time", "20:00") or "20:00",
+            "stage5_force_open": bool(getattr(l, "stage5_force_open", False)),
             "has_quiz_type1": bool(l.quiz_type1),
             "quiz_type1_count": q1_count,
             "has_quiz_type2": bool(l.quiz_type2),
@@ -1477,6 +1500,7 @@ def admin_upload_lesson(
     video_url: Optional[str] = Form("https://www.youtube.com/embed/dQw4w9WgXcQ"),
     available_at: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
+    short_notes_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
     pdf_url = f"/api/sample-pdf?title={title.replace(' ', '_')}"
@@ -1487,6 +1511,13 @@ def admin_upload_lesson(
             shutil.copyfileobj(file.file, buffer)
         pdf_url = f"/static_uploads/{file.filename}"
 
+    short_notes_pdf_url = None
+    if short_notes_file:
+        sn_path = os.path.join(UPLOAD_DIR, short_notes_file.filename)
+        with open(sn_path, "wb") as buffer:
+            shutil.copyfileobj(short_notes_file.file, buffer)
+        short_notes_pdf_url = f"/static_uploads/{short_notes_file.filename}"
+
     lesson = models.Lesson(
         class_num=class_num,
         subject=subject,
@@ -1496,6 +1527,7 @@ def admin_upload_lesson(
         title=title,
         description=description,
         pdf_url=pdf_url,
+        short_notes_pdf_url=short_notes_pdf_url,
         video_url=video_url or "https://www.youtube.com/embed/dQw4w9WgXcQ",
         available_at=available_at if available_at and available_at.strip() else None
     )
@@ -1503,6 +1535,29 @@ def admin_upload_lesson(
     db.commit()
     db.refresh(lesson)
     return {"message": "Learning Portal Lesson Module published successfully!", "lesson_id": lesson.id}
+
+@app.post("/api/admin/lessons/{lesson_id}/upload-short-notes")
+def admin_upload_short_notes(
+    lesson_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    les = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not les:
+        raise HTTPException(status_code=404, detail="Lesson module not found.")
+
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    les.short_notes_pdf_url = f"/static_uploads/{file.filename}"
+    db.commit()
+    db.refresh(les)
+    return {
+        "message": "Stage 2 Short Notes PDF uploaded successfully!",
+        "lesson_id": les.id,
+        "short_notes_pdf_url": les.short_notes_pdf_url
+    }
 
 @app.put("/api/admin/lessons/{lesson_id}")
 def admin_update_lesson(
@@ -1521,9 +1576,12 @@ def admin_update_lesson(
     if lesson_data.lesson_order is not None: les.lesson_order = lesson_data.lesson_order
     if lesson_data.title is not None: les.title = lesson_data.title
     if lesson_data.description is not None: les.description = lesson_data.description
+    if lesson_data.short_notes_pdf_url is not None: les.short_notes_pdf_url = lesson_data.short_notes_pdf_url
     if lesson_data.video_url is not None: les.video_url = lesson_data.video_url
     if lesson_data.available_at is not None:
         les.available_at = lesson_data.available_at.strip() if lesson_data.available_at.strip() else None
+    if lesson_data.stage5_unlock_time is not None: les.stage5_unlock_time = lesson_data.stage5_unlock_time
+    if lesson_data.stage5_force_open is not None: les.stage5_force_open = lesson_data.stage5_force_open
 
     db.commit()
     db.refresh(les)
@@ -2277,25 +2335,34 @@ def toggle_dashboard_container(container_id: int, db: Session = Depends(get_db))
 # --- STAGE 4 UNLOCK CONTROLS (DEFAULT 8:00 PM WITH MANUAL ADMIN OVERRIDE) ---
 
 @app.post("/api/admin/lessons/{lesson_id}/toggle-stage4")
+@app.post("/api/admin/lessons/{lesson_id}/toggle-stage5")
 def toggle_lesson_stage4(lesson_id: int, db: Session = Depends(get_db)):
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
-    lesson.stage4_force_open = not bool(lesson.stage4_force_open)
+    new_state = not bool(lesson.stage4_force_open)
+    lesson.stage4_force_open = new_state
+    lesson.stage5_force_open = new_state
     db.commit()
     db.refresh(lesson)
-    status_str = "unlocked immediately" if lesson.stage4_force_open else "locked to default 8:00 PM"
+    status_str = "unlocked immediately" if new_state else "locked to default 8:00 PM"
     return {
-        "message": f"Stage 4 is now {status_str} for '{lesson.title}'.",
+        "message": f"Final Test is now {status_str} for '{lesson.title}'.",
         "stage4_force_open": lesson.stage4_force_open,
-        "stage4_unlock_time": lesson.stage4_unlock_time or "20:00"
+        "stage5_force_open": lesson.stage5_force_open,
+        "stage4_unlock_time": lesson.stage4_unlock_time or "20:00",
+        "stage5_unlock_time": lesson.stage5_unlock_time or "20:00"
     }
 
 @app.post("/api/admin/lessons/unlock-all-stage4")
+@app.post("/api/admin/lessons/unlock-all-stage5")
 def unlock_all_stage4(db: Session = Depends(get_db)):
-    db.query(models.Lesson).update({models.Lesson.stage4_force_open: True})
+    db.query(models.Lesson).update({
+        models.Lesson.stage4_force_open: True,
+        models.Lesson.stage5_force_open: True
+    })
     db.commit()
-    return {"message": "All Stage 4 Final Exams are now unlocked immediately for students!"}
+    return {"message": "All Final Exams are now unlocked immediately for students!"}
 
 # --- GOOGLE AUTHENTICATION ENDPOINT ---
 

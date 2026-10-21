@@ -13,7 +13,9 @@ import {
   Maximize2, 
   X, 
   RotateCcw,
-  Download
+  Download,
+  BookOpen,
+  FileCheck
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { fetchApi, getEmbedYoutubeUrl } from "../api";
@@ -60,12 +62,18 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
     let s = String(text);
     // Strip control characters (which cause tofu / empty box symbols)
     s = s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, "");
+    // Fix rogue InDesign book file names and timestamps
+    s = s.replace(/[\w\-\.]+(?:\s+[\w\-\.]+)*\.indd(?:\s*\d+)?/gi, "");
+    s = s.replace(/\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM)/gi, "");
+    s = s.replace(/\d+\s*ஆம்\s*வகுப்பு\s*[\u0B80-\u0BFF\s]+/g, "");
+    s = s.replace(/^\s*\([a-z0-9ivx]+\)\s*/i, "");
+    // Fix spaces before pulli or vowel signs
+    s = s.replace(/([\u0B85-\u0BB9][\u0BBE-\u0BCC]?)\s+([\u0B95-\u0BB9]\u0BCD)/g, "$1$2");
+    s = s.replace(/\s+([\u0BCD\u0BBE-\u0BCC])/g, "$1");
     // Fix rogue newlines between Tamil characters
     s = s.replace(/([\u0B80-\u0BFF])\s*\n\s*([\u0B80-\u0BFF])/g, "$1$2");
-    // Fix spaces before pulli or vowel signs
-    s = s.replace(/\s+([\u0BCD\u0BBE-\u0BCC])/g, "$1");
-    // Remove repetitive boilerplate prefixes requested by user
-    s = s.replace(/^(?:கீழ்க்கண்ட|கீழ்கண்ட|பின்வரும்)\s*கூற்றுகளு(?:ள்|ளில்)\s*(?:எது|எவை)\s*பாடப்புத்தகத்?\s*தகவல்களின்படி\s*(?:சரியான\s*)?(?:கொள்குறி\s*)?விடையாகும்\??\s*(?:\n*தகவல்\s*பகுதி\s*:\s*['"]?)?/i, "");
+    // Remove repetitive boilerplate prefixes
+    s = s.replace(/^(?:கீழ்க்கண்ட|கீழ்கண்ட|பின்வரும்)\s*கூற்றுகளு(?:ள்|ளில்)\s*(?:எது|எவை)\s*(?:பாடப்புத்தகத்?|வரலாற்றுத்?|பாடப்பகுதியின்?)?\s*தகவல்களின்படி\s*(?:சரியான\s*)?(?:கொள்குறி\s*)?விடையாகும்\??\s*(?:\n*தகவல்\s*பகுதி\s*:\s*['"]?)?/i, "");
     s = s.replace(/^(?:தகவல்\s*பகுதி|தகவலின்படி)\s*:\s*['"]?/i, "");
     s = s.replace(/^(?:Which of the following (?:concepts|statements|facts|ideas)\s+(?:is|are)\s+(?:directly\s+)?(?:supported|verified|stated)\s+(?:by|in)\s+the\s+(?:uploaded\s+)?(?:lesson|textbook)?\s*material\??\s*(?:\n*Statement Context\s*:\s*['"]?)?)/i, "");
     s = s.replace(/^Statement Context\s*:\s*['"]?/i, "");
@@ -73,7 +81,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
     s = s.replace(/^(?:Analytical\s*&\s*Higher\s*Order\s*Thinking\s*\(HOTS\)\s*[-:]\s*Analyze\s*the\s*following\s*concept\s*[:\n]*)/i, "");
     s = s.replace(/\n*பாடத்தின்\s*மையக்\s*கோட்பாட்டோடு\s*மிகவும்\s*பொருந்தும்\s*முடிவு\s*எது\??/g, "");
     s = s.replace(/\n*Which\s*analytical\s*deduction\s*is\s*most\s*accurate\??/g, "");
-    s = s.replace(/^\s*●\s*/, "");
+    s = s.replace(/^\s*[●■◆▲►★*•▪▫]\s*/, "");
     s = s.replace(/\.\.\.['"]?$/, ".");
     return s.trim();
   };
@@ -82,12 +90,15 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
     loadLessonDetails();
   }, [lessonId]);
 
+  const isTimeLocked = Boolean(lessonData?.is_stage5_locked_by_time ?? lessonData?.is_stage4_locked_by_time);
+  const unlockTimeStr = lessonData?.stage5_unlock_time || lessonData?.stage4_unlock_time || "20:00";
+
   useEffect(() => {
-    if (!lessonData?.is_stage4_locked_by_time) return;
+    if (!isTimeLocked) return;
     const updateCountdown = () => {
       const now = new Date();
       const target = new Date();
-      const [th, tm] = (lessonData.stage4_unlock_time || "20:00").split(":").map(Number);
+      const [th, tm] = (unlockTimeStr).split(":").map(Number);
       target.setHours(th || 20, tm || 0, 0, 0);
 
       const diff = target.getTime() - now.getTime();
@@ -106,19 +117,19 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [lessonData?.is_stage4_locked_by_time, lessonData?.stage4_unlock_time]);
+  }, [isTimeLocked, unlockTimeStr]);
 
-  const handleAdminToggleStage4 = async () => {
+  const handleAdminToggleStage5 = async () => {
     try {
-      await fetchApi(`/admin/lessons/${lessonId}/toggle-stage4`, { method: "POST" });
+      await fetchApi(`/admin/lessons/${lessonId}/toggle-stage5`, { method: "POST" });
       await loadLessonDetails();
     } catch (err) {
-      alert("Failed to toggle Stage 4: " + err.message);
+      alert("Failed to toggle Stage 5: " + err.message);
     }
   };
 
   useEffect(() => {
-    if (activeStage === 3 && questionsData.length === 0 && !questionsLoading) {
+    if (activeStage === 4 && questionsData.length === 0 && !questionsLoading) {
       handleLoadPracticeQuestions();
     }
   }, [activeStage]);
@@ -149,13 +160,14 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
       setProgress(res.progress);
 
       const requestedStage = Number(initialStage);
-      if (requestedStage && [1, 2, 3, 4].includes(requestedStage)) {
+      if (requestedStage && [1, 2, 3, 4, 5].includes(requestedStage)) {
         setActiveStage(requestedStage);
       } else {
         if (!res.progress.stage1_pdf) setActiveStage(1);
-        else if (!res.progress.stage2_video) setActiveStage(2);
-        else if (!res.progress.stage3_questions) setActiveStage(3);
-        else setActiveStage(4);
+        else if (!res.progress.stage2_short_notes) setActiveStage(2);
+        else if (!res.progress.stage2_video) setActiveStage(3);
+        else if (!res.progress.stage3_questions) setActiveStage(4);
+        else setActiveStage(5);
       }
     } catch (err) {
       console.error("Lesson details error:", err);
@@ -173,11 +185,13 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
       
       const updatedProg = { ...progress };
       if (stageNum === 1) updatedProg.stage1_pdf = true;
-      if (stageNum === 2) updatedProg.stage2_video = true;
-      if (stageNum === 3) updatedProg.stage3_questions = true;
+      if (stageNum === 2) updatedProg.stage2_short_notes = true;
+      if (stageNum === 3) updatedProg.stage2_video = true;
+      if (stageNum === 4) updatedProg.stage3_questions = true;
+      if (stageNum === 5) updatedProg.stage4_test = true;
       setProgress(updatedProg);
 
-      if (stageNum < 4) {
+      if (stageNum < 5) {
         setActiveStage(stageNum + 1);
       }
     } catch (err) {
@@ -302,14 +316,16 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   };
 
   const pdfDone = progress?.stage1_pdf;
+  const notesDone = progress?.stage2_short_notes;
   const videoDone = progress?.stage2_video;
   const questionsDone = progress?.stage3_questions;
   const testDone = progress?.stage4_test;
 
-  const isDirect = Boolean(initialStage && [1, 2, 3, 4].includes(Number(initialStage)));
+  const isDirect = Boolean(initialStage && [1, 2, 3, 4, 5].includes(Number(initialStage)));
   const canAccessStage2 = isDirect || pdfDone;
-  const canAccessStage3 = isDirect || videoDone;
-  const canAccessStage4 = isDirect || questionsDone;
+  const canAccessStage3 = isDirect || notesDone || pdfDone;
+  const canAccessStage4 = isDirect || videoDone || pdfDone;
+  const canAccessStage5 = isDirect || questionsDone;
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-4 sm:space-y-6 animate-fade-in text-[#071c38]">
@@ -350,8 +366,8 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
         </div>
       </div>
 
-      {/* ================= 4 STAGES STEPPER CONTROL ================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+      {/* ================= 5 STAGES STEPPER CONTROL ================= */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
         
         {/* STAGE 1: BOOK / PDF */}
         <button
@@ -372,7 +388,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage1Desc}</span>
         </button>
 
-        {/* STAGE 2: VIDEO */}
+        {/* STAGE 2: SHORT NOTES */}
         <button
           onClick={() => canAccessStage2 && setActiveStage(2)}
           disabled={!canAccessStage2}
@@ -380,21 +396,27 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
             !canAccessStage2
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 2
-              ? "bg-[#00a651] text-white border-[#00a651] shadow-md scale-[1.01]"
-              : videoDone
-              ? "bg-emerald-50/80 text-[#00a651] border-[#00a651]/40 cursor-pointer"
-              : "bg-white text-[#061b36] border-slate-200 hover:border-[#00a651]/40 cursor-pointer"
+              ? "bg-[#0284c7] text-white border-[#0284c7] shadow-md scale-[1.01]"
+              : notesDone
+              ? "bg-sky-50/80 text-[#0284c7] border-[#0284c7]/40 cursor-pointer"
+              : "bg-white text-[#061b36] border-slate-200 hover:border-[#0284c7]/40 cursor-pointer"
           }`}
         >
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 2 • VIDEO</span>
-            {!canAccessStage2 ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : videoDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <Video className="w-5 h-5 shrink-0" />}
+            <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 2 • NOTES</span>
+            {!canAccessStage2 ? (
+              <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : notesDone ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+            ) : (
+              <FileCheck className="w-5 h-5 shrink-0" />
+            )}
           </div>
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage2Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage2Desc}</span>
         </button>
 
-        {/* STAGE 3: QUESTIONS */}
+        {/* STAGE 3: VIDEO */}
         <button
           onClick={() => canAccessStage3 && setActiveStage(3)}
           disabled={!canAccessStage3}
@@ -402,21 +424,21 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
             !canAccessStage3
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 3
-              ? "bg-[#ff7a00] text-white border-[#ff7a00] shadow-md scale-[1.01]"
-              : questionsDone
-              ? "bg-orange-50/80 text-[#ff7a00] border-[#ff7a00]/40 cursor-pointer"
-              : "bg-white text-[#061b36] border-slate-200 hover:border-[#ff7a00]/40 cursor-pointer"
+              ? "bg-[#00a651] text-white border-[#00a651] shadow-md scale-[1.01]"
+              : videoDone
+              ? "bg-emerald-50/80 text-[#00a651] border-[#00a651]/40 cursor-pointer"
+              : "bg-white text-[#061b36] border-slate-200 hover:border-[#00a651]/40 cursor-pointer"
           }`}
         >
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 3 • PRACTICE</span>
-            {!canAccessStage3 ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : questionsDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <HelpCircle className="w-5 h-5 shrink-0" />}
+            <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 3 • VIDEO</span>
+            {!canAccessStage3 ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : videoDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <Video className="w-5 h-5 shrink-0" />}
           </div>
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage3Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage3Desc}</span>
         </button>
 
-        {/* STAGE 4: QUIZ / TEST */}
+        {/* STAGE 4: PRACTICE QUESTIONS */}
         <button
           onClick={() => canAccessStage4 && setActiveStage(4)}
           disabled={!canAccessStage4}
@@ -424,23 +446,45 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
             !canAccessStage4
               ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
               : activeStage === 4
-              ? !lessonData?.is_stage4_locked_by_time
+              ? "bg-[#ff7a00] text-white border-[#ff7a00] shadow-md scale-[1.01]"
+              : questionsDone
+              ? "bg-orange-50/80 text-[#ff7a00] border-[#ff7a00]/40 cursor-pointer"
+              : "bg-white text-[#061b36] border-slate-200 hover:border-[#ff7a00]/40 cursor-pointer"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 4 • PRACTICE</span>
+            {!canAccessStage4 ? <Lock className="w-4 h-4 text-slate-400 shrink-0" /> : questionsDone ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <HelpCircle className="w-5 h-5 shrink-0" />}
+          </div>
+          <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage4Title}</h4>
+          <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage4Desc}</span>
+        </button>
+
+        {/* STAGE 5: QUIZ / FINAL EXAM */}
+        <button
+          onClick={() => canAccessStage5 && setActiveStage(5)}
+          disabled={!canAccessStage5}
+          className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative card-interactive min-h-[92px] ${
+            !canAccessStage5
+              ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
+              : activeStage === 5
+              ? !isTimeLocked
                 ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md ring-2 ring-emerald-300 scale-[1.01]"
                 : "bg-[#8a00e6] text-white border-[#8a00e6] shadow-md scale-[1.01]"
               : testDone
               ? "bg-emerald-50 text-emerald-800 border-emerald-300 cursor-pointer"
-              : !lessonData?.is_stage4_locked_by_time
+              : !isTimeLocked
               ? "bg-emerald-50/80 text-emerald-950 border-2 border-emerald-400 hover:bg-emerald-100/90 shadow-xs cursor-pointer ring-1 ring-emerald-300/40"
               : "bg-amber-50/50 text-amber-950 border-amber-200 hover:border-amber-400 cursor-pointer"
           }`}
         >
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 4 • QUIZ (≥80%)</span>
-            {!canAccessStage4 ? (
+            <span className="text-xs font-black uppercase tracking-wider opacity-90">Stage 5 • QUIZ (≥80%)</span>
+            {!canAccessStage5 ? (
               <Lock className="w-4 h-4 text-slate-400 shrink-0" />
             ) : testDone ? (
               <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-            ) : !lessonData?.is_stage4_locked_by_time ? (
+            ) : !isTimeLocked ? (
               <span className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-xs uppercase">
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
                 <span>🔓 UNLOCKED</span>
@@ -451,9 +495,9 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
               </span>
             )}
           </div>
-          <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage4Title}</h4>
+          <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage5Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">
-            {!lessonData?.is_stage4_locked_by_time ? "✨ Unlocked & Live Now • Click to Start Exam" : t.stage4Desc}
+            {!isTimeLocked ? "✨ Unlocked & Live Now • Click to Start Exam" : t.stage5Desc}
           </span>
         </button>
       </div>
@@ -494,17 +538,85 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
           </div>
         )}
 
-        {/* --- STAGE 2: VIDEO LESSON --- */}
+        {/* --- STAGE 2: SHORT NOTES PDF --- */}
         {activeStage === 2 && (
           <div className="space-y-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
-                  <Video className="w-5 h-5 text-[#00a651]" />
+                  <FileCheck className="w-5 h-5 text-[#0284c7]" />
                   <span>{t.stage2Title}</span>
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
                   {t.stage2Desc}
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2.5">
+                {lessonData?.short_notes_pdf_url && (
+                  <a
+                    href={lessonData.short_notes_pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-[#061b36] text-xs sm:text-sm font-bold border border-slate-200 cursor-pointer min-h-[42px]"
+                  >
+                    <Download className="w-4 h-4 text-[#0284c7]" />
+                    <span>Download Notes (PDF)</span>
+                  </a>
+                )}
+
+                <button
+                  onClick={() => markStageComplete(2)}
+                  className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#0284c7] hover:bg-sky-700 text-white font-bold text-xs sm:text-sm shadow-xs cursor-pointer min-h-[42px]"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{notesDone ? `${t.markStageDone} ✓` : t.markStageDone}</span>
+                </button>
+              </div>
+            </div>
+
+            {lessonData?.short_notes_pdf_url ? (
+              <div className="w-full h-[520px] sm:h-[650px] bg-slate-100 rounded-2xl overflow-hidden border border-slate-200">
+                <iframe
+                  src={lessonData.short_notes_pdf_url}
+                  className="w-full h-full border-none"
+                  title="Lesson Short Notes PDF"
+                />
+              </div>
+            ) : (
+              <div className="text-center py-14 sm:py-16 bg-sky-50/60 rounded-3xl border border-sky-200 p-6 sm:p-8 space-y-4">
+                <FileCheck className="w-12 h-12 text-[#0284c7] mx-auto animate-bounce" />
+                <h4 className="text-base sm:text-lg font-black text-[#061b36]">
+                  {lang === "ta" ? "சுருக்கக் குறிப்புகள் (Short Notes PDF)" : "Short Notes PDF"}
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto font-medium">
+                  {lang === "ta"
+                    ? "இந்தப் பாடத்திற்கான சுருக்கக் குறிப்புகள் தயாரிப்பில் உள்ளது அல்லது விரைவில் பதிவேற்றப்படும். நீங்கள் காணொளி விளக்கம் (Stage 3) காண நேரடியாக செல்லலாம்."
+                    : "Short notes PDF will be uploaded shortly by admin. You can proceed directly to Stage 3 Video Lesson."}
+                </p>
+                <button
+                  onClick={() => markStageComplete(2)}
+                  className="px-6 py-2.5 rounded-xl bg-[#0284c7] hover:bg-sky-700 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
+                >
+                  {lang === "ta" ? "அடுத்த நிலைக்குச் செல் (Stage 3 Video)" : "Proceed to Stage 3 Video"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- STAGE 3: VIDEO LESSON --- */}
+        {activeStage === 3 && (
+          <div className="space-y-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
+                  <Video className="w-5 h-5 text-[#00a651]" />
+                  <span>{t.stage3Title}</span>
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                  {t.stage3Desc}
                 </p>
               </div>
 
@@ -518,7 +630,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                 </button>
 
                 <button
-                  onClick={() => markStageComplete(2)}
+                  onClick={() => markStageComplete(3)}
                   className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#00a651] hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-xs cursor-pointer min-h-[42px]"
                 >
                   <CheckCircle2 className="w-4 h-4" />
@@ -539,15 +651,15 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
           </div>
         )}
 
-        {/* --- STAGE 3: PRACTICE MCQS (TYPE 1 & TYPE 2) --- */}
-        {activeStage === 3 && (
+        {/* --- STAGE 4: PRACTICE MCQS (TYPE 1 & TYPE 2) --- */}
+        {activeStage === 4 && (
           <div className="space-y-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <div className="flex items-center space-x-2">
                   <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
                     <Sparkles className="w-5 h-5 text-[#ff7a00]" />
-                    <span>{t.stage3Title}</span>
+                    <span>{t.stage4Title}</span>
                   </h3>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${
                     quizInfo.is_type2
@@ -559,8 +671,8 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                 </div>
                 <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
                   {quizInfo.is_type2
-                    ? "Stage 4 re-attempt mode: Practice these Type 2 alternate questions to master the lesson concepts."
-                    : t.stage3Desc}
+                    ? "Stage 5 re-attempt mode: Practice these Type 2 alternate questions to master the lesson concepts."
+                    : t.stage4Desc}
                 </p>
               </div>
 
@@ -577,7 +689,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                 )}
 
                 <button
-                  onClick={() => markStageComplete(3)}
+                  onClick={() => markStageComplete(4)}
                   className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#ff7a00] hover:bg-orange-600 text-white font-bold text-xs sm:text-sm shadow-xs cursor-pointer min-h-[42px]"
                 >
                   <CheckCircle2 className="w-4 h-4" />
@@ -596,9 +708,9 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
             ) : questionsData.length === 0 ? (
               <div className="text-center py-14 sm:py-16 bg-slate-50 rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-4">
                 <HelpCircle className="w-12 h-12 text-[#ff7a00] mx-auto animate-float" />
-                <h4 className="text-base sm:text-lg font-black text-[#061b36]">{t.stage3Title}</h4>
+                <h4 className="text-base sm:text-lg font-black text-[#061b36]">{t.stage4Title}</h4>
                 <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto font-medium">
-                  {t.stage3Desc}
+                  {t.stage4Desc}
                 </p>
                 <button
                   onClick={() => handleLoadPracticeQuestions()}
@@ -680,17 +792,17 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
           </div>
         )}
 
-        {/* --- STAGE 4: TIMED FINAL EXAM (PASS MARK: 80%) --- */}
-        {activeStage === 4 && (
+        {/* --- STAGE 5: TIMED FINAL EXAM (PASS MARK: 80%) --- */}
+        {activeStage === 5 && (
           <div className="space-y-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
                   <Award className="w-5 h-5 text-amber-500" />
-                  <span>{t.stage4Title}</span>
+                  <span>{t.stage5Title}</span>
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-                  {t.stage4Desc} • Score at least 80% to complete this lesson and unlock the next lesson.
+                  {t.stage5Desc} • Score at least 80% to complete this lesson and unlock the next lesson.
                 </p>
               </div>
 
@@ -734,7 +846,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                   <p className="text-sm font-medium max-w-lg mx-auto leading-relaxed">
                     {testResult.passed
                       ? "Great job! You achieved the required 80% pass mark. This lesson is officially marked as complete and your daily streak is recorded!"
-                      : "To successfully complete this lesson and unlock subsequent modules, you must achieve at least 80%. Please restudy Stage 3 with the alternate Type 2 question set before retaking the exam."}
+                      : "To successfully complete this lesson and unlock subsequent modules, you must achieve at least 80%. Please restudy Stage 4 with the alternate Type 2 question set before retaking the exam."}
                   </p>
 
                   {testResult.passed && (
@@ -750,14 +862,14 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                   {!testResult.passed && (
                     <button
                       onClick={() => {
-                        setActiveStage(3);
+                        setActiveStage(4);
                         setQuestionsData([]);
                         handleLoadPracticeQuestions("type2");
                       }}
                       className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black shadow-md cursor-pointer min-h-[42px] animate-pulse"
                     >
                       <Sparkles className="w-4 h-4 text-purple-200" />
-                      <span>🔄 Restudy Stage 3 with Type 2 Questions (வகை 2 மறுபயிற்சி)</span>
+                      <span>🔄 Restudy Stage 4 with Type 2 Questions (வகை 2 மறுபயிற்சி)</span>
                     </button>
                   )}
 
@@ -864,7 +976,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                 )}
               </div>
             ) : !testActive ? (
-              lessonData?.is_stage4_locked_by_time ? (
+              isTimeLocked ? (
                 <div className="text-center py-12 sm:py-16 bg-gradient-to-b from-amber-50/80 to-slate-50 rounded-3xl border-2 border-amber-300 p-6 sm:p-8 space-y-4 shadow-sm animate-fade-in">
                   <div className="w-16 h-16 rounded-full bg-amber-100 border-2 border-amber-400 text-amber-800 flex items-center justify-center mx-auto shadow-xs">
                     <Lock className="w-8 h-8" />
@@ -875,10 +987,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                       🔒 Scheduled Daily Exam Unlock • இரவு 8:00 மணி
                     </span>
                     <h4 className="text-xl sm:text-2xl font-black text-[#061b36] pt-1">
-                      Stage 4 Final Timed Exam Opens at {lessonData.stage4_unlock_time || "20:00"} (8:00 PM)
+                      Stage 5 Final Timed Exam Opens at {unlockTimeStr} (8:00 PM)
                     </h4>
                     <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto font-medium leading-relaxed">
-                      TET-1 மற்றும் TET-2 பாடங்களுக்கான மாதிரித் தேர்வு தினமும் இரவு 8:00 மணிக்கு அதிகாரப்பூர்வமாக திறக்கப்படும். அதுவரை நீங்கள் Stage 1 பாடக்குறிப்புகள், Stage 2 வீடியோ மற்றும் Stage 3 பயிற்சி வினாக்களை நிறைவு செய்து தேர்வுக்கு தயாராகுங்கள்.
+                      TET-1 மற்றும் TET-2 பாடங்களுக்கான மாதிரித் தேர்வு தினமும் இரவு 8:00 மணிக்கு அதிகாரப்பூர்வமாக திறக்கப்படும். அதுவரை நீங்கள் Stage 1 பாடப்புத்தகம், Stage 2 சுருக்கக் குறிப்புகள், Stage 3 வீடியோ மற்றும் Stage 4 பயிற்சி வினாக்களை நிறைவு செய்து தேர்வுக்கு தயாராகுங்கள்.
                     </p>
                   </div>
 
@@ -900,10 +1012,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                         Admin Executive Privileges:
                       </p>
                       <button
-                        onClick={handleAdminToggleStage4}
+                        onClick={handleAdminToggleStage5}
                         className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
                       >
-                        🔓 Admin Override: Open Stage 4 Immediately for Students
+                        🔓 Admin Override: Open Stage 5 Immediately for Students
                       </button>
                     </div>
                   )}
@@ -916,7 +1028,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-100"></span>
                     </span>
-                    <span>🔓 Stage 4 Unlocked & Active • தேர்வு திறக்கப்பட்டுள்ளது!</span>
+                    <span>🔓 Stage 5 Unlocked & Active • தேர்வு திறக்கப்பட்டுள்ளது!</span>
                   </div>
 
                   <div className="w-16 h-16 rounded-3xl bg-emerald-100 border-2 border-emerald-400 text-emerald-700 flex items-center justify-center mx-auto shadow-md">
@@ -924,9 +1036,9 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                   </div>
 
                   <div className="space-y-2">
-                    <h4 className="text-xl sm:text-2xl font-black text-[#061b36]">{t.stage4Title}</h4>
+                    <h4 className="text-xl sm:text-2xl font-black text-[#061b36]">{t.stage5Title}</h4>
                     <p className="text-xs sm:text-sm text-emerald-950 max-w-lg mx-auto font-medium leading-relaxed bg-emerald-100/70 p-3.5 rounded-2xl border border-emerald-300">
-                      {t.stage4Desc} • You must score at least <strong className="text-emerald-900 font-black">80%</strong> to complete this lesson and unlock subsequent lessons.
+                      {t.stage5Desc} • You must score at least <strong className="text-emerald-900 font-black">80%</strong> to complete this lesson and unlock subsequent lessons.
                     </p>
                   </div>
 
@@ -941,9 +1053,9 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
 
                     {user?.role === "admin" && (
                       <button
-                        onClick={handleAdminToggleStage4}
+                        onClick={handleAdminToggleStage5}
                         className="px-4 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs cursor-pointer"
-                        title="Lock Stage 4 back to 8:00 PM schedule"
+                        title="Lock Stage 5 back to 8:00 PM schedule"
                       >
                         🔒 Admin: Lock back to 8:00 PM
                       </button>

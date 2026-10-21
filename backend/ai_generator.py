@@ -49,21 +49,32 @@ def sanitize_tamil_text(t: str) -> str:
     """
     Cleans and repairs Tamil text encodings, OCR glitches, and pulli/vowel misplacements:
     1. Unicode NFC normalization.
-    2. Strips unicode replacement character \ufffd and Private Use / Tofu characters (U+E000-U+F8FF, U+F0000-U+10FFFF).
-    3. Replaces rogue newlines that split words or pullis.
-    4. Removes rogue spaces between base consonants and pullis / vowel signs.
-    5. Deduplicates combining vowel signs (கொொ -> கொ, நோோ -> நோ).
-    6. Deduplicates consecutive pulli (U+0BCD) marks.
-    7. Collapses duplicate identical consonants without pulli (e.g. கக -> க, தத -> த).
-    8. Repairs split conjuncts with rogue spaces (e.g. ற் றை -> ற்றை, சொ ன்னார் -> சொன்னார்).
-    9. Removes OCR artifacts like 'F' inside words.
-    10. Cleans quotes, ellipses, and trims excess whitespace.
+    2. Strips InDesign metadata (*.indd), timestamps, running class headers, and bullets.
+    3. Strips unicode replacement character \\ufffd and Private Use / Tofu characters.
+    4. Universally repairs Tamil space before pulli-bearing consonants (e.g. 'வெ ண்ணெய்க்கட்டியின்' -> 'வெண்ணெய்க்கட்டியின்').
+    5. Universally repairs doubled consonants across space (e.g. 'க் க' -> 'க்க', 'ற் ற' -> 'ற்ற').
+    6. Repairs split conjuncts with rogue spaces (e.g. 'ந் த' -> 'ந்த', 'ன் ற' -> 'ன்ற').
+    7. Deduplicates combining vowel signs and pulli marks.
+    8. Cleans quotes, ellipses, and excess whitespace.
     """
     if not t or not isinstance(t, str):
         return ""
     t = unicodedata.normalize('NFC', t)
-    
-    # 1. Filter out unprintable, replacement, or private use characters (including tofu 􀄠)
+
+    # 1. Strip InDesign filenames and adjacent page numbers (e.g. 6th_Maths_TM_Term1_Chapter 2_2024-25.indd 37)
+    t = re.sub(r'[\w\-\.]+(?:\s+[\w\-\.]+)*\.indd(?:\s*\d+)?', '', t, flags=re.IGNORECASE)
+
+    # 2. Strip timestamps (e.g. 1/3/2025 10:54:44 AM)
+    t = re.sub(r'\d{1,2}/\d{1,2}/\d{2,4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?', '', t)
+
+    # 3. Strip running headers / class names (e.g. 6 ஆம் வகுப்பு கணக்கு, வகுப்பு 6)
+    t = re.sub(r'\d+\s*ஆம்\s*வகுப்பு(?:\s+[\u0B80-\u0BFF\w]+)?', '', t)
+    t = re.sub(r'வகுப்பு\s*\d+\s*(?:[\u0B80-\u0BFF\w]+)?', '', t)
+
+    # 4. Strip bullet characters and geometric shapes
+    t = re.sub(r'[●■◆▲►★*•▪▫]', ' ', t)
+
+    # 5. Filter out unprintable, replacement, or private use characters (including tofu)
     filtered = []
     for c in t:
         cp = ord(c)
@@ -73,38 +84,39 @@ def sanitize_tamil_text(t: str) -> str:
             continue
         filtered.append(c)
     t = ''.join(filtered)
-    
-    # 2. Remove OCR noise character 'F' inside words (e.g. நோFோக்கங்கள் -> நோக்கங்கள்)
+
+    # 6. Remove OCR noise character 'F' inside words
     t = re.sub(r'([\u0B80-\u0BFF])F([\u0B80-\u0BFF])', r'\1\2', t)
-    
-    # 3. Fix newlines splitting words or pulli / vowel signs
+
+    # 7. Fix newlines splitting words or pulli / vowel signs
     t = re.sub(r'([\u0B80-\u0BFF])\s*\n\s*([\u0BCD\u0BBE-\u0BCC])', r'\1\2', t)
     t = re.sub(r'([\u0B80-\u0BFF])\n([\u0B80-\u0BFF])', r'\1 \2', t)
-    
-    # 4. Deduplicate combining vowel signs (கொொ -> கொ, நோோ -> நோ, காா -> கா)
+
+    # 8. Deduplicate combining vowel signs (கொொ -> கொ, நோோ -> நோ, காா -> கா)
     t = re.sub(r'(\u0BCA|\u0BCB|\u0BCC)+', r'\1', t)
     t = re.sub(r'(\u0BBE|\u0BBF|\u0BC0|\u0BC1|\u0BC2|\u0BC6|\u0BC7|\u0BC8)+', r'\1', t)
-    
-    # 5. Fix spaces before pullis or vowel signs: e.g. 'நல்் ல' -> 'நல்ல', 'சொ ன்னார்' -> 'சொன்னார்'
+
+    # 9. Fix standalone spaces before pullis or vowel signs
     t = re.sub(r'\s+([\u0BCD\u0BBE-\u0BCC])', r'\1', t)
-    
-    # 6. Deduplicate consecutive pulli (U+0BCD)
-    t = re.sub('\u0BCD+', '\u0BCD', t)
-    
-    # 7. Fix double pulli across identical consonants
-    t = re.sub(r'([\u0B85-\u0BB9])\u0BCD\1\u0BCD', '\\g<1>\u0BCD\\g<1>', t)
-    
-    # 8. Collapse duplicate identical consonants without pulli: (e.g. கக -> க, தத -> த, றற -> ற, னன -> ன)
-    t = re.sub(r'([\u0B95-\u0BB9])\1+', r'\1', t)
-    
-    # 9. Fix split conjuncts with rogue spaces inside words
+
+    # 10. CRITICAL LINGUISTIC FIX: Fix space before consonant with pulli
+    # In Tamil, no word ever begins with a consonant bearing a pulli (e.g. 'வெ ண்ணெய்க்கட்டியின்' -> 'வெண்ணெய்க்கட்டியின்')
+    t = re.sub(r'([\u0B85-\u0BB9][\u0BBE-\u0BCC]?)\s+([\u0B95-\u0BB9]\u0BCD)', r'\1\2', t)
+
+    # 11. Fix doubled consonants split by space (e.g. 'க் க' -> 'க்க', 'ற் ற' -> 'ற்ற', 'ட் ட' -> 'ட்ட')
+    t = re.sub(r'([\u0B95-\u0BB9])\u0BCD\s+\1([\u0BBE-\u0BCC]?)', r'\1' + '\u0BCD' + r'\1\2', t)
+
+    # 12. Fix common Tamil conjunct pairs with spaces
     split_conjuncts = [
+        (r'ந்\s+த', 'ந்த'),
+        (r'ன்\s+ற', 'ன்ற'),
+        (r'ண்\s+ட', 'ண்ட'),
+        (r'ங்\s+க', 'ங்க'),
+        (r'ஞ்\s+ச', 'ஞ்ச'),
         (r'ற்\s+றை', 'ற்றை'),
         (r'ற்\s+ற', 'ற்ற'),
         (r'ந்\s+தை', 'ந்தை'),
-        (r'ந்\s+த', 'ந்த'),
         (r'ன்\s+ன', 'ன்ன'),
-        (r'ன்\s+ற', 'ன்ற'),
         (r'ட்\s+ட', 'ட்ட'),
         (r'ப்\s+ப', 'ப்ப'),
         (r'த்\s+த', 'த்த'),
@@ -113,23 +125,33 @@ def sanitize_tamil_text(t: str) -> str:
         (r'ச்\s+சி', 'ச்சி'),
         (r'ச்\s+சொ\s*ன்ன', 'ச்சொன்ன'),
         (r'சொ\s+ன்ன', 'சொன்ன'),
+        (r'சொ\s+ன்', 'சொன்'),
         (r'ள்\s+ள', 'ள்ள'),
         (r'ல்\s+ல', 'ல்ல'),
-        (r'ண்\s+ட', 'ண்ட'),
-        (r'ங்\s+க', 'ங்க'),
+        (r'ண்\s+ண', 'ண்ண'),
         (r'பின்ன\s+ர்', 'பின்னர்'),
         (r'இன\s+த்தின்', 'இனத்தின்'),
         (r'என\s+ப்படுகிறது', 'எனப்படுகிறது'),
         (r'கொ\s+ள்வதன்', 'க்கொள்வதன்'),
+        (r'கொ\s+ள்', ' கொள்'),
         (r'கற்றுக்கொ\s+ள்', 'கற்றுக்கொள்'),
         (r'உடை\s+டைய', 'உடைய'),
     ]
     for pat, rep in split_conjuncts:
         t = re.sub(pat, rep, t)
-        
-    # 10. Clean chapter headings at start like 'அலகு 1 ', 'அலகு1 '
+
+    # 13. Deduplicate consecutive pulli (U+0BCD)
+    t = re.sub('\u0BCD+', '\u0BCD', t)
+
+    # 14. Fix double pulli across identical consonants
+    t = re.sub(r'([\u0B85-\u0BB9])\u0BCD\1\u0BCD', r'\g<1>' + '\u0BCD' + r'\g<1>', t)
+
+    # 15. Collapse duplicate identical consonants without pulli
+    t = re.sub(r'([\u0B95-\u0BB9])\1+', r'\1', t)
+
+    # 16. Clean chapter headings at start like 'அலகு 1 ', 'அலகு1 '
     t = re.sub(r'^அலகு\s*\d+\s*', '', t)
-    
+
     # Clean excessive whitespace
     t = re.sub(r'[ \t]+', ' ', t)
     return t.strip()
@@ -137,13 +159,34 @@ def sanitize_tamil_text(t: str) -> str:
 
 def clean_question_text(q_text: str, lesson_title: str = "") -> str:
     """
-    Strips lesson titles/numbers, boilerplate prefixes/suffixes, and cleans Tamil text.
-    Ensures clean, self-contained, high-quality examination questions.
+    Strips lesson titles/numbers, boilerplate prefixes/suffixes, InDesign metadata,
+    and cleans Tamil text. Ensures clean, self-contained, high-quality examination questions.
     """
     if not q_text:
         return ""
 
-    # 1. Strip repetitive boilerplate phrases requested by user:
+    # 1. Strip InDesign filenames and adjacent page numbers (e.g. 6th_Maths_TM_Term1_Chapter 2_2024-25.indd 37)
+    q_text = re.sub(r'[\w\-\.]+(?:\s+[\w\-\.]+)*\.indd(?:\s*\d+)?', '', q_text, flags=re.IGNORECASE)
+
+    # 2. Strip timestamps (e.g. 1/3/2025 10:54:44 AM)
+    q_text = re.sub(r'\d{1,2}/\d{1,2}/\d{2,4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?', '', q_text)
+
+    # 3. Strip running class headers (e.g. 6 ஆம் வகுப்பு கணக்கு, வகுப்பு 6)
+    q_text = re.sub(r'\d+\s*ஆம்\s*வகுப்பு(?:\s+[\u0B80-\u0BFF\w]+)?', '', q_text)
+    q_text = re.sub(r'வகுப்பு\s*\d+\s*(?:[\u0B80-\u0BFF\w]+)?', '', q_text)
+
+    # 4. Strip bullet characters and geometric shapes
+    q_text = re.sub(r'[●■◆▲►★*•▪▫]', ' ', q_text)
+
+    # 5. Strip sub-question numbering / roman numerals at beginning (e.g. '(ii) ', '(a) ', '1. ')
+    q_text = re.sub(r'^\s*(?:\([iIvVxX\d]+\)|\d+[\.\)]|[a-zA-Z][\.\)])\s*', '', q_text)
+
+    # 6. Replace subject-inappropriate historical phrases with subject-neutral academic phrases
+    q_text = re.sub(r'வரலாற்றுத்\s*தகவல்களின்', 'பாடப்பகுதியின் தகவல்களின்', q_text)
+    q_text = re.sub(r'வரலாற்றுத்\s*தரவுகளின்', 'பாடக் கருத்துக்களின்', q_text)
+    q_text = re.sub(r'வரலாற்றுப்\s*புரிதலுக்கு', 'ஆழமான புரிதலுக்கு', q_text)
+
+    # 7. Strip repetitive boilerplate phrases requested by user:
     # "பாடப்பகுதியின் தகவல்களின்படி, பின்வரும் கூற்றுகளில் எது சரியானது?..."
     q_text = re.sub(
         r'^(?:பாடப்பகுதியின்\s*(?:வரலாற்றுத்\s*)?தகவல்களின்படி,?\s*)?(?:கீழ்க்கண்ட|கீழ்கண்ட|பின்வரும்|கீழ்க்காணும்)\s*(?:கூற்றுகளு(?:ள்|ளில்)|கருத்துக்களில்)?\s*(?:எது|எவை)\s*(?:பாடப்புத்தகத்?\s*தகவல்களின்படி\s*)?(?:சரியான(?:து|தாகும்| விடையாகும்| கூற்று)|தவறானது)\??\s*(?:\n*தகவல்\s*பகுதி\s*:\s*[\'\"]?)?',
@@ -167,7 +210,7 @@ def clean_question_text(q_text: str, lesson_title: str = "") -> str:
     )
     q_text = re.sub(r'^Statement Context\s*:\s*[\'\"]?', '', q_text, flags=re.IGNORECASE)
 
-    # 2. "உயர் சிந்தனை வினா (HOTS) - பின்வரும் கருத்தை ஆழமாகப் பகுப்பாய்வு செய்க:"
+    # "உயர் சிந்தனை வினா (HOTS) - பின்வரும் கருத்தை ஆழமாகப் பகுப்பாய்வு செய்க:"
     q_text = re.sub(
         r'^(?:உயர்\s*சிந்தனை\s*வினா\s*(?:\(HOTS\))?\s*[-:]\s*(?:பின்வரும்|கீழ்க்கண்ட)?\s*கருத்தை\s*(?:ஆழமாகப்\s*)?பகுப்பாய்வு\s*செய்க\s*[:\n]*)',
         '',
@@ -181,11 +224,11 @@ def clean_question_text(q_text: str, lesson_title: str = "") -> str:
         flags=re.IGNORECASE
     )
 
-    # 3. Strip trailing boilerplate question suffixes
+    # Strip trailing boilerplate question suffixes
     q_text = re.sub(r'\n*பாடத்தின்\s*மையக்\s*கோட்பாட்டோடு\s*மிகவும்\s*பொருந்தும்\s*முடிவு\s*எது\??', '', q_text)
     q_text = re.sub(r'\n*Which\s*analytical\s*deduction\s*is\s*most\s*accurate\??', '', q_text)
 
-    # 4. Strip lesson title in single/double quotes or unquoted
+    # Strip lesson title in single/double quotes or unquoted
     if lesson_title:
         lt = lesson_title.strip("'\" ")
         esc = re.escape(lt)
@@ -196,7 +239,7 @@ def clean_question_text(q_text: str, lesson_title: str = "") -> str:
             flags=re.IGNORECASE
         )
 
-    # 5. Generic strip of any quoted lesson title
+    # Generic strip of any quoted lesson title
     q_text = re.sub(r"'[^']+'\s*பாடப்பகுதியி[^\s]*\s*(அடிப்படையில்,?\s*|தொடர்பான\s*|ஆழமாகப்\s*)?,?\s*", "", q_text)
     q_text = re.sub(r"'[^']+'\s*பாடப்பகுதியில்\s*(உள்ள\s*|இடம்\s*பெற்றுள்ள\s*|குறிப்பிடப்பட்டுள்ள\s*)?", "", q_text)
     q_text = re.sub(r"^'[^']+'\s*-\s*", "", q_text)
@@ -204,14 +247,14 @@ def clean_question_text(q_text: str, lesson_title: str = "") -> str:
     q_text = re.sub(r"^'[^']+'\s*", "", q_text)
     q_text = re.sub(r"^\d+\.\s*[^\s\-:]+\s*[-:]\s*", "", q_text)
 
-    # 6. Clean leading awkward Tamil transition words
+    # Clean leading awkward Tamil transition words
     q_text = re.sub(r"^தகவல்களின் அடிப்படையில்,?\s*", "", q_text)
     q_text = re.sub(r"^உள்ள தகவல்களைப் பொருத்துக:", "கீழ்க்கண்ட தகவல்களைப் பொருத்துக:", q_text)
     q_text = re.sub(r"^இடம்பெற்றுள்ள கீழ்க்கண்ட", "கீழ்க்கண்ட", q_text)
     q_text = re.sub(r"^குறிப்பிடப்பட்டுள்ள நிகழ்வுகள்", "கீழ்க்கண்ட நிகழ்வுகள்", q_text)
     q_text = re.sub(r"^:\s*\n*", "", q_text)
 
-    # 7. English prefixes
+    # English prefixes
     q_text = re.sub(r"^Based on '[^']*',?\s*", "", q_text, flags=re.IGNORECASE)
     q_text = re.sub(r"^Based on\s*[,:]?\s*", "", q_text, flags=re.IGNORECASE)
     q_text = re.sub(r"^In '[^']*',?\s*", "", q_text, flags=re.IGNORECASE)
@@ -350,7 +393,7 @@ def extract_pdf_content(pdf_url: str = "", max_pages: int = 120) -> str:
 def clean_and_extract_sentences(text: str, min_words: int = 4, max_words: int = 50) -> list:
     """
     Parses substantive sentences from raw PDF text.
-    Removes footers, page headers, URLs, and duplicate lines.
+    Removes InDesign footers (*.indd), timestamps, page headers, URLs, and duplicate lines.
     Thoroughly sanitizes Tamil text, removing tofu, duplicate letters, and rogue spaces.
     """
     if not text:
@@ -362,6 +405,15 @@ def clean_and_extract_sentences(text: str, min_words: int = 4, max_words: int = 
     for line in lines:
         l = line.strip()
         if not l:
+            continue
+        # Drop lines with InDesign artifacts or timestamps
+        if re.search(r'\.indd(?:\s*\d+)?', l, re.IGNORECASE):
+            continue
+        if re.search(r'\d{1,2}/\d{1,2}/\d{2,4}\s+\d{1,2}:\d{2}', l):
+            continue
+        if re.search(r'^\d+\s*ஆம்\s*வகுப்பு(?:\s+[\u0B80-\u0BFF\w]+)?$', l):
+            continue
+        if re.search(r'^வகுப்பு\s*\d+\s*(?:[\u0B80-\u0BFF\w]+)?$', l):
             continue
         if re.match(r'^(page\s*\d+|\d+\s*/\s*\d+|\d+)$', l, re.IGNORECASE):
             continue
@@ -378,8 +430,14 @@ def clean_and_extract_sentences(text: str, min_words: int = 4, max_words: int = 
 
     for s in raw_sentences:
         s = sanitize_tamil_text(s)
-        s = re.sub(r'^[\d\.\-\*\•\)\(ivxlcdmIVXLCDM]+\s*', '', s).strip()
+        # Strip sub-question numbering / roman numerals at beginning (e.g. '(ii) ', '(a) ', '1. ')
+        s = re.sub(r'^\s*(?:\([iIvVxX\d]+\)|\d+[\.\)]|[a-zA-Z][\.\)]|[●■◆▲►★*•▪▫])\s*', '', s).strip()
         s = s.strip("'\"“”‘’ ")
+
+        # Skip if InDesign file or timestamp still leaked in
+        if re.search(r'\.indd', s, re.IGNORECASE) or re.search(r'\d{1,2}/\d{1,2}/\d{2,4}\s+\d{1,2}:\d{2}', s):
+            continue
+
         words = s.split()
         if min_words <= len(words) <= max_words:
             norm = s.lower()
@@ -479,7 +537,14 @@ def _build_pdf_strict_questions(
 
     is_english = (lang == "English")
     sent_len = len(sentences)
-    sent_idx = (len(avoid_stems or []) * 7) % sent_len if sent_len > 0 else 0
+    if sent_len > 0:
+        if sum(target_counts.values()) <= 2:
+            import random
+            sent_idx = random.randint(0, sent_len - 1)
+        else:
+            sent_idx = (len(avoid_stems or []) * 7) % sent_len
+    else:
+        sent_idx = 0
     seen_stems = set(avoid_stems or [])
 
     type_buckets = {
@@ -545,7 +610,7 @@ def _build_pdf_strict_questions(
         "Carefully evaluate the following options and select the correct factual statement:"
     ]
     mcq_stems_ta = [
-        "பாடப்பகுதியின் வரலாற்றுத் தகவல்களின் அடிப்படையில், கீழ்க்காணும் கூற்றுகளில் எது சரியானது?",
+        "பாடப்பகுதியின் தகவல்களின் அடிப்படையில், கீழ்க்காணும் கூற்றுகளில் எது சரியானது?",
         "பாடநூலின் கருத்துப்படி, பின்வரும் கூற்றுகளில் உண்மையான கூற்றைத் தேர்ந்தெடுக்க:",
         "கீழ்க்கண்டவற்றுள் எது பாடப்பகுதியோடு முழுமையாகப் பொருந்தும் சரியான தகவலாகும்?",
         "கீழ்க்காணும் கூற்றுகளைக் கவனித்து, அவற்றுள் சரியான கூற்றைக் கண்டறிக:"
@@ -596,8 +661,8 @@ def _build_pdf_strict_questions(
     ]
     hots_stems_ta = [
         "பாடப்பகுதியின் மையக்கருத்தை ஆழமாகப் பகுப்பாய்வு செய்து, கீழ்க்கண்டவற்றுள் பொருத்தமான முடிவைத் தேர்ந்தெடுக்க:",
-        "வரலாற்றுத் தரவுகளின் அடிப்படையில், கீழ்க்காணும் கூற்றுகளுள் ஆழமான புரிதலை வெளிப்படுத்தும் முடிவு எது?",
-        "பின்வரும் கருத்துருக்களுள் வரலாற்றுப் புரிதலுக்கு வழிகோலும் மிகச் சரியான விளக்கம் எது?",
+        "பாடக் கருத்துக்களின் அடிப்படையில், கீழ்க்காணும் கூற்றுகளுள் ஆழமான புரிதலை வெளிப்படுத்தும் முடிவு எது?",
+        "பின்வரும் கருத்துருக்களுள் பாடப் புரிதலுக்கு வழிகோலும் மிகச் சரியான விளக்கம் எது?",
         "பாடக் கருத்துக்களின் பயன்பாட்டு நோக்கத்தின்படி, பின்வருவனவற்றுள் சரியான பகுப்பாய்வுக் கூற்றைத் தேர்வு செய்க:"
     ]
 
@@ -2093,7 +2158,7 @@ def generate_single_replacement_question(
 ) -> dict:
     """
     Generates a single fresh replacement question of the requested type strictly from the PDF,
-    without any lesson title prefixes.
+    without repeating any existing questions or lesson title prefixes.
     """
     existing = existing_questions or []
     target_counts = {
@@ -2104,9 +2169,16 @@ def generate_single_replacement_question(
         "கூற்று காரணம் வகை வினாக்கள்": 0,
         "கால வரிசைப்படுத்துதல் வினாக்கள்": 0
     }
-    valid_types = list(target_counts.keys())
-    matched_type = question_type if question_type in valid_types else "MCQ"
+    matched_type = normalize_question_type(question_type)
     target_counts[matched_type] = 1
+
+    # Collect stems of all existing questions to guarantee ZERO REPETITION
+    avoid_stems = set()
+    for eq in existing:
+        if isinstance(eq, dict) and eq.get("question"):
+            st = normalize_stem(eq["question"])
+            if st:
+                avoid_stems.add(st)
 
     pdf_text = extract_pdf_content(pdf_url)
     lang = detect_material_language(
@@ -2117,21 +2189,90 @@ def generate_single_replacement_question(
         sample_text=pdf_text[:3000] if pdf_text else ""
     )
 
+    # 1. First, attempt fresh question generation via Gemini AI if API key is provided
+    if api_key and api_key.strip():
+        clean_key = api_key.strip()
+        pdf_section = ""
+        if pdf_text:
+            clean_pdf = sanitize_tamil_text(pdf_text[:25000])
+            pdf_section = f"UPLOADED MATERIAL (PDF TEXT):\n{clean_pdf}\n"
+
+        avoid_sample = list(avoid_stems)[:20]
+        avoid_text = "\nDO NOT repeat or duplicate these existing questions:\n" + "\n".join([f"- {s[:60]}" for s in avoid_sample])
+
+        if lang == "English":
+            prompt = f"""You are a Senior Chief Examiner for TN TET Paper 2.
+Curriculum Context: Standard {class_num} | Subject: {subject} | Term: {term} | Lesson: '{lesson_title}'
+Task: Generate EXACTLY 1 FRESH, UNIQUE replacement question of type '{matched_type}' in academic ENGLISH.
+Rules:
+1. Four options. No file names (.indd) or page numbers in text.
+2. Return JSON array with exactly 1 object:
+[{{ "question_type": "{matched_type}", "question": "...", "options": ["A", "B", "C", "D"], "answer_index": 0, "explanation": "..." }}]
+{pdf_section}
+{avoid_text}"""
+        else:
+            type_instructions = {
+                "MCQ": "வழக்கமான கொள்குறி வினா (MCQ): 4 தெளிவான விருப்பங்கள்.",
+                "உயர் சிந்தனை வினாக்கள்": "உயர் சிந்தனை வினா (HOTS): பகுப்பாய்வு மற்றும் பயன்பாட்டு வினா.",
+                "பொருத்துக வகை வினாக்கள்": "பொருத்துக: பட்டியல் I (1, 2, 3, 4) மற்றும் பட்டியல் II (a, b, c, d); விருப்பங்கள்: 1-b, 2-c, 3-d, 4-a வடிவில்.",
+                "பல்கூற்று வகை வினாக்கள்": "பல்கூற்று வினா: உள் கூற்றுகள் (i), (ii), (iii); விருப்பங்கள்: (i) மற்றும் (ii) சரி வடிவில்.",
+                "கூற்று காரணம் வகை வினாக்கள்": "கூற்று காரணம் வினா: கூற்று (A) மற்றும் காரணம் (R); நிலையான 4 விருப்பங்கள்.",
+                "கால வரிசைப்படுத்துதல் வினாக்கள்": "கால வரிசைப்படுத்துதல் வினா: படிநிலைகள் (1), (2), (3), (4); விருப்பங்கள்: (1), (3), (2), (4) வடிவில்."
+            }
+            spec = type_instructions.get(matched_type, "கொள்குறி வினா (MCQ)")
+            prompt = f"""நீ ஒரு TNTET Paper 2 நிபுணர்.
+வகுப்பு: {class_num} | பாடம்: {subject} | பருவம்: {term} | பாடம் தலைப்பு: '{lesson_title}'
+நோக்கம்: '{matched_type}' வகைக்குரிய மிகச் சரியான 1 புதிய மாற்று வினாவைத் தமிழில் உருவாக்குக.
+விதிமுறைகள்:
+- வினா வகை: {spec}
+- கோப்பின் பெயர்கள் (.indd), தேதிகள், பக்க எண்கள் வினாவிலோ விடைகளிலோ இடம்பெறக் கூடாது.
+- 4 விருப்பங்கள் இருக்க வேண்டும்.
+வெளியீட்டு வடிவம் (Strict JSON Array with 1 item):
+[{{ "question_type": "{matched_type}", "question": "...", "options": ["...", "...", "...", "..."], "answer_index": 0, "explanation": "..." }}]
+{pdf_section}
+{avoid_text}"""
+
+        qs = _query_gemini_json(prompt, clean_key)
+        for cand in qs:
+            if isinstance(cand, dict) and cand.get("options") and len(cand["options"]) == 4:
+                cq = clean_question_text(cand.get("question", ""), lesson_title)
+                c_stem = normalize_stem(cq)
+                if c_stem and c_stem not in avoid_stems:
+                    cand["question"] = cq
+                    cand["options"] = [sanitize_tamil_text(str(o)) for o in cand.get("options", [])]
+                    cand["explanation"] = sanitize_tamil_text(str(cand.get("explanation", "")))
+                    cand["question_type"] = matched_type
+                    return cand
+
+    # 2. Deterministic PDF NLP Builder: strictly avoid existing questions and never echo existing seeds
     if pdf_text:
         new_qs = _build_pdf_strict_questions(
             pdf_text=pdf_text,
             target_counts=target_counts,
             lang=lang,
             lesson_title=lesson_title,
-            existing_questions=existing
+            existing_questions=[],  # CRITICAL FIX: never pass existing as seed
+            avoid_stems=avoid_stems
         )
         if new_qs:
+            for q in new_qs:
+                if q.get("question_type") == matched_type:
+                    q["question"] = clean_question_text(q["question"], lesson_title)
+                    return q
             q = new_qs[0]
             q["question"] = clean_question_text(q["question"], lesson_title)
             return q
 
-    # Fallback to curriculum builder
-    fallback_qs = _build_tntet_paper2_questions(class_num, subject, term, lesson_title, count=12, lang=lang)
+    # 3. Fallback to curriculum builder
+    fallback_qs = _build_tntet_paper2_questions(
+        class_num=class_num,
+        subject=subject,
+        term=term,
+        lesson_title=lesson_title,
+        count=20,
+        lang=lang,
+        avoid_stems=avoid_stems
+    )
     for q in fallback_qs:
         if q.get("question_type") == matched_type:
             q["question"] = clean_question_text(q["question"], lesson_title)

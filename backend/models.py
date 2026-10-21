@@ -48,10 +48,13 @@ class Lesson(Base):
     title = Column(String(255))
     description = Column(Text, nullable=True)
     pdf_url = Column(String(500))
+    short_notes_pdf_url = Column(String(500), nullable=True) # Stage 2: Short notes PDF
     video_url = Column(String(500))
     available_at = Column(String(100), nullable=True) # ISO "YYYY-MM-DDTHH:MM" or datetime string
     stage4_unlock_time = Column(String(50), default="20:00") # Default opens at 8:00 PM
     stage4_force_open = Column(Boolean, default=False) # Manual override by admin to open immediately
+    stage5_unlock_time = Column(String(50), default="20:00") # Stage 5 final exam unlock
+    stage5_force_open = Column(Boolean, default=False)
     quiz_type1 = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True) # JSON string of questions array
     quiz_type2 = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True) # JSON string of alternate questions array
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -63,9 +66,10 @@ class LessonProgress(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     lesson_id = Column(Integer, ForeignKey("lessons.id"))
     stage1_pdf = Column(Boolean, default=False)
-    stage2_video = Column(Boolean, default=False)
-    stage3_questions = Column(Boolean, default=False)
-    stage4_test = Column(Boolean, default=False)
+    stage2_short_notes = Column(Boolean, default=False) # Stage 2 Short Notes
+    stage2_video = Column(Boolean, default=False) # Stage 3 Video
+    stage3_questions = Column(Boolean, default=False) # Stage 4 Practice
+    stage4_test = Column(Boolean, default=False) # Stage 5 Online Test
     test_score = Column(Integer, default=0)
     test_total = Column(Integer, default=100)
     has_failed_test = Column(Boolean, default=False)
