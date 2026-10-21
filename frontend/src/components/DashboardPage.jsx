@@ -536,10 +536,11 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                     <div className="flex flex-wrap gap-1.5">
                       {(Array.isArray(dp.active_stages) ? dp.active_stages : (typeof dp.active_stages === "string" ? dp.active_stages.split(",").map(Number).filter(n => !isNaN(n)) : [1, 3, 4])).map((stg) => {
                         const labels = {
-                          1: "Stage 1: Notes",
-                          2: "Stage 2: Video",
-                          3: "Stage 3: Practice",
-                          4: "Stage 4: Quiz (80%)"
+                          1: "Stage 1: Book PDF",
+                          2: "Stage 2: Short Notes",
+                          3: "Stage 3: Video",
+                          4: "Stage 4: Practice",
+                          5: "Stage 5: Online Test (80%)"
                         };
                         return (
                           <span

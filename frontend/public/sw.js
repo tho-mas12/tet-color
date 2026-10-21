@@ -1,5 +1,5 @@
-// TN Teachers Platform Service Worker v1.0.0
-const CACHE_NAME = "tnteachers-pwa-v1";
+// TN Teachers Platform Service Worker v3.0.0 (5-Stage Architecture Update)
+const CACHE_NAME = "tnteachers-pwa-v3";
 const STATIC_ASSETS = [
   "/",
   "/student",
@@ -13,24 +13,26 @@ const STATIC_ASSETS = [
   "/manifest.json"
 ];
 
-// Install: Cache critical static assets
+// Install: Cache static shell and skip waiting immediately
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch((err) => {
         console.warn("[SW] Cache addAll partial note:", err);
       });
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
-// Activate: Clean up older cache versions
+// Activate: Immediately purge all older cache versions and claim clients
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log("[SW] Deleting obsolete cache:", key);
             return caches.delete(key);
           }
         })
@@ -39,17 +41,17 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: Strategy depending on request type
+// Fetch Strategy: Network First for all HTML, JS and CSS to ensure zero stale cache
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and API requests from aggressive caching
+  // Skip non-GET requests and API requests from caching
   if (request.method !== "GET" || url.pathname.startsWith("/api/")) {
     return;
   }
 
-  // Navigation requests (HTML pages) -> Network first, fallback to cached index
+  // Navigation requests (HTML pages) -> Network first, fallback to cache
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
@@ -73,31 +75,39 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets (CSS, JS, Fonts, Images) -> Stale-while-revalidate
+  // JS and CSS bundle assets -> ALWAYS Network First so users get latest updates immediately!
   if (
     url.pathname.startsWith("/assets/") ||
-    url.pathname.match(/\.(png|jpg|jpeg|svg|ico|woff2?|css|js)$/)
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css")
   ) {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        const fetchPromise = fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const copy = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-            }
-            return networkResponse;
-          })
-          .catch(() => cachedResponse);
-
-        return cachedResponse || fetchPromise;
-      })
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }
 
-  // Default network fetch with cache fallback
+  // Media, Images, Fonts -> Cache First with Network Fallback
   event.respondWith(
-    fetch(request).catch(() => caches.match(request))
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
+        return networkResponse;
+      }).catch(() => cachedResponse);
+    })
   );
 });

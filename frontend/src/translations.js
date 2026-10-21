@@ -118,15 +118,15 @@ export const translations = {
     failedRetakeMsg: "You scored below 80%. Please restudy Stage 4 with Type 2 questions before retaking the test.",
 
     // Test View
-    practiceModeTitle: "Stage 3: Practice Engine",
-    testModeTitle: "Stage 4: Timed Examination (Pass Mark: 80%)",
+    practiceModeTitle: "Stage 4: Practice Engine",
+    testModeTitle: "Stage 5: Online Timed Examination (Pass Mark: 80%)",
     timeRemaining: "Time Remaining",
     submitExamBtn: "Submit Final Exam",
     questionCountLabel: "Question",
     ofLabel: "of",
     scoreResultTitle: "Exam Submission Results",
     passedBadge: "PASSED (≥80%)",
-    failedBadge: "FAILED (<80% - Restudy Stage 3)",
+    failedBadge: "FAILED (<80% - Restudy Stage 4)",
     yourScore: "Your Score",
     passRequirement: "Pass Score Required: 80%",
     backToLearningBtn: "Return to Learning Portal",

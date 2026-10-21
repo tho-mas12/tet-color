@@ -1994,6 +1994,7 @@ export default function AdminPage({ user, lang = "en" }) {
   const navTabs = [
     { id: "stats", label: "Dashboard", icon: LayoutDashboard, badge: null },
     { id: "enrollments", label: "Student Enrollments", icon: CreditCard, badge: Array.isArray(enrollmentsList) ? enrollmentsList.length : 0 },
+    { id: "mat_upload", label: "Textbooks & Materials", icon: FolderPlus, badge: Array.isArray(materialsList) ? materialsList.length : 0 },
     { id: "les_upload", label: "Courses & Lessons", icon: BookOpen, badge: Array.isArray(lessonsList) ? lessonsList.length : 0 },
     { id: "quiz_manager", label: "Quizzes & Tests", icon: FileText, badge: "New" },
     { id: "meetings", label: "Live Classes", icon: Video, badge: Array.isArray(meetingsList) && meetingsList.filter(m => m.is_live).length > 0 ? "LIVE" : null },
@@ -2778,15 +2779,16 @@ export default function AdminPage({ user, lang = "en" }) {
                         Configure Included Stages (படிநிலைகள் தேர்வு):
                       </label>
                       <p className="text-[11px] text-orange-800 font-medium">
-                        Select which stages are required for this daily practice (e.g. Stage 1, 3, 4 only):
+                        Select which stages are required for this daily practice (e.g. Stage 1, 4, 5 only):
                       </p>
 
                       <div className="space-y-1.5 pt-1">
                         {[
-                          { id: 1, label: "Stage 1: Study Notes / PDF (பாடக் குறிப்புகள்)" },
-                          { id: 2, label: "Stage 2: Video Class (வீடியோ விளக்கம்)" },
-                          { id: 3, label: "Stage 3: Practice Questions (பயிற்சி வினாக்கள்)" },
-                          { id: 4, label: "Stage 4: Timed Final Exam (80% தேர்ச்சி தேர்வு)" }
+                          { id: 1, label: "Stage 1: Lesson Book PDF (பாடப்பகுதி PDF)" },
+                          { id: 2, label: "Stage 2: Short Notes PDF (சுருக்கக் குறிப்புகள் PDF)" },
+                          { id: 3, label: "Stage 3: Video Lecture (காணொளி பாடம்)" },
+                          { id: 4, label: "Stage 4: Practice Test (பயிற்சி வினாக்கள்)" },
+                          { id: 5, label: "Stage 5: Online Test (80% தேர்ச்சி தேர்வு)" }
                         ].map((stg) => {
                           const isChecked = dpActiveStages.includes(stg.id);
                           return (
@@ -3006,7 +3008,13 @@ export default function AdminPage({ user, lang = "en" }) {
                           <div className="flex flex-wrap items-center gap-1.5 pt-1">
                             <span className="text-[11px] font-bold text-slate-400 mr-1">Stages:</span>
                             {(Array.isArray(dp.active_stages) ? dp.active_stages : (typeof dp.active_stages === "string" ? dp.active_stages.split(",").map(Number).filter(n => !isNaN(n)) : [1, 3, 4])).map((stg) => {
-                              const labels = { 1: "Stage 1: Notes", 2: "Stage 2: Video", 3: "Stage 3: Practice", 4: "Stage 4: Quiz (80%)" };
+                              const labels = {
+                                1: "Stage 1: Book PDF",
+                                2: "Stage 2: Short Notes",
+                                3: "Stage 3: Video",
+                                4: "Stage 4: Practice",
+                                5: "Stage 5: Online Test (80%)"
+                              };
                               return (
                                 <span
                                   key={stg}
@@ -3419,7 +3427,7 @@ export default function AdminPage({ user, lang = "en" }) {
                     Curriculum Quiz Management (Type 1 & Type 2)
                   </h3>
                   <p className="text-xs text-slate-500 font-medium mt-0.5 max-w-2xl">
-                    Manage quizzes for every lesson. Students practice <strong>Type 1</strong> in Stage 3. If a student fails the Stage 4 Final Exam (under 80%), they are automatically assigned <strong>Type 2</strong> questions to restudy Stage 3.
+                    Manage quizzes for every lesson. Students practice <strong>Type 1</strong> in Stage 4. If a student fails the Stage 5 Online Exam (under 80%), they are automatically assigned <strong>Type 2</strong> questions to restudy Stage 4.
                   </p>
                 </div>
 
@@ -3550,14 +3558,14 @@ export default function AdminPage({ user, lang = "en" }) {
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-black text-[#0284C7] uppercase tracking-wider flex items-center space-x-1.5">
                                 <Sparkles className="w-3.5 h-3.5" />
-                                <span>Type 1 Quiz (Stage 3 Standard Practice)</span>
+                                <span>Type 1 Quiz (Stage 4 Standard Practice)</span>
                               </span>
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${lesson.has_quiz_type1 ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-amber-100 text-amber-800 border border-amber-300"}`}>
                                 {lesson.has_quiz_type1 ? `✅ Ready (${lesson.quiz_type1_count} Questions)` : "⚠️ Not Generated"}
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-500 font-medium mt-1">
-                              Default MCQs loaded for Stage 3 practice before the timed test.
+                              Default MCQs loaded for Stage 4 practice before the Stage 5 timed test.
                             </p>
                           </div>
 
@@ -3625,7 +3633,7 @@ export default function AdminPage({ user, lang = "en" }) {
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-500 font-medium mt-1">
-                              Automatically served to students who fail the Stage 4 Exam (&lt;80% pass mark).
+                              Automatically served to students who fail the Stage 5 Exam (&lt;80% pass mark).
                             </p>
                           </div>
 
@@ -4146,7 +4154,7 @@ export default function AdminPage({ user, lang = "en" }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
-                      Stage 3 Practice Questions Count
+                      Stage 4 Practice Questions Count
                     </label>
                     <input
                       type="number"
@@ -4158,7 +4166,7 @@ export default function AdminPage({ user, lang = "en" }) {
 
                   <div>
                     <label className="block text-xs font-bold text-[#1E3A8A] mb-1">
-                      Stage 4 Timed Test Question Count
+                      Stage 5 Timed Test Question Count
                     </label>
                     <input
                       type="number"
@@ -4202,16 +4210,16 @@ export default function AdminPage({ user, lang = "en" }) {
                   return (
                     <div className="pt-3 border-t border-slate-200/80 space-y-6">
                       
-                      {/* 1. STAGE 3 PRACTICE QUESTION DISTRIBUTION */}
+                      {/* 1. STAGE 4 PRACTICE QUESTION DISTRIBUTION */}
                       <div className="space-y-3 bg-blue-50/40 p-4 rounded-3xl border border-blue-100">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
                             <h4 className="text-xs font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
                               <SlidersHorizontal className="w-4 h-4 text-[#0055ff]" />
-                              <span>Stage 3 Practice Question Types Distribution (நிலை 3 வினா ஒதுக்கீடு)</span>
+                              <span>Stage 4 Practice Question Types Distribution (நிலை 4 வினா ஒதுக்கீடு)</span>
                             </h4>
                             <p className="text-[11px] text-slate-500 font-medium">
-                              Exact breakdown for Stage 3 Practice. Matches Stage 3 Practice Count ({practiceCount} Qs).
+                              Exact breakdown for Stage 4 Practice. Matches Stage 4 Practice Count ({practiceCount} Qs).
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -4354,16 +4362,16 @@ export default function AdminPage({ user, lang = "en" }) {
                         </div>
                       </div>
 
-                      {/* 2. STAGE 4 TIMED TEST QUESTION DISTRIBUTION */}
+                      {/* 2. STAGE 5 TIMED TEST QUESTION DISTRIBUTION */}
                       <div className="space-y-3 bg-indigo-50/40 p-4 rounded-3xl border border-indigo-100">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
                             <h4 className="text-xs font-black uppercase tracking-wider text-[#061b36] flex items-center gap-1.5">
                               <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
-                              <span>Stage 4 Timed Test Question Types Distribution (நிலை 4 தேர்வு ஒதுக்கீடு)</span>
+                              <span>Stage 5 Timed Test Question Types Distribution (நிலை 5 தேர்வு ஒதுக்கீடு)</span>
                             </h4>
                             <p className="text-[11px] text-slate-500 font-medium">
-                              Exact breakdown for Stage 4 Timed Test. Matches Stage 4 Question Count ({testCount} Qs).
+                              Exact breakdown for Stage 5 Timed Test. Matches Stage 5 Question Count ({testCount} Qs).
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -4512,7 +4520,7 @@ export default function AdminPage({ user, lang = "en" }) {
                         <div className="space-y-0.5">
                           <strong className="block text-amber-950 font-bold">Strict PDF Material Extraction Active</strong>
                           <span className="text-amber-800 leading-relaxed font-medium">
-                            All questions are generated exclusively from the uploaded lesson PDF material. No outside questions, zero repetitions (ONE question ONCE only), and zero overlap between Stage 3 Practice and Stage 4 Timed Test.
+                            All questions are generated exclusively from the uploaded lesson PDF material. No outside questions, zero repetitions (ONE question ONCE only), and zero overlap between Stage 4 Practice and Stage 5 Timed Test.
                           </span>
                         </div>
                       </div>
@@ -7000,7 +7008,7 @@ export default function AdminPage({ user, lang = "en" }) {
                     Class {uploadQuizPdfModal.lesson?.class_num} • {uploadQuizPdfModal.lesson?.subject}
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 font-bold">
-                    {uploadQuizPdfModal.quiz_type === "type2" ? "Type 2 Quiz (Remedial)" : "Type 1 Quiz (Stage 3 Practice)"}
+                    {uploadQuizPdfModal.quiz_type === "type2" ? "Type 2 Quiz (Remedial)" : "Type 1 Quiz (Stage 4 Practice)"}
                   </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-black flex items-center gap-2">
