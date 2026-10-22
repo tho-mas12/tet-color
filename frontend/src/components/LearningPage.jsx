@@ -24,7 +24,9 @@ import {
   ExternalLink,
   Share2,
   Search,
-  Filter
+  Filter,
+  CreditCard,
+  Loader2
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
@@ -203,8 +205,10 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
   }, [selectedSubject]);
 
   useEffect(() => {
-    loadStructure();
-  }, [selectedClass, selectedSubject, selectedMedium, user]);
+    if (isEnrolled || user?.role === "admin") {
+      loadStructure();
+    }
+  }, [selectedClass, selectedSubject, selectedMedium, user, isEnrolled]);
 
   const loadStructure = async () => {
     setLoading(true);
@@ -326,18 +330,34 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
     : t.tet2BadgesDesc;
 
   if (activeLessonId) {
+    if (!checkingEnrollment && !isEnrolled && user?.role !== "admin") {
+      setActiveLessonId(null);
+    } else {
+      return (
+        <LessonStudyView
+          lessonId={activeLessonId}
+          user={user}
+          lang={lang}
+          initialStage={directLesson?.stage || 1}
+          onBack={() => {
+            setActiveLessonId(null);
+            if (onClearDirectLesson) onClearDirectLesson();
+            loadStructure();
+          }}
+        />
+      );
+    }
+  }
+
+  // Enrollment check loading state
+  if (checkingEnrollment) {
     return (
-      <LessonStudyView
-        lessonId={activeLessonId}
-        user={user}
-        lang={lang}
-        initialStage={directLesson?.stage || 1}
-        onBack={() => {
-          setActiveLessonId(null);
-          if (onClearDirectLesson) onClearDirectLesson();
-          loadStructure();
-        }}
-      />
+      <div className="max-w-7xl mx-auto px-4 py-28 text-center space-y-4 animate-fade-in">
+        <Loader2 className="w-10 h-10 text-[#0055ff] animate-spin mx-auto" />
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          {lang === "ta" ? "பாடத்திட்ட அணுகல் சரிபார்க்கப்படுகிறது..." : "Verifying Course Enrollment Access..."}
+        </p>
+      </div>
     );
   }
 
@@ -408,7 +428,7 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
       </div>
 
       {/* ================= LIVE / SCHEDULED COURSE MEETINGS NOTIFICATION ================= */}
-      {uniqueCourseMeetings && uniqueCourseMeetings.length > 0 && (
+      {(isEnrolled || user?.role === "admin") && uniqueCourseMeetings && uniqueCourseMeetings.length > 0 && (
         <div className="space-y-3">
           {uniqueCourseMeetings.map((meeting) => (
             <div
@@ -474,45 +494,46 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
         </div>
       )}
 
-      {/* ENROLLMENT LOCK BARRIER FOR UNPAID / UNENROLLED CANDIDATES (TASK 2) */}
-      {!checkingEnrollment && !isEnrolled && user?.role !== "admin" && (
-        <div className="bg-gradient-to-br from-slate-900 via-[#061b36] to-blue-950 text-white rounded-3xl p-6 sm:p-10 border border-blue-400/30 shadow-2xl space-y-6 my-4 text-center max-w-4xl mx-auto">
-          <div className="w-16 h-16 rounded-3xl bg-[#0055ff]/30 border border-[#0055ff] flex items-center justify-center mx-auto text-white shadow-lg">
-            <Lock className="w-8 h-8 text-sky-400" />
+      {/* ================= CONDITIONAL DISPLAY: PAYWALL VS CURRICULUM ================= */}
+      {!isEnrolled && user?.role !== "admin" ? (
+        /* ENROLLMENT LOCK BARRIER FOR UNPAID CANDIDATES - MODULE CONTENT COMPLETELY HIDDEN */
+        <div className="bg-gradient-to-br from-slate-900 via-[#061b36] to-blue-950 text-white rounded-3xl p-6 sm:p-12 border border-blue-400/30 shadow-2xl space-y-8 my-4 text-center max-w-4xl mx-auto animate-fade-in">
+          <div className="w-20 h-20 rounded-3xl bg-[#0055ff]/30 border border-[#0055ff] flex items-center justify-center mx-auto text-white shadow-xl">
+            <Lock className="w-10 h-10 text-sky-400" />
           </div>
 
-          <div className="space-y-2 max-w-xl mx-auto">
-            <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400/20 text-amber-300 border border-amber-400/30 uppercase tracking-widest inline-block">
+          <div className="space-y-3 max-w-2xl mx-auto">
+            <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-amber-400/20 text-amber-300 border border-amber-400/30 uppercase tracking-widest inline-block shadow-xs">
               {lang === "ta" ? "அங்கீகரிக்கப்பட்ட ஆசிரியர் தகுதிப் பாடத்திட்டம்" : "Official Education Platform Curriculum"}
             </span>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
               {lang === "ta" ? "முழு TET பயிற்சி வகுப்புகளை அணுக பதிவு செய்யவும்" : "Enroll to Unlock Complete TET Preparation Course"}
             </h2>
             <p className="text-xs sm:text-sm text-sky-200/90 leading-relaxed">
               {lang === "ta" 
-                ? "TET Paper 1 மற்றும் Paper 2 க்கான 1 முதல் 12 ஆம் வகுப்பு பாடப்புத்தகங்கள், 5-நிலை பாடத்திட்டம், மாதிரித் தேர்வுகள் மற்றும் ஆசிரியர் தேர்வு வழிகாட்டியை அணுகவும்."
-                : "Get full access to all Classes 1–12 curriculum, 5-Stage comprehensive study system, unit practice questions, psychology, grammar & timed final exams."}
+                ? "கட்டணம் செலுத்திய பிறகு மட்டுமே பாடங்கள், தேர்வுகள் மற்றும் குறிப்புகள் திறக்கப்படும். TET 1 மற்றும் TET 2 க்கான 1 முதல் 12 ஆம் வகுப்பு பாடப்புத்தகங்கள், உளவியல், இலக்கணம் மற்றும் முந்தைய ஆண்டு வினாத்தாள்களை உடனடியாக அணுக இப்போதே பதிவு செய்யவும்."
+                : "Course modules and learning materials are accessible only after successful enrollment. Complete your enrollment to unlock all Classes 1 to 12 curriculum, 5-Stage comprehensive study system, unit practice questions, psychology, grammar & timed final exams."}
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-left max-w-3xl mx-auto">
-            <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
+            <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 mb-1.5" />
               <h4 className="text-xs font-bold text-white">Classes 1 to 12</h4>
               <p className="text-[11px] text-slate-300">Complete curriculum for Paper 1 & 2</p>
             </div>
-            <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
+            <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 mb-1.5" />
               <h4 className="text-xs font-bold text-white">5-Stage System</h4>
               <p className="text-[11px] text-slate-300">PDF, Notes, Video, Practice & Tests</p>
             </div>
-            <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
+            <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 mb-1.5" />
               <h4 className="text-xs font-bold text-white">Special Modules</h4>
               <p className="text-[11px] text-slate-300">Psychology, Grammar & Solved PYQ</p>
             </div>
-            <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
+            <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 mb-1.5" />
               <h4 className="text-xs font-bold text-white">State Rank</h4>
               <p className="text-[11px] text-slate-300">Instant benchmark & performance rank</p>
             </div>
@@ -521,16 +542,21 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
           <div className="pt-2">
             <button
               onClick={() => setShowEnrollmentModal(true)}
-              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#0055ff] to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-black text-sm sm:text-base shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer inline-flex items-center space-x-2"
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-[#0055ff] to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-black text-sm sm:text-base shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer inline-flex items-center space-x-2"
             >
-              <span>{lang === "ta" ? `இப்போதே பதிவு செய்து சேருங்கள் (₹${publicSettings.course_price || 999}) →` : `Enroll & Unlock Course Access Now (₹${publicSettings.course_price || 999}) →`}</span>
+              <CreditCard className="w-5 h-5" />
+              <span>{lang === "ta" ? `இப்போதே பதிவு செய்து அணுகலை திறக்க (₹${publicSettings.course_price || 999}) →` : `Enroll & Unlock Course Access Now (₹${publicSettings.course_price || 999}) →`}</span>
             </button>
+            <p className="text-[11px] text-sky-300/80 font-semibold mt-3">
+              {lang === "ta" ? "🔒 பாதுகாப்பான கட்டணம் • உடனடி முழு அணுகல் (TET 1 + TET 2 + நேரலை வகுப்புகள்)" : "🔒 100% Secure Checkout • Instant Full Access (TET 1 + TET 2 + Live Interactive Classes)"}
+            </p>
           </div>
         </div>
-      )}
-
-      {/* SELECTORS: CLASS, SUBJECT & MEDIUM */}
-      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-5">
+      ) : (
+        /* ================= AUTHENTICATED & ENROLLED: FULL CURRICULUM ================= */
+        <>
+          {/* SELECTORS: CLASS, SUBJECT & MEDIUM */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-5">
         
         {/* Class Selection */}
         <div>
@@ -931,6 +957,8 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
       })}
     </div>
   )}
+        </>
+      )}
 
   {/* ENROLLMENT MODAL (TASK 2) */}
   <EnrollmentModal
