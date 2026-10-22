@@ -204,6 +204,13 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
     return () => clearInterval(timer);
   }, [testActive, timeLeft]);
 
+  // Automatically enforce Stage 5 lock if Stage 4 is not yet marked complete
+  useEffect(() => {
+    if (activeStage === 5 && progress && !progress.stage3_questions && !loading) {
+      setActiveStage(4);
+    }
+  }, [activeStage, progress, loading]);
+
   const loadLessonDetails = async (showSpinner = true) => {
     if (showSpinner && !lessonData) setLoading(true);
     try {
@@ -387,13 +394,6 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const canAccessStage4 = isDirect || videoDone || pdfDone;
   // Stage 5 is strictly disabled until Stage 4 is marked as complete
   const canAccessStage5 = Boolean(questionsDone);
-
-  // Automatically enforce Stage 5 lock if Stage 4 is not yet marked complete
-  useEffect(() => {
-    if (activeStage === 5 && progress && !progress.stage3_questions && !loading) {
-      setActiveStage(4);
-    }
-  }, [activeStage, progress, loading]);
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-4 sm:space-y-6 animate-fade-in text-[#071c38]">
