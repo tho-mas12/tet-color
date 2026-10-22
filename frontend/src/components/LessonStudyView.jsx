@@ -382,7 +382,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const canAccessStage2 = isDirect || pdfDone;
   const canAccessStage3 = isDirect || notesDone || pdfDone;
   const canAccessStage4 = isDirect || videoDone || pdfDone;
-  const canAccessStage5 = isDirect || questionsDone;
+  const canAccessStage5 = (Number(initialStage) === 5) || questionsDone;
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-4 sm:space-y-6 animate-fade-in text-[#071c38]">
@@ -789,37 +789,37 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
 
                 {(() => {
                   const totalCount = questionsData.length;
-                  const answeredCount = Object.keys(userPracticeAnswers).length;
+                  const answeredCount = questionsData.filter((q, i) => {
+                    const k = q.id !== undefined ? String(q.id) : String(i);
+                    return userPracticeAnswers[k] !== undefined;
+                  }).length;
                   const isAllAttended = totalCount > 0 && answeredCount >= totalCount;
                   
                   return (
                     <button
                       onClick={() => {
-                        if (!isAllAttended && !questionsDone) {
+                        if (!isAllAttended) {
                           alert(lang === "ta" 
                             ? `அனைத்து ${totalCount} பயிற்சி வினாக்களுக்கும் பதிலளித்த பின்னரே இந்த நிலையை நிறைவு செய்ய முடியும்! (${answeredCount}/${totalCount} விடையளிக்கப்பட்டுள்ளது)` 
-                            : `Please answer all ${totalCount} practice questions before marking this stage complete! (${answeredCount}/${totalCount} answered)`
+                            : `Please attend all ${totalCount} practice questions before marking this stage complete! (${answeredCount}/${totalCount} answered)`
                           );
                           return;
                         }
                         markStageComplete(4);
+                        try { confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } }); } catch(e){}
                       }}
-                      disabled={!isAllAttended && !questionsDone}
-                      className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xs min-h-[42px] transition-all ${
-                        questionsDone
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
-                          : isAllAttended
-                          ? "bg-[#ff7a00] hover:bg-orange-600 text-white cursor-pointer ring-2 ring-orange-300 animate-pulse"
-                          : "bg-slate-200 text-slate-500 cursor-not-allowed opacity-75"
+                      disabled={!isAllAttended}
+                      className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm shadow-xs min-h-[42px] transition-all ${
+                        isAllAttended
+                          ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer ring-2 ring-emerald-300 shadow-md scale-105 animate-pulse"
+                          : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-80"
                       }`}
-                      title={!isAllAttended && !questionsDone ? `Answer all questions (${answeredCount}/${totalCount}) to enable completion` : ""}
+                      title={!isAllAttended ? `Attend all questions (${answeredCount}/${totalCount}) to enable completion` : "All practice questions attended! Click to complete Stage 4"}
                     >
-                      <CheckCircle2 className="w-4 h-4" />
+                      {isAllAttended ? <CheckCircle2 className="w-4 h-4 text-white" /> : <Lock className="w-4 h-4 text-slate-400" />}
                       <span>
-                        {questionsDone 
-                          ? `${t.markStageDone} ✓` 
-                          : isAllAttended 
-                          ? (lang === "ta" ? "நிறைவு செய்க & தொடர்க →" : "Mark Complete & Proceed →")
+                        {isAllAttended
+                          ? (lang === "ta" ? "நிறைவு செய்க & தொடர்க →" : "Mark as Complete & Proceed →")
                           : (lang === "ta" ? `அனைத்து வினாக்களுக்கும் பதிலளிக்கவும் (${answeredCount}/${totalCount})` : `Attend all questions (${answeredCount}/${totalCount})`)}
                       </span>
                     </button>
@@ -933,58 +933,68 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                 {/* STAGE 4 BOTTOM COMPLETION BAR */}
                 {(() => {
                   const totalCount = questionsData.length;
-                  const answeredCount = Object.keys(userPracticeAnswers).length;
+                  const answeredCount = questionsData.filter((q, i) => {
+                    const k = q.id !== undefined ? String(q.id) : String(i);
+                    return userPracticeAnswers[k] !== undefined;
+                  }).length;
                   const isAllAttended = totalCount > 0 && answeredCount >= totalCount;
+                  const percentAttended = totalCount > 0 ? Math.min(100, Math.round((answeredCount / totalCount) * 100)) : 0;
 
                   return (
-                    <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-50/80 via-orange-50/40 to-slate-50 border-2 border-orange-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 shadow-xs">
-                      <div>
-                        <h4 className="text-sm sm:text-base font-black text-[#061b36] flex items-center space-x-2">
-                          <CheckCircle2 className={`w-5 h-5 ${isAllAttended ? "text-emerald-600" : "text-[#ff7a00]"}`} />
+                    <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-50/90 via-orange-50/50 to-slate-50 border-2 border-orange-200/80 space-y-3 mt-6 shadow-xs">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <h4 className="text-sm sm:text-base font-black text-[#061b36] flex items-center space-x-2">
+                            <CheckCircle2 className={`w-5 h-5 ${isAllAttended ? "text-emerald-600" : "text-[#ff7a00]"}`} />
+                            <span>
+                              {isAllAttended
+                                ? (lang === "ta" ? "🎉 அனைத்துப் பயிற்சி வினாக்களுக்கும் பதிலளித்துவிட்டீர்கள்!" : "🎉 You have attended all practice questions!")
+                                : (lang === "ta" ? `பயிற்சி முன்னேற்றம்: ${answeredCount}/${totalCount} விடையளிக்கப்பட்டுள்ளது` : `Practice Progress: ${answeredCount}/${totalCount} Questions Attended`)}
+                            </span>
+                          </h4>
+                          <p className="text-xs text-slate-500 font-medium">
+                            {isAllAttended
+                              ? (lang === "ta" ? "இப்போது 'நிறைவு செய்க & தொடர்க' பட்டனை அழுத்தி Stage 5 இறுதித் தேர்வுக்குச் செல்லலாம்." : "Ready to proceed! Click 'Mark as Complete & Proceed' to unlock Stage 5 Timed Final Exam.")
+                              : (lang === "ta" ? `நிலை 4-ஐ நிறைவு செய்ய மீதமுள்ள ${totalCount - answeredCount} வினாக்களுக்கும் பதிலளிக்கவும்.` : `Please answer all remaining ${totalCount - answeredCount} questions to enable stage completion.`)}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            if (!isAllAttended) {
+                              alert(lang === "ta" 
+                                ? `அனைத்து ${totalCount} பயிற்சி வினாக்களுக்கும் பதிலளித்த பின்னரே இந்த நிலையை நிறைவு செய்ய முடியும்! (${answeredCount}/${totalCount} முடிந்தது)` 
+                                : `Please attend all ${totalCount} questions before completing! (${answeredCount}/${totalCount} attended)`
+                              );
+                              return;
+                            }
+                            markStageComplete(4);
+                            try { confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } }); } catch(e){}
+                          }}
+                          disabled={!isAllAttended}
+                          className={`px-6 py-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 shadow-md transition-all shrink-0 min-h-[46px] ${
+                            isAllAttended
+                              ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer ring-4 ring-emerald-200 animate-pulse scale-105"
+                              : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-75"
+                          }`}
+                          title={!isAllAttended ? `Attend all questions (${answeredCount}/${totalCount}) to enable completion` : "All practice questions attended! Click to complete Stage 4"}
+                        >
+                          {isAllAttended ? <CheckCircle2 className="w-4 h-4 text-white" /> : <Lock className="w-4 h-4 text-slate-400" />}
                           <span>
-                            {questionsDone
-                              ? (lang === "ta" ? "✓ நிலை 4 பயிற்சி வெற்றிகரமாக நிறைவு செய்யப்பட்டது!" : "✓ Stage 4 Practice Completed Successfully!")
-                              : isAllAttended
-                              ? (lang === "ta" ? "🎉 அனைத்துப் பயிற்சி வினாக்களுக்கும் பதிலளித்துவிட்டீர்கள்!" : "🎉 You have attended all practice questions!")
-                              : (lang === "ta" ? `பயிற்சி முன்னேற்றம்: ${answeredCount}/${totalCount} விடையளிக்கப்பட்டுள்ளது` : `Practice Progress: ${answeredCount}/${totalCount} Questions Attended`)}
+                            {isAllAttended 
+                              ? (lang === "ta" ? "நிறைவு செய்க & தொடர்க →" : "Mark as Complete & Proceed →")
+                              : (lang === "ta" ? `அனைத்து வினாக்களுக்கும் பதிலளிக்கவும் (${answeredCount}/${totalCount})` : `Attend all questions (${answeredCount}/${totalCount})`)}
                           </span>
-                        </h4>
-                        <p className="text-xs text-slate-500 font-medium mt-1">
-                          {isAllAttended || questionsDone
-                            ? (lang === "ta" ? "இப்போது 'நிறைவு செய்க & தொடர்க' பட்டனை அழுத்தி Stage 5 இறுதித் தேர்வுக்குச் செல்லலாம்." : "You are ready! Click complete to proceed to Stage 5 Timed Final Exam.")
-                            : (lang === "ta" ? `நிலை 4-ஐ நிறைவு செய்ய மீதமுள்ள ${totalCount - answeredCount} வினாக்களுக்கும் பதிலளிக்கவும்.` : `Please answer all remaining ${totalCount - answeredCount} questions to enable stage completion.`)}
-                        </p>
+                        </button>
                       </div>
 
-                      <button
-                        onClick={() => {
-                          if (!isAllAttended && !questionsDone) {
-                            alert(lang === "ta" 
-                              ? `அனைத்து ${totalCount} பயிற்சி வினாக்களுக்கும் பதிலளித்த பின்னரே இந்த நிலையை நிறைவு செய்ய முடியும்! (${answeredCount}/${totalCount} முடிந்தது)` 
-                              : `Please answer all ${totalCount} questions before completing! (${answeredCount}/${totalCount} attended)`
-                            );
-                            return;
-                          }
-                          markStageComplete(4);
-                        }}
-                        disabled={!isAllAttended && !questionsDone}
-                        className={`px-6 py-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 shadow-md transition-all shrink-0 min-h-[46px] ${
-                          questionsDone
-                            ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
-                            : isAllAttended
-                            ? "bg-[#ff7a00] hover:bg-orange-600 text-white cursor-pointer ring-4 ring-orange-200 animate-pulse"
-                            : "bg-slate-200 text-slate-500 cursor-not-allowed opacity-75"
-                        }`}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>
-                          {questionsDone 
-                            ? `${t.markStageDone} ✓` 
-                            : isAllAttended 
-                            ? (lang === "ta" ? "நிறைவு செய்க & தொடர்க →" : "Mark Complete & Proceed →")
-                            : (lang === "ta" ? `அனைத்து வினாக்களுக்கும் பதிலளிக்கவும் (${answeredCount}/${totalCount})` : `Attend all questions (${answeredCount}/${totalCount})`)}
-                        </span>
-                      </button>
+                      {/* Visual progress bar */}
+                      <div className="w-full bg-slate-200/80 rounded-full h-2.5 overflow-hidden">
+                        <div 
+                          className={`h-2.5 rounded-full transition-all duration-300 ${isAllAttended ? "bg-emerald-500" : "bg-gradient-to-r from-[#ff7a00] to-amber-500"}`}
+                          style={{ width: `${percentAttended}%` }}
+                        />
+                      </div>
                     </div>
                   );
                 })()}
