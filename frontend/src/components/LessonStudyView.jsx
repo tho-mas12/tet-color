@@ -215,7 +215,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
       if (!hasInitializedStage.current) {
         hasInitializedStage.current = true;
         const requestedStage = Number(initialStage);
-        if (requestedStage && [1, 2, 3, 4, 5].includes(requestedStage)) {
+        if (requestedStage === 5 && !res.progress?.stage3_questions) {
+          // Stage 5 strictly disabled until Stage 4 is marked complete
+          setActiveStage(4);
+        } else if (requestedStage && [1, 2, 3, 4, 5].includes(requestedStage)) {
           setActiveStage(requestedStage);
         } else {
           if (!res.progress.stage1_pdf) setActiveStage(1);
@@ -378,11 +381,19 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const testDone = progress?.stage4_test;
 
 
-  const isDirect = Boolean(initialStage && [1, 2, 3, 4, 5].includes(Number(initialStage)));
+  const isDirect = Boolean(initialStage && [1, 2, 3, 4].includes(Number(initialStage)));
   const canAccessStage2 = isDirect || pdfDone;
   const canAccessStage3 = isDirect || notesDone || pdfDone;
   const canAccessStage4 = isDirect || videoDone || pdfDone;
-  const canAccessStage5 = (Number(initialStage) === 5) || questionsDone;
+  // Stage 5 is strictly disabled until Stage 4 is marked as complete
+  const canAccessStage5 = Boolean(questionsDone);
+
+  // Automatically enforce Stage 5 lock if Stage 4 is not yet marked complete
+  useEffect(() => {
+    if (activeStage === 5 && progress && !progress.stage3_questions && !loading) {
+      setActiveStage(4);
+    }
+  }, [activeStage, progress, loading]);
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-4 sm:space-y-6 animate-fade-in text-[#071c38]">
@@ -1005,6 +1016,37 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
 
         {/* --- STAGE 5: TIMED FINAL EXAM (PASS MARK: 80%) --- */}
         {activeStage === 5 && (
+          !questionsDone ? (
+            <div className="text-center py-16 sm:py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-300 p-6 sm:p-10 space-y-4 max-w-2xl mx-auto animate-fade-in my-6">
+              <div className="w-16 h-16 rounded-3xl bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center mx-auto shadow-sm">
+                <Lock className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-amber-400/20 text-amber-800 border border-amber-400/30 uppercase tracking-widest inline-block">
+                  {lang === "ta" ? "நிலை 5 பூட்டப்பட்டுள்ளது" : "Stage 5 Disabled"}
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-[#061b36]">
+                  {lang === "ta" 
+                    ? "நிலை 4 பயிற்சி வினாக்களை நிறைவு செய்த பிறகே இந்த தேர்வு திறக்கப்படும்" 
+                    : "Stage 5 is disabled until Stage 4 Practice is marked complete"}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto font-medium leading-relaxed">
+                  {lang === "ta"
+                    ? "Stage 5 இறுதித் தேர்வை எழுத, Stage 4-ல் உள்ள அனைத்து பயிற்சி வினாக்களுக்கும் பதிலளித்து 'நிறைவு செய்க' பட்டனை அழுத்தவும்."
+                    : "To take the Stage 5 Timed Final Exam, please answer all practice questions in Stage 4 and click 'Mark as Complete & Proceed'."}
+                </p>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => setActiveStage(4)}
+                  className="px-6 py-3 rounded-xl bg-[#ff7a00] hover:bg-orange-600 text-white font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer inline-flex items-center space-x-2"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  <span>{lang === "ta" ? "Stage 4 பயிற்சிக்குச் செல்க →" : "Go to Stage 4 Practice →"}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
           <div className="space-y-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
@@ -1367,7 +1409,8 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
               </div>
             )}
           </div>
-        )}
+        )
+      )}
 
       </div>
 
