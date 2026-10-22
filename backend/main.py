@@ -3535,6 +3535,11 @@ def calculate_and_save_income_tax(
         data_dict = req.dict()
         calc_result = it_calculator.calculate_it_statement(data_dict)
 
+        # Ensure all key aliases are present
+        calc_result["employee"] = calc_result.get("employee_info", {})
+        calc_result["monthly_breakdown"] = calc_result.get("monthly_rows", [])
+        calc_result["slabs"] = calc_result.get("tax_slabs", [])
+
         # Check admin settings for customized footer, headings or parameters
         it_settings = db.query(models.IncomeTaxSettings).first()
         if it_settings:
@@ -3543,6 +3548,8 @@ def calculate_and_save_income_tax(
             calc_result["employee_info"]["assessment_year"] = it_settings.assessment_year or "2026- 2027"
             calc_result["heading_title"] = it_settings.heading_title or "INCOME TAX CALCULATION STATEMENT"
             calc_result["sub_heading"] = it_settings.sub_heading or "FOR THE FINANCIAL YEAR 2025- 2026 AND THE ASSESSMENT YEAR 2026- 2027"
+            calc_result["employee"]["financial_year"] = calc_result["employee_info"]["financial_year"]
+            calc_result["employee"]["assessment_year"] = calc_result["employee_info"]["assessment_year"]
 
         # Save record in database
         record = models.IncomeTaxRecord(
@@ -3657,6 +3664,9 @@ def get_admin_it_record_detail(record_id: int, db: Session = Depends(get_db)):
     if rec.full_calculation_json:
         try:
             full_data = json.loads(rec.full_calculation_json)
+            full_data["employee"] = full_data.get("employee_info", {})
+            full_data["monthly_breakdown"] = full_data.get("monthly_rows", [])
+            full_data["slabs"] = full_data.get("tax_slabs", [])
         except Exception:
             full_data = {}
     return {

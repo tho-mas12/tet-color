@@ -7,6 +7,7 @@ import MaterialsPage from "./components/MaterialsPage";
 import LearningPage from "./components/LearningPage";
 import AdminPage from "./components/AdminPage";
 import MinnalNewsMobile from "./components/MinnalNewsMobile";
+import IncomeTaxPage from "./components/IncomeTaxPage";
 import { translations } from "./translations";
 import { CheckCircle2, Share2, Info } from "lucide-react";
 
@@ -136,6 +137,21 @@ function resolveRoute(pathname, search, currentUser) {
     };
   }
 
+  // 5.8. Income Tax Calculation Statement (/income-tax, /it-calculator, /it-statement)
+  if (
+    cleanPath === "/income-tax" || 
+    cleanPath === "/it-calculator" || 
+    cleanPath === "/incometax" || 
+    cleanPath === "/it-statement" || 
+    cleanPath === "/tax-calculator"
+  ) {
+    return {
+      tab: "income_tax",
+      requiresAuth: false,
+      title: "Income Tax Calculation Statement FY 2025-26 • TN Teachers"
+    };
+  }
+
   // 6. Student Dashboard (/student or /dashboard)
   if (cleanPath === "/student" || cleanPath === "/dashboard") {
     if (currentUser && currentUser.role === "admin") {
@@ -243,6 +259,8 @@ export default function App() {
     let title = "TN Teachers Eligibility Benchmark Portal";
     if (activeTab === "dashboard") {
       title = (lang === "ta" ? "டாஷ்போர்டு | " : "Dashboard | ") + "TN Teachers Portal";
+    } else if (activeTab === "income_tax") {
+      title = (lang === "ta" ? "வருமான வரி கணக்கீட்டு படிவம் 2025-26 | " : "Income Tax Statement 2025-26 | ") + "TN Teachers Portal";
     } else if (activeTab === "materials") {
       title = (lang === "ta" ? "பாடப்புத்தகங்கள் & வழிகாட்டிகள் | " : "Textbooks & Materials | ") + "TN Teachers Portal";
     } else if (activeTab === "learning") {
@@ -506,6 +524,15 @@ export default function App() {
               <div className="w-full flex justify-center py-2 sm:py-6 animate-fade-in">
                 <MinnalNewsMobile onClose={() => navigateTo("/")} isModal={false} lang={lang} />
               </div>
+            ) : activeTab === "income_tax" ? (
+              <div className="w-full py-2 sm:py-6 animate-fade-in">
+                <IncomeTaxPage 
+                  user={null} 
+                  onNavigate={navigateTo} 
+                  onShare={handleSharePage} 
+                  lang={lang} 
+                />
+              </div>
             ) : (
               /* Landing / Home Page */
               <HomePage
@@ -527,8 +554,20 @@ export default function App() {
                     navigateTo(path);
                   }}
                   onNavigateToMaterials={() => navigateTo("/materials")}
+                  onNavigate={navigateTo}
                   lang={lang}
                 />
+              )}
+
+              {activeTab === "income_tax" && (
+                <div className="w-full py-2 sm:py-6 animate-fade-in">
+                  <IncomeTaxPage 
+                    user={user} 
+                    onNavigate={navigateTo} 
+                    onShare={handleSharePage} 
+                    lang={lang} 
+                  />
+                </div>
               )}
 
               {activeTab === "materials" && (

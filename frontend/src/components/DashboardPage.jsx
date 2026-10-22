@@ -41,7 +41,7 @@ import MinnalNewsMobile from "./MinnalNewsMobile";
 import EnrollmentModal from "./EnrollmentModal";
 import IncomeTaxModal from "./IncomeTaxModal";
 
-export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, lang = "en" }) {
+export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, onNavigate, lang = "en" }) {
   const [dashboardData, setDashboardData] = useState(null);
   const [containers, setContainers] = useState([]);
   const [dailyPractices, setDailyPractices] = useState([]);
@@ -328,7 +328,11 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         setActiveModal("online_class");
       }
     } else if (key === "income_tax") {
-      setActiveModal("income_tax");
+      if (onNavigate) {
+        onNavigate("/income-tax");
+      } else {
+        setActiveModal("income_tax");
+      }
     } else if (key === "tamil_reading") {
       setActiveModal("tamil_reading");
     } else if (key === "english_reading") {

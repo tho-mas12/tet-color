@@ -133,6 +133,26 @@ export default function IncomeTaxModal({ isOpen, onClose, user }) {
     }
   };
 
+  const handleDownloadPdf = () => {
+    if (!calculationResult) return;
+    const exportData = {
+      ...calculationResult,
+      employee: {
+        name: calculationResult.employee?.name || calculationResult.employee_info?.name || formData.name,
+        sex: calculationResult.employee?.sex || calculationResult.employee_info?.sex || formData.sex,
+        designation: calculationResult.employee?.designation || calculationResult.employee_info?.designation || formData.designation,
+        pan_number: calculationResult.employee?.pan_number || calculationResult.employee_info?.pan_number || formData.pan_number,
+        tan_number: calculationResult.employee?.tan_number || calculationResult.employee_info?.tan_number || formData.tan_number,
+        phone: calculationResult.employee?.phone || calculationResult.employee_info?.phone || formData.phone,
+        whatsapp_number: calculationResult.employee?.whatsapp_number || calculationResult.employee_info?.whatsapp_number || formData.whatsapp_number,
+        school_type: calculationResult.employee?.school_type || calculationResult.employee_info?.school_type || formData.school_type,
+        school_name: calculationResult.employee?.school_name || calculationResult.employee_info?.school_name || formData.school_name,
+        office_address: calculationResult.employee?.office_address || calculationResult.employee_info?.office_address || formData.office_address
+      }
+    };
+    generateIncomeTaxPdf(exportData);
+  };
+
   const fmt = (val) => {
     if (val === undefined || val === null || isNaN(val)) return "0";
     return Math.round(Number(val)).toLocaleString("en-IN");
@@ -166,7 +186,7 @@ export default function IncomeTaxModal({ isOpen, onClose, user }) {
           <div className="flex items-center space-x-2">
             {calculationResult && activeStep === "statement" && (
               <button
-                onClick={() => generateIncomeTaxPdf(calculationResult)}
+                onClick={handleDownloadPdf}
                 className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -829,7 +849,7 @@ export default function IncomeTaxModal({ isOpen, onClose, user }) {
                   </button>
 
                   <button
-                    onClick={() => generateIncomeTaxPdf(calculationResult)}
+                    onClick={handleDownloadPdf}
                     className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md flex items-center space-x-1.5 transition cursor-pointer"
                   >
                     <Printer className="w-4 h-4" />

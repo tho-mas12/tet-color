@@ -297,22 +297,36 @@ def calculate_it_statement(input_data: Dict[str, Any]) -> Dict[str, Any]:
     balance_tax_only = round((balance_tax_feb / 104.0) * 100.0) if balance_tax_feb > 0 else 0.0
     balance_cess_only = balance_tax_feb - balance_tax_only
 
+    emp_dict = {
+        "name": name,
+        "sex": sex,
+        "designation": designation,
+        "pan_number": pan_number,
+        "tan_number": tan_number,
+        "phone": phone,
+        "whatsapp_number": whatsapp_number,
+        "school_type": school_type,
+        "school_name": school_name,
+        "office_address": office_address,
+        "financial_year": "2025- 2026",
+        "assessment_year": "2026- 2027"
+    }
+
+    tax_slabs = [
+        {"label": "(i) Upto 400000 /-", "slab_desc": "(i) Upto 400000 /-", "rate": "NIL", "rate_percent": 0, "amount": slab1_base, "tax": slab1_tax},
+        {"label": "(ii) 400001 - 800000", "slab_desc": "(ii) 400001 - 800000", "rate": "5%", "rate_percent": 5, "amount": slab2_base, "tax": slab2_tax},
+        {"label": "(iii) 800001 - 1200000", "slab_desc": "(iii) 800001 - 1200000", "rate": "10%", "rate_percent": 10, "amount": slab3_base, "tax": slab3_tax},
+        {"label": "(iv) 1200001 - 1600000", "slab_desc": "(iv) 1200001 - 1600000", "rate": "15%", "rate_percent": 15, "amount": slab4_base, "tax": slab4_tax},
+        {"label": "(v) 1600001 - 2000000", "slab_desc": "(v) 1600001 - 2000000", "rate": "20%", "rate_percent": 20, "amount": slab5_base, "tax": slab5_tax},
+        {"label": "(vi) 2000001 - 2400000", "slab_desc": "(vi) 2000001 - 2400000", "rate": "25%", "rate_percent": 25, "amount": slab6_base, "tax": slab6_tax},
+        {"label": "(vii) 2400001 and above", "slab_desc": "(vii) 2400001 and above", "rate": "30%", "rate_percent": 30, "amount": slab7_base, "tax": slab7_tax}
+    ]
+
     return {
-        "employee_info": {
-            "name": name,
-            "sex": sex,
-            "designation": designation,
-            "pan_number": pan_number,
-            "tan_number": tan_number,
-            "phone": phone,
-            "whatsapp_number": whatsapp_number,
-            "school_type": school_type,
-            "school_name": school_name,
-            "office_address": office_address,
-            "financial_year": "2025- 2026",
-            "assessment_year": "2026- 2027"
-        },
+        "employee_info": emp_dict,
+        "employee": emp_dict,
         "monthly_rows": monthly_rows,
+        "monthly_breakdown": monthly_rows,
         "monthly_totals": {
             "basic": tot_basic,
             "da": tot_da,
@@ -346,15 +360,8 @@ def calculate_it_statement(input_data: Dict[str, Any]) -> Dict[str, Any]:
             "total_deduction": total_deduction
         },
         "taxable_income": taxable_income,
-        "tax_slabs": [
-            {"label": "(i) Upto 400000 /-", "rate": "NIL", "amount": slab1_base, "tax": slab1_tax},
-            {"label": "(ii) 400001 - 800000", "rate": "5%", "amount": slab2_base, "tax": slab2_tax},
-            {"label": "(iii) 800001 - 1200000", "rate": "10%", "amount": slab3_base, "tax": slab3_tax},
-            {"label": "(iv) 1200001 - 1600000", "rate": "15%", "amount": slab4_base, "tax": slab4_tax},
-            {"label": "(v) 1600001 - 2000000", "rate": "20%", "amount": slab5_base, "tax": slab5_tax},
-            {"label": "(vi) 2000001 - 2400000", "rate": "25%", "amount": slab6_base, "tax": slab6_tax},
-            {"label": "(vii) 2400001 and above", "rate": "30%", "amount": slab7_base, "tax": slab7_tax}
-        ],
+        "tax_slabs": tax_slabs,
+        "slabs": tax_slabs,
         "tax_summary": {
             "total_tax_before_rebate": total_tax_before_rebate,
             "rebate_87a": rebate_87a,
