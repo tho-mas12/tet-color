@@ -8477,11 +8477,13 @@ export default function AdminPage({ user, lang = "en" }) {
       )}
 
       {/* ================= MODAL 6: SHARE LESSON MESSAGE ================= */}
-      <ShareLessonMessageModal
-        lesson={sharingLesson}
-        onClose={() => setSharingLesson(null)}
-        showToast={showToast}
-      />
+      {sharingLesson && (
+        <ShareLessonMessageModal
+          lesson={sharingLesson}
+          onClose={() => setSharingLesson(null)}
+          showToast={showToast}
+        />
+      )}
 
     </div>
   );

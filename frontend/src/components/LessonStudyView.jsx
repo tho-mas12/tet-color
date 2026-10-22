@@ -51,6 +51,20 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
 
   const t = translations[lang] || translations.en;
 
+  const activeStages = React.useMemo(() => {
+    const raw = lessonData?.active_stages;
+    if (!raw) return [1, 2, 3, 4, 5];
+    if (Array.isArray(raw)) return raw.map(Number);
+    if (typeof raw === "string") return raw.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n));
+    return [1, 2, 3, 4, 5];
+  }, [lessonData?.active_stages]);
+
+  React.useEffect(() => {
+    if (activeStages.length > 0 && !activeStages.includes(activeStage)) {
+      setActiveStage(activeStages[0]);
+    }
+  }, [activeStages, activeStage]);
+
   useEffect(() => {
     fetchApi("/public-settings")
       .then((data) => {
@@ -332,19 +346,6 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const questionsDone = progress?.stage3_questions;
   const testDone = progress?.stage4_test;
 
-  const activeStages = React.useMemo(() => {
-    const raw = lessonData?.active_stages;
-    if (!raw) return [1, 2, 3, 4, 5];
-    if (Array.isArray(raw)) return raw.map(Number);
-    if (typeof raw === "string") return raw.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n));
-    return [1, 2, 3, 4, 5];
-  }, [lessonData?.active_stages]);
-
-  React.useEffect(() => {
-    if (activeStages.length > 0 && !activeStages.includes(activeStage)) {
-      setActiveStage(activeStages[0]);
-    }
-  }, [activeStages, activeStage]);
 
   const isDirect = Boolean(initialStage && [1, 2, 3, 4, 5].includes(Number(initialStage)));
   const canAccessStage2 = isDirect || pdfDone;
