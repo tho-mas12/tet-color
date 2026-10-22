@@ -35,6 +35,16 @@ class MaterialCreate(BaseModel):
     description: Optional[str] = ""
     video_url: Optional[str] = ""
 
+class MaterialUpdate(BaseModel):
+    class_num: Optional[int] = None
+    subject: Optional[str] = None
+    medium: Optional[str] = None
+    term: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    pdf_url: Optional[str] = None
+    video_url: Optional[str] = None
+
 class MaterialOut(BaseModel):
     id: int
     class_num: int

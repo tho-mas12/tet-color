@@ -7,6 +7,7 @@ import MaterialsPage from "./components/MaterialsPage";
 import LearningPage from "./components/LearningPage";
 import AdminPage from "./components/AdminPage";
 import MinnalNewsMobile from "./components/MinnalNewsMobile";
+import TopNotificationBar from "./components/TopNotificationBar";
 import { translations } from "./translations";
 import { CheckCircle2, Share2, Info } from "lucide-react";
 
@@ -462,6 +463,12 @@ export default function App() {
         </div>
       )}
 
+      {/* Mobile Top Notification for Breaking News & Official Announcements (TASK 15) */}
+      <TopNotificationBar
+        onOpenNews={() => navigateTo("/news")}
+        lang={lang}
+      />
+
       {/* Navigation Bar */}
       <Navbar
         activeTab={activeTab}
@@ -572,11 +579,9 @@ export default function App() {
           
           {/* Left Column: Platform Branding */}
           <div className="flex flex-col sm:flex-row items-center space-y-0.5 sm:space-y-0 sm:space-x-2 text-center sm:text-left text-xs">
-            <span className="font-bold text-[#061b36]">© 2026 TET Platform</span>
+            <span className="font-bold text-[#061b36]">© 2026 Education Platform</span>
             <span className="hidden sm:inline text-slate-300">•</span>
             <span className="text-slate-500 font-medium">{t.brandSubtitle}</span>
-            <span className="hidden sm:inline text-slate-300">•</span>
-            <span className="text-slate-400">Tamil Nadu School Education Portal</span>
           </div>
 
           {/* Right Column: Company Details & Logo */}

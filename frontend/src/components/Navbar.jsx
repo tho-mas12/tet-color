@@ -46,10 +46,10 @@ export default function Navbar({
           </div>
           <div>
             <span className="text-xs sm:text-base md:text-lg font-bold text-white tracking-tight block leading-tight truncate max-w-[155px] xs:max-w-none">
-              {lang === "ta" ? "பாடப்புத்தகங்கள்" : t.brandTitle}
+              TN Teacher
             </span>
-            <span className="block text-[9px] sm:text-[10px] text-sky-200 uppercase tracking-wider font-medium -mt-0.5 truncate max-w-[155px] xs:max-w-none">
-              {lang === "ta" ? "அனைத்து வகுப்புகளுக்கும்" : t.brandSubtitle}
+            <span className="block text-[9px] sm:text-[10px] text-sky-200 uppercase tracking-wider font-medium -mt-0.5 truncate max-w-[180px] xs:max-w-md">
+              {t.brandSubtitle}
             </span>
           </div>
         </div>

@@ -133,7 +133,7 @@ export async function fetchApi(endpoint, options = {}) {
           { id: "diamond", name: "50 Streak Diamond Legend", required_streak: 50, unlocked: false, color: "from-[#1E3A8A] to-[#0284C7]" }
         ],
         announcements: [
-          { id: 1, title: "Welcome to TET Platform 2026!", content: "Class 1 Tamil study material & lesson module are active. Additional materials can be uploaded in the Admin Portal.", priority: "urgent", date: "Sep 16, 2026" }
+          { id: 1, title: "Welcome to Education Platform 2026!", content: "Class 1 Tamil study material & lesson module are active. Additional materials can be uploaded in the Admin Portal.", priority: "urgent", date: "Sep 16, 2026" }
         ],
         news_feed: [
           {
@@ -162,9 +162,9 @@ export async function fetchApi(endpoint, options = {}) {
           },
           {
             id: "news-4",
-            title: "Tamil Nadu Teachers Welfare Association Launches Online Portal for Grades 1 to 12",
+            title: "TN Teachers Benchmark Education Portal Launches for Grades 1 to 12 & TET Candidates",
             link: "https://news.google.com/search?q=tnteachers.in",
-            source: "TN Teachers Welfare Association",
+            source: "TN Teachers Education Portal",
             date: "Sep 16, 2026",
             category: "Platform Launch"
           }

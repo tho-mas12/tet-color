@@ -75,9 +75,29 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
       .catch(() => {});
   }, []);
 
+  const formatMathSymbols = (text) => {
+    if (!text) return "";
+    let s = String(text);
+    // Convert caret exponent notation to proper superscripts (prevent square showing as arrow)
+    s = s.replace(/\^2\b|\^2(?=[^\w]|$)/g, "²");
+    s = s.replace(/\^3\b|\^3(?=[^\w]|$)/g, "³");
+    s = s.replace(/\^4\b|\^4(?=[^\w]|$)/g, "⁴");
+    s = s.replace(/\^0\b|\^0(?=[^\w]|$)/g, "⁰");
+    s = s.replace(/\^1\b|\^1(?=[^\w]|$)/g, "¹");
+    s = s.replace(/\^n\b|\^n(?=[^\w]|$)/g, "ⁿ");
+    s = s.replace(/\^x\b|\^x(?=[^\w]|$)/g, "ˣ");
+    s = s.replace(/\^y\b|\^y(?=[^\w]|$)/g, "ʸ");
+    s = s.replace(/\^([0-9]+)/g, (_, digits) => {
+      const supMap = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹' };
+      return digits.split('').map(d => supMap[d] || d).join('');
+    });
+    return s;
+  };
+
   const cleanQuestionStem = (text) => {
     if (!text) return "";
     let s = String(text);
+    s = formatMathSymbols(s);
     // Strip control characters (which cause tofu / empty box symbols)
     s = s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, "");
     // Fix rogue InDesign book file names and timestamps
@@ -756,13 +776,44 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                   </button>
                 )}
 
-                <button
-                  onClick={() => markStageComplete(4)}
-                  className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#ff7a00] hover:bg-orange-600 text-white font-bold text-xs sm:text-sm shadow-xs cursor-pointer min-h-[42px]"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{questionsDone ? `${t.markStageDone} ✓` : t.markStageDone}</span>
-                </button>
+                {(() => {
+                  const totalCount = questionsData.length;
+                  const answeredCount = Object.keys(userPracticeAnswers).length;
+                  const isAllAttended = totalCount > 0 && answeredCount >= totalCount;
+                  
+                  return (
+                    <button
+                      onClick={() => {
+                        if (!isAllAttended && !questionsDone) {
+                          alert(lang === "ta" 
+                            ? `அனைத்து ${totalCount} பயிற்சி வினாக்களுக்கும் பதிலளித்த பின்னரே இந்த நிலையை நிறைவு செய்ய முடியும்! (${answeredCount}/${totalCount} விடையளிக்கப்பட்டுள்ளது)` 
+                            : `Please answer all ${totalCount} practice questions before marking this stage complete! (${answeredCount}/${totalCount} answered)`
+                          );
+                          return;
+                        }
+                        markStageComplete(4);
+                      }}
+                      disabled={!isAllAttended && !questionsDone}
+                      className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xs min-h-[42px] transition-all ${
+                        questionsDone
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                          : isAllAttended
+                          ? "bg-[#ff7a00] hover:bg-orange-600 text-white cursor-pointer ring-2 ring-orange-300 animate-pulse"
+                          : "bg-slate-200 text-slate-500 cursor-not-allowed opacity-75"
+                      }`}
+                      title={!isAllAttended && !questionsDone ? `Answer all questions (${answeredCount}/${totalCount}) to enable completion` : ""}
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>
+                        {questionsDone 
+                          ? `${t.markStageDone} ✓` 
+                          : isAllAttended 
+                          ? (lang === "ta" ? "நிறைவு செய்க & தொடர்க →" : "Mark Complete & Proceed →")
+                          : (lang === "ta" ? `அனைத்து வினாக்களுக்கும் பதிலளிக்கவும் (${answeredCount}/${totalCount})` : `Attend all questions (${answeredCount}/${totalCount})`)}
+                      </span>
+                    </button>
+                  );
+                })()}
               </div>
             </div>
 
@@ -843,7 +894,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                                 {String.fromCharCode(65 + optIdx)}
                               </span>
                               <span className={`flex-1 leading-snug ${hasAnswered && isCorrect ? "font-black text-emerald-950" : ""}`}>
-                                {opt}
+                                {formatMathSymbols(opt)}
                               </span>
                               {hasAnswered && isCorrect && (
                                 <CheckCircle2 className="w-5 h-5 text-emerald-600 ml-2 shrink-0" />
@@ -861,12 +912,71 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                             <BookOpen className="w-4 h-4" />
                             <span>{t.explanationTitle} (விரிவான விளக்கம்):</span>
                           </div>
-                          <p className="text-slate-800 leading-relaxed font-normal">{q.explanation}</p>
+                          <p className="text-slate-800 leading-relaxed font-normal">{formatMathSymbols(q.explanation)}</p>
                         </div>
                       )}
                     </div>
                   );
                 })}
+
+                {/* STAGE 4 BOTTOM COMPLETION BAR */}
+                {(() => {
+                  const totalCount = questionsData.length;
+                  const answeredCount = Object.keys(userPracticeAnswers).length;
+                  const isAllAttended = totalCount > 0 && answeredCount >= totalCount;
+
+                  return (
+                    <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-50/80 via-orange-50/40 to-slate-50 border-2 border-orange-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 shadow-xs">
+                      <div>
+                        <h4 className="text-sm sm:text-base font-black text-[#061b36] flex items-center space-x-2">
+                          <CheckCircle2 className={`w-5 h-5 ${isAllAttended ? "text-emerald-600" : "text-[#ff7a00]"}`} />
+                          <span>
+                            {questionsDone
+                              ? (lang === "ta" ? "✓ நிலை 4 பயிற்சி வெற்றிகரமாக நிறைவு செய்யப்பட்டது!" : "✓ Stage 4 Practice Completed Successfully!")
+                              : isAllAttended
+                              ? (lang === "ta" ? "🎉 அனைத்துப் பயிற்சி வினாக்களுக்கும் பதிலளித்துவிட்டீர்கள்!" : "🎉 You have attended all practice questions!")
+                              : (lang === "ta" ? `பயிற்சி முன்னேற்றம்: ${answeredCount}/${totalCount} விடையளிக்கப்பட்டுள்ளது` : `Practice Progress: ${answeredCount}/${totalCount} Questions Attended`)}
+                          </span>
+                        </h4>
+                        <p className="text-xs text-slate-500 font-medium mt-1">
+                          {isAllAttended || questionsDone
+                            ? (lang === "ta" ? "இப்போது 'நிறைவு செய்க & தொடர்க' பட்டனை அழுத்தி Stage 5 இறுதித் தேர்வுக்குச் செல்லலாம்." : "You are ready! Click complete to proceed to Stage 5 Timed Final Exam.")
+                            : (lang === "ta" ? `நிலை 4-ஐ நிறைவு செய்ய மீதமுள்ள ${totalCount - answeredCount} வினாக்களுக்கும் பதிலளிக்கவும்.` : `Please answer all remaining ${totalCount - answeredCount} questions to enable stage completion.`)}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          if (!isAllAttended && !questionsDone) {
+                            alert(lang === "ta" 
+                              ? `அனைத்து ${totalCount} பயிற்சி வினாக்களுக்கும் பதிலளித்த பின்னரே இந்த நிலையை நிறைவு செய்ய முடியும்! (${answeredCount}/${totalCount} முடிந்தது)` 
+                              : `Please answer all ${totalCount} questions before completing! (${answeredCount}/${totalCount} attended)`
+                            );
+                            return;
+                          }
+                          markStageComplete(4);
+                        }}
+                        disabled={!isAllAttended && !questionsDone}
+                        className={`px-6 py-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 shadow-md transition-all shrink-0 min-h-[46px] ${
+                          questionsDone
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                            : isAllAttended
+                            ? "bg-[#ff7a00] hover:bg-orange-600 text-white cursor-pointer ring-4 ring-orange-200 animate-pulse"
+                            : "bg-slate-200 text-slate-500 cursor-not-allowed opacity-75"
+                        }`}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>
+                          {questionsDone 
+                            ? `${t.markStageDone} ✓` 
+                            : isAllAttended 
+                            ? (lang === "ta" ? "நிறைவு செய்க & தொடர்க →" : "Mark Complete & Proceed →")
+                            : (lang === "ta" ? `அனைத்து வினாக்களுக்கும் பதிலளிக்கவும் (${answeredCount}/${totalCount})` : `Attend all questions (${answeredCount}/${totalCount})`)}
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -1126,9 +1236,16 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                     <button
                       onClick={handleStartTest}
                       disabled={testLoading}
-                      className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm sm:text-base shadow-lg transition-all cursor-pointer min-h-[46px] ring-4 ring-emerald-300/40"
+                      className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm sm:text-base shadow-lg transition-all cursor-pointer min-h-[46px] ring-4 ring-emerald-300/40 disabled:opacity-80"
                     >
-                      {testLoading ? "Generating Test Questions..." : `🚀 ${t.startTimedExam}`}
+                      {testLoading ? (
+                        <span className="flex items-center space-x-2">
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>{lang === "ta" ? "வினாத்தாள் தயாராகிறது..." : "Preparing Exam Questions..."}</span>
+                        </span>
+                      ) : (
+                        `🚀 ${t.startTimedExam}`
+                      )}
                     </button>
 
                     {user?.role === "admin" && (
@@ -1144,10 +1261,15 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                 </div>
               )
             ) : testLoading || !testData?.questions ? (
-              <div className="py-20 text-center space-y-4">
-                <div className="w-12 h-12 border-4 border-[#0055ff] border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-sm font-bold text-[#061b36]">
-                  Preparing TN TET exam questions...
+              <div className="py-20 text-center space-y-4 bg-slate-50/80 rounded-3xl border border-slate-200 p-8 animate-fade-in">
+                <div className="w-12 h-12 border-4 border-[#ff7a00] border-t-transparent rounded-full animate-spin mx-auto" />
+                <h4 className="text-base font-black text-[#061b36]">
+                  {lang === "ta" ? "இறுதித் தேர்வு வினாத்தாள் தயாராகிறது..." : "Preparing 50 Exam Questions..."}
+                </h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto font-medium leading-relaxed">
+                  {lang === "ta"
+                    ? "பாடப்பகுதியிலிருந்து 50 வினாக்கள் சரிபார்க்கப்படுகின்றன. தயவுசெய்து சிறிது நேரம் காத்திருக்கவும்..."
+                    : "Validating non-overlapping questions across all 6 cognitive question types. Please wait a moment..."}
                 </p>
               </div>
             ) : (

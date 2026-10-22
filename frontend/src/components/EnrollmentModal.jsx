@@ -12,10 +12,10 @@ import {
   CreditCard,
   AlertCircle,
   Loader2,
-  Check,
   Tag,
   Sparkles,
-  Percent
+  Percent,
+  BookOpen
 } from "lucide-react";
 import { fetchApi } from "../api";
 
@@ -36,6 +36,7 @@ export default function EnrollmentModal({
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState(user?.email || "");
   const [designation, setDesignation] = useState("TET Aspirant");
+  const [selectedCourse, setSelectedCourse] = useState("TET 1 and TET 2");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -49,7 +50,10 @@ export default function EnrollmentModal({
 
   if (!isOpen) return null;
 
-  const effectivePrice = appliedCoupon ? appliedCoupon.final_amount : coursePrice;
+  const courseBasePrice = selectedCourse === "TET 1 and TET 2" ? (coursePrice || 999) : 499;
+  const courseOriginalPrice = selectedCourse === "TET 1 and TET 2" ? (originalPrice || 2499) : 1499;
+
+  const effectivePrice = appliedCoupon ? appliedCoupon.final_amount : courseBasePrice;
   const couponSavings = appliedCoupon ? appliedCoupon.discount_amount : 0;
 
   // Handle Coupon Validation
@@ -70,7 +74,7 @@ export default function EnrollmentModal({
         method: "POST",
         body: JSON.stringify({
           code: cleanCode,
-          amount: coursePrice,
+          amount: courseBasePrice,
           email: email.trim().toLowerCase()
         })
       });
@@ -144,7 +148,7 @@ export default function EnrollmentModal({
           designation,
           amount: effectivePrice,
           coupon_code: appliedCoupon ? appliedCoupon.code : null,
-          course_name: "TET Combo (TET 1, TET 2 & Live Class)"
+          course_name: selectedCourse
         })
       });
 
@@ -356,6 +360,23 @@ export default function EnrollmentModal({
               />
             </div>
 
+            {/* Target Course Dropdown: TET 1, TET 2, TET 1 and TET 2 */}
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 mb-1 flex items-center space-x-1">
+                <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                <span>{isTa ? "தேர்வுப் பிரிவு (Target Course)" : "Select Target Course"} *</span>
+              </label>
+              <select
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-[#061b36] focus:outline-none focus:border-[#0055ff] focus:ring-2 focus:ring-blue-100 bg-white"
+              >
+                <option value="TET 1">TET 1 (Classes 1 to 8) — ₹499</option>
+                <option value="TET 2">TET 2 (Classes 6 to 12) — ₹499</option>
+                <option value="TET 1 and TET 2">TET 1 and TET 2 (All-in-One Combo) — ₹{coursePrice || 999}</option>
+              </select>
+            </div>
+
             {/* Designation */}
             <div>
               <label className="block text-xs font-extrabold text-slate-700 mb-1 flex items-center space-x-1">
@@ -462,13 +483,13 @@ export default function EnrollmentModal({
             {/* Price Summary Box */}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
-                <span>Course MRP</span>
-                <span className="line-through text-slate-400">₹{originalPrice}</span>
+                <span>{selectedCourse === "TET 1 and TET 2" ? "Combo MRP" : "Course MRP"}</span>
+                <span className="line-through text-slate-400">₹{courseOriginalPrice}</span>
               </div>
 
               <div className="flex items-center justify-between text-xs text-slate-600 font-semibold">
-                <span>Standard Portal Fee</span>
-                <span className="font-bold text-slate-700">₹{coursePrice}</span>
+                <span>{selectedCourse === "TET 1 and TET 2" ? "Combo Access (TET 1 & 2)" : `Single Course Pass (${selectedCourse})`}</span>
+                <span className="font-bold text-slate-700">₹{courseBasePrice}</span>
               </div>
 
               {appliedCoupon && (
@@ -497,8 +518,8 @@ export default function EnrollmentModal({
                 <div className="text-right">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-[#0055ff] border border-blue-200">
                     {appliedCoupon 
-                      ? `${Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)}% Total Savings`
-                      : `${discountPercent}% Launch Offer`}
+                      ? `${Math.round(((courseOriginalPrice - effectivePrice) / courseOriginalPrice) * 100)}% Total Savings`
+                      : `${Math.round(((courseOriginalPrice - courseBasePrice) / courseOriginalPrice) * 100)}% Launch Offer`}
                   </span>
                 </div>
               </div>

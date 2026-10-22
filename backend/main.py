@@ -125,7 +125,7 @@ def run_db_migrations():
 
 run_db_migrations()
 
-app = FastAPI(title="TET Platform API", version="1.4.0")
+app = FastAPI(title="Education Platform API", version="1.4.0")
 
 # CORS setup for Vite React frontend
 app.add_middleware(
@@ -198,7 +198,7 @@ def seed_initial_data(db: Session):
 
     if db.query(models.Announcement).count() == 0:
         ann = models.Announcement(
-            title="Welcome to TET Platform 2026!",
+            title="Welcome to Education Platform 2026!",
             content="Official study portal. Admin can upload Class 1 to 12 curriculum materials and lesson modules in the Admin Portal.",
             priority="urgent"
         )
@@ -634,7 +634,7 @@ def get_sample_pdf(title: str = "Sample_Material"):
 3 0 obj <</Type /Page /Parent 2 0 R /Resources <<>> /Contents 4 0 R>> endobj
 4 0 obj <</Length 120>> stream
 BT /F1 24 Tf 100 700 TD ({title.replace('_', ' ')}) Tj ET
-BT /F1 14 Tf 100 650 TD (Official TET Platform Study Document) Tj ET
+BT /F1 14 Tf 100 650 TD (Official Education Platform Study Document) Tj ET
 BT /F1 12 Tf 100 600 TD (Tamil Nadu School Curriculum Reference Guide) Tj ET
 endstream endobj
 xref
@@ -654,6 +654,30 @@ startxref
 
 # --- SEQUENTIAL LEARNING ENDPOINTS ---
 
+def check_user_access(user_email: str, db: Session):
+    """
+    Verifies that the user exists and is either an admin or has an active approved enrollment.
+    """
+    if not user_email or user_email in ["student@tet.com", ""]:
+        return False, "Authentication required. Please log in."
+    
+    user = db.query(models.User).filter(models.User.email == user_email).first()
+    if not user:
+        return False, "User account not found. Please log in or register."
+        
+    if user.role == "admin":
+        return True, "Admin access."
+        
+    enrollment = db.query(models.Enrollment).filter(
+        (models.Enrollment.user_id == user.id) | (models.Enrollment.email == user.email),
+        models.Enrollment.status == "approved"
+    ).first()
+    
+    if not enrollment:
+        return False, "Course enrollment required. Please enroll to unlock this lesson."
+        
+    return True, "Access granted."
+
 @app.get("/api/learning/structure")
 def get_learning_structure(
     class_num: int = 10, 
@@ -664,6 +688,15 @@ def get_learning_structure(
 ):
     user = db.query(models.User).filter(models.User.email == user_email).first()
     user_id = user.id if user else 1
+
+    is_admin = bool(user and user.role == "admin")
+    is_enrolled = is_admin
+    if user and not is_admin:
+        enr = db.query(models.Enrollment).filter(
+            (models.Enrollment.user_id == user.id) | (models.Enrollment.email == user.email),
+            models.Enrollment.status == "approved"
+        ).first()
+        is_enrolled = bool(enr)
 
     terms = ["Term-1", "Term-2", "Term-3"]
     result_terms = []
@@ -679,7 +712,7 @@ def get_learning_structure(
             models.Lesson.subject == subject,
             models.Lesson.term == term_name
         )
-        if subject != "Tamil":
+        if subject != "Tamil" and class_num <= 12:
             query = query.filter(models.Lesson.medium == medium)
 
         lessons = query.order_by(models.Lesson.lesson_order.asc()).all()
@@ -708,9 +741,9 @@ def get_learning_structure(
             if not is_fully_done:
                 term_all_lessons_completed = False
 
-            # Check if lesson is locked by date/time
+            # Check if lesson is locked by date/time or sequential order or lack of enrollment
             is_scheduled_future = bool(les.available_at and les.available_at > now_iso)
-            is_locked = (not previous_lesson_completed) or is_scheduled_future
+            is_locked = (not previous_lesson_completed) or is_scheduled_future or (not is_enrolled)
 
             term_lessons.append({
                 "id": les.id,
@@ -747,7 +780,7 @@ def get_learning_structure(
 
         result_terms.append({
             "term": term_name,
-            "is_locked": not previous_term_completed,
+            "is_locked": (not previous_term_completed) or (not is_enrolled),
             "is_completed": term_all_lessons_completed,
             "lessons": term_lessons
         })
@@ -758,11 +791,16 @@ def get_learning_structure(
         "class_num": class_num,
         "subject": subject,
         "medium": medium,
+        "is_enrolled": is_enrolled,
         "terms": result_terms
     }
 
 @app.get("/api/learning/lesson/{lesson_id}")
 def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: Session = Depends(get_db)):
+    has_access, reason = check_user_access(user_email, db)
+    if not has_access:
+        raise HTTPException(status_code=403, detail=reason)
+
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
@@ -1047,6 +1085,14 @@ def get_stage4_exam_questions(lesson: models.Lesson, settings: Optional[models.A
     for idx, q in enumerate(test_questions, 1):
         q["id"] = idx
 
+    # TASK 12: Cache test_questions into lesson.quiz_type2 so subsequent loads take 0ms!
+    if db and test_questions and not lesson.quiz_type2:
+        try:
+            lesson.quiz_type2 = json.dumps(test_questions, ensure_ascii=False)
+            db.commit()
+        except Exception as e:
+            print(f"Failed to cache quiz_type2 for lesson {lesson.id}:", e)
+
     return test_questions
 
 @app.get("/api/learning/lesson/{lesson_id}/questions")
@@ -1057,6 +1103,10 @@ def get_practice_questions(
     quiz_type: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
+    has_access, reason = check_user_access(user_email, db)
+    if not has_access:
+        raise HTTPException(status_code=403, detail=reason)
+
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
@@ -1079,6 +1129,10 @@ def generate_test(
     user_email: str = "student@tet.com",
     db: Session = Depends(get_db)
 ):
+    has_access, reason = check_user_access(user_email, db)
+    if not has_access:
+        raise HTTPException(status_code=403, detail=reason)
+
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
@@ -1544,6 +1598,79 @@ def admin_delete_material(material_id: int, db: Session = Depends(get_db)):
     db.delete(mat)
     db.commit()
     return {"message": "Material deleted successfully."}
+
+@app.put("/api/admin/materials/{material_id}", response_model=schemas.MaterialOut)
+def admin_update_material(material_id: int, mat_update: schemas.MaterialUpdate, db: Session = Depends(get_db)):
+    mat = db.query(models.Material).filter(models.Material.id == material_id).first()
+    if not mat:
+        raise HTTPException(status_code=404, detail="Material not found.")
+    
+    if mat_update.class_num is not None:
+        mat.class_num = mat_update.class_num
+    if mat_update.subject is not None:
+        mat.subject = mat_update.subject
+    if mat_update.medium is not None:
+        mat.medium = mat_update.medium
+    if mat_update.term is not None:
+        mat.term = mat_update.term
+    if mat_update.title is not None:
+        mat.title = mat_update.title
+    if mat_update.description is not None:
+        mat.description = mat_update.description
+    if mat_update.pdf_url is not None:
+        mat.pdf_url = mat_update.pdf_url
+    if mat_update.video_url is not None:
+        mat.video_url = mat_update.video_url
+        
+    db.commit()
+    db.refresh(mat)
+    return mat
+
+@app.post("/api/admin/materials/{material_id}/edit", response_model=schemas.MaterialOut)
+def admin_edit_material_form(
+    material_id: int,
+    class_num: Optional[int] = Form(None),
+    subject: Optional[str] = Form(None),
+    medium: Optional[str] = Form(None),
+    term: Optional[str] = Form(None),
+    title: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    video_url: Optional[str] = Form(None),
+    pdf_url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    mat = db.query(models.Material).filter(models.Material.id == material_id).first()
+    if not mat:
+        raise HTTPException(status_code=404, detail="Material not found.")
+    
+    if class_num is not None:
+        mat.class_num = class_num
+    if subject is not None:
+        mat.subject = subject
+    if medium is not None:
+        mat.medium = medium
+    if term is not None:
+        mat.term = term
+    if title is not None:
+        mat.title = title
+    if description is not None:
+        mat.description = description
+    if video_url is not None:
+        mat.video_url = video_url
+    if pdf_url is not None:
+        mat.pdf_url = pdf_url
+        
+    if file:
+        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        mat.pdf_filename = file.filename
+        mat.pdf_url = f"/static_uploads/{file.filename}"
+
+    db.commit()
+    db.refresh(mat)
+    return mat
 
 @app.post("/api/admin/upload-file")
 def admin_upload_file(file: UploadFile = File(...)):

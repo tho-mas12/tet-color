@@ -22,11 +22,14 @@ import {
   Radio,
   Video,
   ExternalLink,
-  Share2
+  Share2,
+  Search,
+  Filter
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
 import LessonStudyView from "./LessonStudyView";
+import EnrollmentModal from "./EnrollmentModal";
 
 export default function LearningPage({ user, lang = "en", onShare, directLesson, onClearDirectLesson }) {
   const [tetPaper, setTetPaper] = useState(() => {
@@ -61,6 +64,57 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
   const [activeLessonId, setActiveLessonId] = useState(directLesson?.lessonId || null);
   const [streakCount, setStreakCount] = useState(user?.streak_count || 0);
   const [liveMeetings, setLiveMeetings] = useState([]);
+
+  // Auth & Enrollment verification state
+  const [isEnrolled, setIsEnrolled] = useState(user?.role === "admin");
+  const [checkingEnrollment, setCheckingEnrollment] = useState(!user || user?.role !== "admin");
+  const [showEnrollmentModal, setShowEnrollmentModal] = useState(false);
+  const [publicSettings, setPublicSettings] = useState({ course_price: 999, razorpay_key_id: "" });
+
+  // Lesson Search and Status Filter states
+  const [lessonSearchQuery, setLessonSearchQuery] = useState("");
+  const [lessonStatusFilter, setLessonStatusFilter] = useState("all");
+
+  // Special Classes in TET 1 and TET 2 (Psychology, Tamil Grammar, English Grammar, PYQ)
+  const specialModules = [
+    { class_num: 101, title: lang === "ta" ? "குழந்தை மேம்பாடு & உளவியல் (Psychology)" : "Psychology (Tamil / English)", shortName: "Psychology", icon: "🧠", subject: "Psychology", hasMedium: true },
+    { class_num: 102, title: lang === "ta" ? "தமிழ் இலக்கணம் (Tamil Grammar)" : "Tamil Grammar", shortName: "Tamil Grammar", icon: "📖", subject: "Tamil Grammar", hasMedium: false },
+    { class_num: 103, title: lang === "ta" ? "ஆங்கில இலக்கணம் (English Grammar)" : "English Grammar", shortName: "English Grammar", icon: "🔤", subject: "English Grammar", hasMedium: false },
+    { class_num: 104, title: lang === "ta" ? "முந்தைய ஆண்டு வினாத்தாள்கள் (PYQ)" : "Previous Year Question Papers", shortName: "Previous Papers", icon: "📜", subject: "Previous Year Papers", hasMedium: false }
+  ];
+
+  useEffect(() => {
+    checkEnrollmentStatus();
+  }, [user]);
+
+  const checkEnrollmentStatus = async () => {
+    if (!user) {
+      setIsEnrolled(false);
+      setCheckingEnrollment(false);
+      return;
+    }
+    if (user.role === "admin") {
+      setIsEnrolled(true);
+      setCheckingEnrollment(false);
+      return;
+    }
+    try {
+      const res = await fetchApi(`/enrollments/my-status?email=${encodeURIComponent(user.email)}`);
+      if (res && res.is_enrolled) {
+        setIsEnrolled(true);
+      } else {
+        setIsEnrolled(false);
+      }
+    } catch (e) {
+      setIsEnrolled(false);
+    } finally {
+      setCheckingEnrollment(false);
+    }
+    try {
+      const settings = await fetchApi("/public-settings");
+      if (settings) setPublicSettings(settings);
+    } catch (e) {}
+  };
 
   useEffect(() => {
     if (directLesson && directLesson.lessonId) {
@@ -100,18 +154,22 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
   
   const subjects = selectedClass <= 10 
     ? baseSubjects 
-    : ["Tamil", "English", ...higherSubjects];
+    : selectedClass <= 12
+    ? ["Tamil", "English", ...higherSubjects]
+    : [selectedSubject];
 
   // Store paper choice & adjust selected class to stay within valid range and sync URL
   useEffect(() => {
     localStorage.setItem("tet_paper_choice", tetPaper);
     let validClass = selectedClass;
-    if (tetPaper === "paper1" && selectedClass > 8) {
-      validClass = 1;
-      setSelectedClass(1);
-    } else if (tetPaper === "paper2" && selectedClass < 6) {
-      validClass = 6;
-      setSelectedClass(6);
+    if (selectedClass <= 12) {
+      if (tetPaper === "paper1" && selectedClass > 8) {
+        validClass = 1;
+        setSelectedClass(1);
+      } else if (tetPaper === "paper2" && selectedClass < 6) {
+        validClass = 6;
+        setSelectedClass(6);
+      }
     }
     localStorage.setItem("tet_selected_class", validClass.toString());
     try {
@@ -416,117 +474,60 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
         </div>
       )}
 
-      {/* MOTIVATION QUOTE BOX & STREAK BADGES (DYNAMICALLY ADAPTED FOR TET 1 vs TET 2) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Daily Motivation Box */}
-        <div className={`lg:col-span-5 border rounded-3xl p-6 flex flex-col justify-between shadow-xs transition-all ${
-          tetPaper === "paper1"
-            ? "bg-gradient-to-br from-blue-50/80 via-sky-50/50 to-indigo-50/60 border-blue-200/80"
-            : "bg-gradient-to-br from-indigo-50/80 via-slate-50 to-sky-50/60 border-indigo-200/80"
-        }`}>
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase flex items-center space-x-1.5 shadow-2xs border ${
-                tetPaper === "paper1"
-                  ? "bg-white text-[#0055ff] border-blue-200"
-                  : "bg-white text-indigo-700 border-indigo-200"
-              }`}>
-                <GraduationCap className="w-3.5 h-3.5" />
-                <span>{motivationTitle}</span>
-              </span>
-
-              <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-lg bg-white/80 border border-slate-200 text-slate-600">
-                {tetPaper === "paper1" ? "Primary & Upper Primary" : "High School & Higher Sec"}
-              </span>
-            </div>
-
-            <blockquote className="text-base sm:text-lg font-black text-[#061b36] italic leading-relaxed my-2.5">
-              "{motivationQuote}"
-            </blockquote>
+      {/* ENROLLMENT LOCK BARRIER FOR UNPAID / UNENROLLED CANDIDATES (TASK 2) */}
+      {!checkingEnrollment && !isEnrolled && user?.role !== "admin" && (
+        <div className="bg-gradient-to-br from-slate-900 via-[#061b36] to-blue-950 text-white rounded-3xl p-6 sm:p-10 border border-blue-400/30 shadow-2xl space-y-6 my-4 text-center max-w-4xl mx-auto">
+          <div className="w-16 h-16 rounded-3xl bg-[#0055ff]/30 border border-[#0055ff] flex items-center justify-center mx-auto text-white shadow-lg">
+            <Lock className="w-8 h-8 text-sky-400" />
           </div>
 
-          <div className="pt-4 border-t border-blue-200/60 flex items-center justify-between text-xs font-bold text-slate-500">
-            <span className="flex items-center space-x-1">
-              <Flame className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
-              <span>Streak: <b className="text-[#061b36]">{streakCount} {t.streakDays}</b></span>
+          <div className="space-y-2 max-w-xl mx-auto">
+            <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400/20 text-amber-300 border border-amber-400/30 uppercase tracking-widest inline-block">
+              {lang === "ta" ? "அங்கீகரிக்கப்பட்ட ஆசிரியர் தகுதிப் பாடத்திட்டம்" : "Official Education Platform Curriculum"}
             </span>
-            <span className="text-[#0055ff] font-extrabold">
-              {tetPaper === "paper1" ? "TET-1 Curriculum Focus" : "TET-2 Pedagogy Focus"}
-            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              {lang === "ta" ? "முழு TET பயிற்சி வகுப்புகளை அணுக பதிவு செய்யவும்" : "Enroll to Unlock Complete TET Preparation Course"}
+            </h2>
+            <p className="text-xs sm:text-sm text-sky-200/90 leading-relaxed">
+              {lang === "ta" 
+                ? "TET Paper 1 மற்றும் Paper 2 க்கான 1 முதல் 12 ஆம் வகுப்பு பாடப்புத்தகங்கள், 5-நிலை பாடத்திட்டம், மாதிரித் தேர்வுகள் மற்றும் ஆசிரியர் தேர்வு வழிகாட்டியை அணுகவும்."
+                : "Get full access to all Classes 1–12 curriculum, 5-Stage comprehensive study system, unit practice questions, psychology, grammar & timed final exams."}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-left max-w-3xl mx-auto">
+            <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
+              <h4 className="text-xs font-bold text-white">Classes 1 to 12</h4>
+              <p className="text-[11px] text-slate-300">Complete curriculum for Paper 1 & 2</p>
+            </div>
+            <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
+              <h4 className="text-xs font-bold text-white">5-Stage System</h4>
+              <p className="text-[11px] text-slate-300">PDF, Notes, Video, Practice & Tests</p>
+            </div>
+            <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
+              <h4 className="text-xs font-bold text-white">Special Modules</h4>
+              <p className="text-[11px] text-slate-300">Psychology, Grammar & Solved PYQ</p>
+            </div>
+            <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
+              <h4 className="text-xs font-bold text-white">State Rank</h4>
+              <p className="text-[11px] text-slate-300">Instant benchmark & performance rank</p>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={() => setShowEnrollmentModal(true)}
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#0055ff] to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-black text-sm sm:text-base shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer inline-flex items-center space-x-2"
+            >
+              <span>{lang === "ta" ? `இப்போதே பதிவு செய்து சேருங்கள் (₹${publicSettings.course_price || 999}) →` : `Enroll & Unlock Course Access Now (₹${publicSettings.course_price || 999}) →`}</span>
+            </button>
           </div>
         </div>
-
-        {/* Streak Achievement Badges Box */}
-        <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-              <div>
-                <h3 className="text-base font-black text-[#061b36] flex items-center space-x-2">
-                  <Award className="w-5 h-5 text-[#0055ff]" />
-                  <span>{badgesTitle}</span>
-                </h3>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  {badgesDesc}
-                </p>
-              </div>
-              <span className="self-start sm:self-auto text-xs font-black text-[#0055ff] bg-blue-50 px-3 py-1 rounded-full border border-blue-200 shadow-2xs">
-                {badges.filter(b => b.unlocked).length} / {badges.length} {t.unlockedText}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              {badges.map((b) => {
-                const isUnlocked = b.unlocked;
-                return (
-                  <div
-                    key={b.id}
-                    className={`relative p-3 rounded-2xl border text-center transition-all ${
-                      isUnlocked
-                        ? "bg-blue-50/60 border-blue-300 shadow-xs ring-1 ring-blue-200/50"
-                        : "bg-slate-50 border-slate-200/90 opacity-60 grayscale"
-                    }`}
-                  >
-                    {isUnlocked && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#0055ff] text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                        ✓
-                      </div>
-                    )}
-
-                    <div className="w-10 h-10 mx-auto rounded-xl bg-gradient-to-br from-[#061b36] to-[#0055ff] p-0.5 shadow-2xs flex items-center justify-center mb-2">
-                      <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
-                        {b.id === "day15" && <Zap className="w-4 h-4 text-yellow-500 fill-yellow-400" />}
-                        {b.id === "day30" && <Award className="w-4 h-4 text-orange-500" />}
-                        {b.id === "day90" && <ShieldCheck className="w-4 h-4 text-indigo-600" />}
-                        {b.id === "day180" && <Trophy className="w-4 h-4 text-emerald-600" />}
-                        {b.id === "day365" && <Crown className="w-4 h-4 text-[#0055ff] fill-[#0055ff]" />}
-                      </div>
-                    </div>
-
-                    <h4 className="text-xs font-black text-[#061b36] truncate leading-tight" title={b.name}>
-                      {b.name}
-                    </h4>
-                    <span className="text-[11px] font-bold text-slate-500 block mt-0.5">
-                      {b.required_streak} {t.streakDays}
-                    </span>
-
-                    <span
-                      className={`inline-block mt-2 px-2 py-0.5 text-[10px] font-black uppercase rounded-full ${
-                        isUnlocked
-                          ? "bg-[#0055ff] text-white"
-                          : "bg-slate-200 text-slate-600"
-                      }`}
-                    >
-                      {isUnlocked ? t.unlockedText : `${t.needStreakText} ${b.required_streak}`}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-      </div>
+      )}
 
       {/* SELECTORS: CLASS, SUBJECT & MEDIUM */}
       <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-5">
@@ -553,6 +554,8 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
                     setSelectedClass(c);
                     if (c > 10 && !higherSubjects.includes(selectedSubject) && selectedSubject !== "Tamil" && selectedSubject !== "English") {
                       setSelectedSubject("Physics");
+                    } else if (c <= 10 && !baseSubjects.includes(selectedSubject)) {
+                      setSelectedSubject("Tamil");
                     }
                   }}
                   className={`py-2.5 px-1 rounded-2xl font-black text-xs transition-all duration-200 border cursor-pointer min-h-[56px] flex flex-col items-center justify-center card-interactive ${
@@ -566,6 +569,50 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
                 </button>
               );
             })}
+          </div>
+
+          {/* SPECIAL TET MODULES / CLASSES (TASK 5) */}
+          <div className="mt-5 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider flex items-center space-x-1.5">
+                <GraduationCap className="w-3.5 h-3.5 text-[#0055ff]" />
+                <span>{lang === "ta" ? "TET சிறப்புப் பாடப் பிரிவுகள் (Special Modules)" : "TET Special Class Modules"}</span>
+              </span>
+              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-md">
+                TET 1 & TET 2
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+              {specialModules.map((sm) => {
+                const isSelected = selectedClass === sm.class_num;
+                return (
+                  <button
+                    key={sm.class_num}
+                    onClick={() => {
+                      setSelectedClass(sm.class_num);
+                      setSelectedSubject(sm.subject);
+                      if (!sm.hasMedium) {
+                        setSelectedMedium("Tamil Medium");
+                      }
+                    }}
+                    className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex items-center space-x-2.5 ${
+                      isSelected
+                        ? "bg-[#0055ff] text-white border-[#0055ff] shadow-md scale-[1.02] ring-2 ring-[#0055ff]/30"
+                        : "bg-slate-50 hover:bg-blue-50/60 border-slate-200 text-[#061b36]"
+                    }`}
+                  >
+                    <span className="text-xl shrink-0">{sm.icon}</span>
+                    <div className="overflow-hidden">
+                      <h4 className="text-xs font-black truncate leading-tight">{sm.shortName}</h4>
+                      <p className={`text-[10px] font-medium truncate mt-0.5 ${isSelected ? "text-blue-100" : "text-slate-500"}`}>
+                        {sm.class_num === 101 ? "Tamil / English Medium" : "Classes 1–12 Scope"}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -633,6 +680,66 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
         </div>
       ) : !learningStructure ? null : (
         <div className="space-y-6">
+          
+          {/* SEARCH & FILTER CONTROLS FOR LESSONS (TASK 4) */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={lessonSearchQuery}
+                onChange={(e) => setLessonSearchQuery(e.target.value)}
+                placeholder={lang === "ta" ? "பாடத் தலைப்பு அல்லது அலகைத் தேடுக..." : "Search lesson title or chapter..."}
+                className="w-full pl-9 pr-7 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-[#061b36] focus:outline-none focus:border-[#0055ff] transition"
+              />
+              {lessonSearchQuery && (
+                <button
+                  onClick={() => setLessonSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-1.5 self-start sm:self-auto overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+              <span className="text-[11px] font-bold text-slate-500 uppercase mr-1 flex items-center space-x-1 shrink-0">
+                <Filter className="w-3 h-3 text-[#0055ff]" />
+                <span>{lang === "ta" ? "வடிகட்டு:" : "Filter:"}</span>
+              </span>
+              <button
+                onClick={() => setLessonStatusFilter("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                  lessonStatusFilter === "all"
+                    ? "bg-[#0055ff] text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {lang === "ta" ? "அனைத்துப் பாடங்கள்" : "All Lessons"}
+              </button>
+              <button
+                onClick={() => setLessonStatusFilter("completed")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                  lessonStatusFilter === "completed"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {lang === "ta" ? "முடிந்தவை (Completed)" : "Completed"}
+              </button>
+              <button
+                onClick={() => setLessonStatusFilter("pending")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                  lessonStatusFilter === "pending"
+                    ? "bg-amber-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {lang === "ta" ? "நிலுவையில் (Pending)" : "Pending"}
+              </button>
+            </div>
+          </div>
+
           {learningStructure.terms.map((termObj, tIdx) => {
             const isTermLocked = termObj.is_locked;
             const displayTermName = lang === "ta" ? termObj.term.replace("Term-", "பருவம் ") : termObj.term.replace("Term-", "Term ");
@@ -685,8 +792,31 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
                 </div>
 
                 {/* Lessons Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {termObj.lessons.map((les) => {
+                {(() => {
+                  const q = lessonSearchQuery.trim().toLowerCase();
+                  const filteredLessons = (termObj.lessons || []).filter((les) => {
+                    const matchesSearch = !q || 
+                      (les.title && les.title.toLowerCase().includes(q)) ||
+                      (les.description && les.description.toLowerCase().includes(q)) ||
+                      String(les.lesson_order).includes(q);
+                    const matchesStatus =
+                      lessonStatusFilter === "all" ? true :
+                      lessonStatusFilter === "completed" ? les.is_completed :
+                      !les.is_completed;
+                    return matchesSearch && matchesStatus;
+                  });
+
+                  if (filteredLessons.length === 0) {
+                    return (
+                      <div className="py-8 text-center text-xs text-slate-400">
+                        {lang === "ta" ? "தேடலுக்குரிய பாடங்கள் இந்த பருவத்தில் இல்லை." : "No lessons found matching your search / filter in this term."}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredLessons.map((les) => {
                     const isLessonLocked = les.is_locked || isTermLocked;
                     const isCompleted = les.is_completed;
 
@@ -794,13 +924,30 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
                     );
                   })}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
+              );
+            })()}
+          </div>
+        );
+      })}
     </div>
+  )}
+
+  {/* ENROLLMENT MODAL (TASK 2) */}
+  <EnrollmentModal
+    isOpen={showEnrollmentModal}
+    onClose={() => setShowEnrollmentModal(false)}
+    user={user}
+    coursePrice={publicSettings.course_price || 999}
+    razorpayKey={publicSettings.razorpay_key_id}
+    lang={lang}
+    onEnrollmentSuccess={() => {
+      setIsEnrolled(true);
+      setShowEnrollmentModal(false);
+      loadStructure();
+    }}
+  />
+
+</div>
   );
 }
 

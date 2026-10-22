@@ -7,6 +7,8 @@ import {
   X, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronUp,
+  ChevronDown,
   Maximize2, 
   ExternalLink,
   Download,
@@ -370,8 +372,14 @@ export default function MinnalNewsMobile({ onClose, isModal = true, lang = "ta" 
                       </h2>
 
                       <p 
-                        className="text-xs sm:text-[13px] text-[#ccc] leading-relaxed text-justify line-clamp-6 sm:line-clamp-8"
-                        style={{ textAlign: "justify" }}
+                        className="text-xs sm:text-[13px] text-[#ccc] leading-relaxed text-justify"
+                        style={{ 
+                          textAlign: "justify",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 12,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden"
+                        }}
                       >
                         {descText}
                       </p>
@@ -466,7 +474,7 @@ export default function MinnalNewsMobile({ onClose, isModal = true, lang = "ta" 
                             className="w-7 h-7 rounded-full bg-white/10 hover:bg-[#ff5722]/80 text-white flex items-center justify-center disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer"
                             title="முந்தைய செய்தி (Previous)"
                           >
-                            <ChevronLeft className="w-4 h-4" />
+                            <ChevronUp className="w-4 h-4" />
                           </button>
                           <button
                             disabled={index === filteredData.length - 1}
@@ -474,7 +482,7 @@ export default function MinnalNewsMobile({ onClose, isModal = true, lang = "ta" 
                             className="w-7 h-7 rounded-full bg-white/10 hover:bg-[#ff5722]/80 text-white flex items-center justify-center disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer"
                             title="அடுத்த செய்தி (Next)"
                           >
-                            <ChevronRight className="w-4 h-4" />
+                            <ChevronDown className="w-4 h-4" />
                           </button>
                         </div>
 
