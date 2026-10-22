@@ -77,8 +77,11 @@ def run_sqlite_migrations():
 if "sqlite" in DATABASE_URL:
     run_sqlite_migrations()
 
-# Create DB tables
-models.Base.metadata.create_all(bind=engine)
+# Create DB tables safely (handles multiple workers)
+try:
+    models.Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f'[DB Tables Init Info] {e}')
 
 def run_db_migrations():
     try:
