@@ -29,7 +29,8 @@ import {
   Tv,
   Check,
   Share2,
-  Lock
+  Lock,
+  Smartphone
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
@@ -452,6 +453,18 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                 </span>
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+            <a
+              href="/TNTET_App.apk"
+              download="TNTET_App.apk"
+              className="px-4 py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-extrabold text-xs flex items-center space-x-2 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              title="Download Android Mobile App (.apk)"
+            >
+              <Smartphone className="w-4 h-4 text-indigo-600" />
+              <span>{lang === "ta" ? "மொபைல் செயலி (.apk)" : "Download App (.apk)"}</span>
+            </a>
           </div>
 
         </div>

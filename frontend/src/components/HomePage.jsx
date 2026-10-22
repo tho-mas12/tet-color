@@ -21,7 +21,8 @@ import {
   Check,
   Compass,
   MapPin,
-  Activity
+  Activity,
+  Smartphone
 } from "lucide-react";
 import { fetchApi } from "../api";
 
@@ -134,6 +135,16 @@ export default function HomePage({ onOpenLogin, onOpenRegister, onNavigateMateri
                 <UserCheck className="w-5 h-5 text-[#0055ff]" />
                 <span>{isTa ? "இலவச பதிவு (Register Free)" : "Register Free Account"}</span>
               </button>
+
+                            <a
+                href="/TNTET_App.apk"
+                download="TNTET_App.apk"
+                className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-extrabold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-98"
+                title="Download Android App (.apk)"
+              >
+                <Smartphone className="w-4 h-4 text-indigo-600" />
+                <span>{isTa ? "மொபைல் செயலி (.apk)" : "Android App (.apk)"}</span>
+              </a>
 
               {onNavigateMaterials && (
                 <button
