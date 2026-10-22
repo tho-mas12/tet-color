@@ -110,6 +110,25 @@ class AdminSettings(Base):
     razorpay_key_id = Column(String(255), default="")
     razorpay_key_secret = Column(String(255), default="")
     course_price = Column(Integer, default=999)
+    original_price = Column(Integer, default=2499)
+    discount_percent = Column(Integer, default=60)
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(50), unique=True, index=True)
+    description = Column(String(255), default="")
+    discount_type = Column(String(20), default="percent")  # "percent" or "flat"
+    discount_value = Column(Integer, default=10)           # 10% or ₹10
+    min_order_amount = Column(Integer, default=0)          # Minimum course fee to apply
+    max_discount_amount = Column(Integer, default=0)       # Max discount cap for percent (0 = uncapped)
+    start_date = Column(String(50), nullable=True)         # ISO string e.g. "YYYY-MM-DDTHH:MM" (enable date)
+    end_date = Column(String(50), nullable=True)           # ISO string e.g. "YYYY-MM-DDTHH:MM" (disable/expiry date)
+    usage_limit = Column(Integer, default=0)               # Max allowed total redemptions (0 = unlimited)
+    times_used = Column(Integer, default=0)                # Usage counter
+    is_active = Column(Boolean, default=True)              # Manual active/inactive toggle
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class TETCard(Base):
     __tablename__ = "tet_cards"
@@ -192,6 +211,8 @@ class Enrollment(Base):
     payment_id = Column(String(255), nullable=True)
     order_id = Column(String(255), nullable=True)
     payment_method = Column(String(50), default="admin_free") # "razorpay", "admin_free", "manual"
+    coupon_code = Column(String(50), nullable=True)
+    discount_amount = Column(Integer, default=0)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -57,6 +57,17 @@ def run_sqlite_migrations():
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN razorpay_key_secret TEXT DEFAULT ''")
         if as_cols and "course_price" not in as_cols:
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN course_price INTEGER DEFAULT 999")
+        if as_cols and "original_price" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN original_price INTEGER DEFAULT 2499")
+        if as_cols and "discount_percent" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN discount_percent INTEGER DEFAULT 60")
+
+        cursor.execute("PRAGMA table_info(enrollments)")
+        e_cols = [row[1] for row in cursor.fetchall()]
+        if e_cols and "coupon_code" not in e_cols:
+            cursor.execute("ALTER TABLE enrollments ADD COLUMN coupon_code TEXT DEFAULT ''")
+        if e_cols and "discount_amount" not in e_cols:
+            cursor.execute("ALTER TABLE enrollments ADD COLUMN discount_amount INTEGER DEFAULT 0")
 
         conn.commit()
         conn.close()
@@ -68,6 +79,32 @@ if "sqlite" in DATABASE_URL:
 
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
+
+def run_db_migrations():
+    try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        if "admin_settings" in tables:
+            cols = [c["name"] for c in inspector.get_columns("admin_settings")]
+            with engine.connect() as conn:
+                if "original_price" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN original_price INTEGER DEFAULT 2499"))
+                if "discount_percent" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN discount_percent INTEGER DEFAULT 60"))
+                conn.commit()
+        if "enrollments" in tables:
+            cols = [c["name"] for c in inspector.get_columns("enrollments")]
+            with engine.connect() as conn:
+                if "coupon_code" not in cols:
+                    conn.execute(text("ALTER TABLE enrollments ADD COLUMN coupon_code VARCHAR(50) DEFAULT ''"))
+                if "discount_amount" not in cols:
+                    conn.execute(text("ALTER TABLE enrollments ADD COLUMN discount_amount INTEGER DEFAULT 0"))
+                conn.commit()
+    except Exception as e:
+        print(f"[DB Migration Info] {e}")
+
+run_db_migrations()
 
 app = FastAPI(title="TET Platform API", version="1.4.0")
 
@@ -2192,6 +2229,8 @@ def update_admin_settings(new_settings: schemas.AdminSettingsSchema, db: Session
     if getattr(new_settings, "razorpay_key_id", None) is not None: settings.razorpay_key_id = new_settings.razorpay_key_id
     if getattr(new_settings, "razorpay_key_secret", None) is not None: settings.razorpay_key_secret = new_settings.razorpay_key_secret
     if getattr(new_settings, "course_price", None) is not None: settings.course_price = new_settings.course_price
+    if getattr(new_settings, "original_price", None) is not None: settings.original_price = new_settings.original_price
+    if getattr(new_settings, "discount_percent", None) is not None: settings.discount_percent = new_settings.discount_percent
 
     db.commit()
     db.refresh(settings)
@@ -2204,8 +2243,290 @@ def get_public_settings(db: Session = Depends(get_db)):
         enable_material_download=getattr(settings, "enable_material_download", True) if settings else True,
         enable_quiz_download=getattr(settings, "enable_quiz_download", True) if settings else True,
         razorpay_key_id=getattr(settings, "razorpay_key_id", "") if settings else "",
-        course_price=getattr(settings, "course_price", 999) if settings else 999
+        course_price=getattr(settings, "course_price", 999) if settings else 999,
+        original_price=getattr(settings, "original_price", 2499) if settings else 2499,
+        discount_percent=getattr(settings, "discount_percent", 60) if settings else 60
     )
+
+# ================= COUPON HELPERS & AUTOMATION =================
+
+def get_coupon_status(coupon: models.Coupon, now: Optional[datetime.datetime] = None) -> str:
+    """
+    Computes real-time coupon status:
+    - 'disabled': manually turned off
+    - 'exhausted': usage limit reached
+    - 'scheduled': start date is in the future (enable date pending)
+    - 'expired': end date has passed (disable automation)
+    - 'active': ready to be used
+    """
+    if not coupon.is_active:
+        return "disabled"
+    if coupon.usage_limit and coupon.usage_limit > 0 and coupon.times_used >= coupon.usage_limit:
+        return "exhausted"
+
+    cur_time = now or datetime.datetime.now()
+    if coupon.start_date:
+        try:
+            start_dt = datetime.datetime.fromisoformat(coupon.start_date.replace("Z", ""))
+            if cur_time < start_dt:
+                return "scheduled"
+        except Exception:
+            pass
+
+    if coupon.end_date:
+        try:
+            end_dt = datetime.datetime.fromisoformat(coupon.end_date.replace("Z", ""))
+            if cur_time > end_dt:
+                return "expired"
+        except Exception:
+            pass
+
+    return "active"
+
+def check_coupon_validity(coupon: models.Coupon, amount: int = 0) -> tuple[bool, str]:
+    now = datetime.datetime.now()
+    status = get_coupon_status(coupon, now)
+    if status == "disabled":
+        return False, f"Coupon '{coupon.code}' is currently inactive."
+    if status == "exhausted":
+        return False, f"Coupon '{coupon.code}' has reached its maximum redemption limit ({coupon.usage_limit} uses)."
+    if status == "scheduled":
+        try:
+            start_dt = datetime.datetime.fromisoformat(coupon.start_date.replace("Z", ""))
+            return False, f"Coupon '{coupon.code}' will become active on {start_dt.strftime('%d-%b-%Y %I:%M %p')}."
+        except Exception:
+            return False, f"Coupon '{coupon.code}' is not active yet."
+    if status == "expired":
+        try:
+            end_dt = datetime.datetime.fromisoformat(coupon.end_date.replace("Z", ""))
+            return False, f"Coupon '{coupon.code}' expired on {end_dt.strftime('%d-%b-%Y %I:%M %p')}."
+        except Exception:
+            return False, f"Coupon '{coupon.code}' has expired."
+
+    if coupon.min_order_amount and coupon.min_order_amount > 0 and amount > 0 and amount < coupon.min_order_amount:
+        return False, f"Coupon '{coupon.code}' requires a minimum purchase of ₹{coupon.min_order_amount}."
+
+    return True, "Coupon is valid."
+
+def calculate_coupon_discount(coupon: models.Coupon, base_amount: int) -> tuple[int, int]:
+    if coupon.discount_type == "percent":
+        discount = (base_amount * coupon.discount_value) // 100
+        if coupon.max_discount_amount and coupon.max_discount_amount > 0:
+            discount = min(discount, coupon.max_discount_amount)
+    else:  # "flat"
+        discount = min(coupon.discount_value, base_amount)
+
+    discount = max(0, min(discount, base_amount))
+    final_amount = max(0, base_amount - discount)
+    return discount, final_amount
+
+# --- COUPON CRUD & VALIDATION ENDPOINTS ---
+
+@app.get("/api/admin/coupons")
+def get_admin_coupons(db: Session = Depends(get_db)):
+    coupons = db.query(models.Coupon).order_by(models.Coupon.created_at.desc()).all()
+    now = datetime.datetime.now()
+    results = []
+    for c in coupons:
+        status = get_coupon_status(c, now)
+        results.append({
+            "id": c.id,
+            "code": c.code,
+            "description": c.description or "",
+            "discount_type": c.discount_type or "percent",
+            "discount_value": c.discount_value or 0,
+            "min_order_amount": c.min_order_amount or 0,
+            "max_discount_amount": c.max_discount_amount or 0,
+            "start_date": c.start_date,
+            "end_date": c.end_date,
+            "usage_limit": c.usage_limit or 0,
+            "times_used": c.times_used or 0,
+            "is_active": bool(c.is_active),
+            "status": status,
+            "created_at": c.created_at.isoformat() if c.created_at else None
+        })
+    return results
+
+@app.post("/api/admin/coupons")
+def create_admin_coupon(data: schemas.CouponCreate, db: Session = Depends(get_db)):
+    clean_code = data.code.strip().upper()
+    if not clean_code:
+        raise HTTPException(status_code=400, detail="Coupon code cannot be empty.")
+    
+    existing = db.query(models.Coupon).filter(models.Coupon.code == clean_code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Coupon code '{clean_code}' already exists.")
+
+    new_coupon = models.Coupon(
+        code=clean_code,
+        description=data.description.strip() if data.description else "",
+        discount_type=data.discount_type if data.discount_type in ["percent", "flat"] else "percent",
+        discount_value=max(1, data.discount_value),
+        min_order_amount=max(0, data.min_order_amount or 0),
+        max_discount_amount=max(0, data.max_discount_amount or 0),
+        start_date=data.start_date.strip() if data.start_date else None,
+        end_date=data.end_date.strip() if data.end_date else None,
+        usage_limit=max(0, data.usage_limit or 0),
+        times_used=0,
+        is_active=True if data.is_active is None else bool(data.is_active)
+    )
+    db.add(new_coupon)
+    db.commit()
+    db.refresh(new_coupon)
+    return {
+        "ok": True,
+        "message": f"Coupon '{new_coupon.code}' created successfully!",
+        "coupon": {
+            "id": new_coupon.id,
+            "code": new_coupon.code,
+            "discount_type": new_coupon.discount_type,
+            "discount_value": new_coupon.discount_value,
+            "status": get_coupon_status(new_coupon)
+        }
+    }
+
+@app.post("/api/admin/coupons/generate")
+def generate_random_coupon(
+    prefix: str = "TET",
+    discount_type: str = "percent",
+    discount_value: int = 20,
+    usage_limit: int = 50,
+    valid_days: int = 30,
+    db: Session = Depends(get_db)
+):
+    import random, string
+    clean_prefix = (prefix or "TET").strip().upper()
+    code = ""
+    for _ in range(15):
+        rand_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+        cand_code = f"{clean_prefix}{discount_value}-{rand_part}"
+        if not db.query(models.Coupon).filter(models.Coupon.code == cand_code).first():
+            code = cand_code
+            break
+    
+    if not code:
+        code = f"{clean_prefix}{discount_value}-" + ''.join(random.choices(string.digits, k=6))
+
+    start_dt = datetime.datetime.now()
+    end_dt = start_dt + datetime.timedelta(days=valid_days) if valid_days > 0 else None
+
+    coupon = models.Coupon(
+        code=code,
+        description=f"Auto-generated {discount_value}{'%' if discount_type == 'percent' else ' ₹'} promotional coupon",
+        discount_type=discount_type if discount_type in ["percent", "flat"] else "percent",
+        discount_value=discount_value,
+        usage_limit=usage_limit,
+        start_date=start_dt.strftime("%Y-%m-%dT%H:%M"),
+        end_date=end_dt.strftime("%Y-%m-%dT%H:%M") if end_dt else None,
+        times_used=0,
+        is_active=True
+    )
+    db.add(coupon)
+    db.commit()
+    db.refresh(coupon)
+    return {
+        "ok": True,
+        "message": f"Generated coupon '{coupon.code}'!",
+        "coupon": {
+            "id": coupon.id,
+            "code": coupon.code,
+            "discount_type": coupon.discount_type,
+            "discount_value": coupon.discount_value,
+            "usage_limit": coupon.usage_limit,
+            "start_date": coupon.start_date,
+            "end_date": coupon.end_date,
+            "status": "active"
+        }
+    }
+
+@app.put("/api/admin/coupons/{coupon_id}")
+def update_admin_coupon(coupon_id: int, data: schemas.CouponUpdate, db: Session = Depends(get_db)):
+    coupon = db.query(models.Coupon).filter(models.Coupon.id == coupon_id).first()
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+
+    if data.code is not None:
+        clean_code = data.code.strip().upper()
+        if clean_code and clean_code != coupon.code:
+            existing = db.query(models.Coupon).filter(models.Coupon.code == clean_code).first()
+            if existing:
+                raise HTTPException(status_code=400, detail=f"Coupon code '{clean_code}' already exists.")
+            coupon.code = clean_code
+
+    if data.description is not None: coupon.description = data.description.strip()
+    if data.discount_type is not None: coupon.discount_type = data.discount_type
+    if data.discount_value is not None: coupon.discount_value = max(1, data.discount_value)
+    if data.min_order_amount is not None: coupon.min_order_amount = max(0, data.min_order_amount)
+    if data.max_discount_amount is not None: coupon.max_discount_amount = max(0, data.max_discount_amount)
+    if data.start_date is not None: coupon.start_date = data.start_date.strip() if data.start_date else None
+    if data.end_date is not None: coupon.end_date = data.end_date.strip() if data.end_date else None
+    if data.usage_limit is not None: coupon.usage_limit = max(0, data.usage_limit)
+    if data.is_active is not None: coupon.is_active = bool(data.is_active)
+
+    db.commit()
+    db.refresh(coupon)
+    return {"ok": True, "message": f"Coupon '{coupon.code}' updated!", "status": get_coupon_status(coupon)}
+
+@app.delete("/api/admin/coupons/{coupon_id}")
+def delete_admin_coupon(coupon_id: int, db: Session = Depends(get_db)):
+    coupon = db.query(models.Coupon).filter(models.Coupon.id == coupon_id).first()
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+    code = coupon.code
+    db.delete(coupon)
+    db.commit()
+    return {"ok": True, "message": f"Coupon '{code}' deleted successfully"}
+
+@app.post("/api/coupons/validate", response_model=schemas.CouponValidateResponse)
+def validate_student_coupon(data: schemas.CouponValidateRequest, db: Session = Depends(get_db)):
+    clean_code = (data.code or "").strip().upper()
+    if not clean_code:
+        return schemas.CouponValidateResponse(
+            valid=False,
+            code="",
+            message="Please enter a coupon code.",
+            original_amount=data.amount or 999,
+            final_amount=data.amount or 999
+        )
+
+    coupon = db.query(models.Coupon).filter(models.Coupon.code == clean_code).first()
+    settings = db.query(models.AdminSettings).first()
+    base_price = data.amount or (settings.course_price if settings and settings.course_price else 999)
+
+    if not coupon:
+        return schemas.CouponValidateResponse(
+            valid=False,
+            code=clean_code,
+            message=f"Coupon code '{clean_code}' is invalid or does not exist.",
+            original_amount=base_price,
+            final_amount=base_price
+        )
+
+    is_valid, msg = check_coupon_validity(coupon, base_price)
+    if not is_valid:
+        return schemas.CouponValidateResponse(
+            valid=False,
+            code=clean_code,
+            message=msg,
+            original_amount=base_price,
+            final_amount=base_price
+        )
+
+    discount, final_price = calculate_coupon_discount(coupon, base_price)
+    discount_display = f"{coupon.discount_value}% OFF" if coupon.discount_type == "percent" else f"₹{coupon.discount_value} OFF"
+    success_msg = f"Coupon '{coupon.code}' applied! You saved ₹{discount} ({discount_display})."
+
+    return schemas.CouponValidateResponse(
+        valid=True,
+        code=coupon.code,
+        message=success_msg,
+        discount_type=coupon.discount_type,
+        discount_value=coupon.discount_value,
+        discount_amount=discount,
+        original_amount=base_price,
+        final_amount=final_price
+    )
+
 
 @app.get("/api/admin/announcements")
 def get_admin_announcements(db: Session = Depends(get_db)):
@@ -2794,7 +3115,26 @@ def register_enrollment_lead(data: schemas.EnrollmentCreate, db: Session = Depen
     user = db.query(models.User).filter(models.User.email == clean_email).first()
     settings = db.query(models.AdminSettings).first()
     
-    amount = data.amount or (settings.course_price if settings and settings.course_price else 999)
+    base_price = settings.course_price if settings and settings.course_price else 999
+    amount = base_price
+    applied_coupon_code = None
+    discount_amount = 0
+
+    if data.coupon_code and data.coupon_code.strip():
+        c_code = data.coupon_code.strip().upper()
+        coupon = db.query(models.Coupon).filter(models.Coupon.code == c_code).first()
+        if coupon:
+            is_valid, msg = check_coupon_validity(coupon, base_price)
+            if is_valid:
+                discount_amount, amount = calculate_coupon_discount(coupon, base_price)
+                applied_coupon_code = coupon.code
+            else:
+                raise HTTPException(status_code=400, detail=msg)
+        else:
+            raise HTTPException(status_code=400, detail=f"Coupon code '{c_code}' is invalid.")
+    elif data.amount and data.amount > 0 and data.amount < base_price:
+        amount = base_price
+
     enrollment = models.Enrollment(
         user_id=user.id if user else None,
         name=data.name.strip(),
@@ -2803,6 +3143,8 @@ def register_enrollment_lead(data: schemas.EnrollmentCreate, db: Session = Depen
         designation=data.designation or "Aspirant",
         course_name=data.course_name or "TET Combo (TET 1, TET 2 & Live Class)",
         amount=amount,
+        coupon_code=applied_coupon_code,
+        discount_amount=discount_amount,
         status="pending",
         payment_method="razorpay"
     )
@@ -2833,6 +3175,12 @@ def verify_enrollment_payment(data: schemas.EnrollmentVerifyPayment, db: Session
     enrollment.order_id = data.order_id
     enrollment.status = "active"
     enrollment.payment_method = "razorpay"
+
+    # If coupon was used, increment usage counter
+    if enrollment.coupon_code:
+        coupon = db.query(models.Coupon).filter(models.Coupon.code == enrollment.coupon_code).first()
+        if coupon:
+            coupon.times_used = (coupon.times_used or 0) + 1
 
     # Link user if exists
     if not enrollment.user_id:

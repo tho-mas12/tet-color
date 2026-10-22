@@ -110,6 +110,8 @@ class AdminSettingsSchema(BaseModel):
     razorpay_key_id: Optional[str] = ""
     razorpay_key_secret: Optional[str] = ""
     course_price: Optional[int] = 999
+    original_price: Optional[int] = 2499
+    discount_percent: Optional[int] = 60
 
 class AnnouncementCreate(BaseModel):
     title: str
@@ -297,6 +299,8 @@ class PublicSettingsSchema(BaseModel):
     enable_quiz_download: bool = True
     razorpay_key_id: str = ""
     course_price: int = 999
+    original_price: int = 2499
+    discount_percent: int = 60
 
 class EnrollmentCreate(BaseModel):
     name: str
@@ -305,6 +309,7 @@ class EnrollmentCreate(BaseModel):
     designation: Optional[str] = "Aspirant"
     course_name: Optional[str] = "TET Combo (TET 1, TET 2 & Live Class)"
     amount: Optional[int] = 999
+    coupon_code: Optional[str] = None
 
 class EnrollmentManualCreate(BaseModel):
     name: str
@@ -333,6 +338,8 @@ class EnrollmentOut(BaseModel):
     payment_id: Optional[str] = None
     order_id: Optional[str] = None
     payment_method: str
+    coupon_code: Optional[str] = None
+    discount_amount: Optional[int] = 0
     notes: Optional[str] = None
     created_at: Optional[datetime] = None
 
@@ -342,3 +349,63 @@ class EnrollmentOut(BaseModel):
 
 
 
+
+
+# ================= COUPON SCHEMAS =================
+class CouponCreate(BaseModel):
+    code: str
+    description: Optional[str] = ""
+    discount_type: Optional[str] = "percent"  # "percent" or "flat"
+    discount_value: int = 10
+    min_order_amount: Optional[int] = 0
+    max_discount_amount: Optional[int] = 0
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    usage_limit: Optional[int] = 0
+    is_active: Optional[bool] = True
+
+class CouponUpdate(BaseModel):
+    code: Optional[str] = None
+    description: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[int] = None
+    min_order_amount: Optional[int] = None
+    max_discount_amount: Optional[int] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    usage_limit: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class CouponOut(BaseModel):
+    id: int
+    code: str
+    description: Optional[str] = ""
+    discount_type: str = "percent"
+    discount_value: int = 10
+    min_order_amount: int = 0
+    max_discount_amount: int = 0
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    usage_limit: int = 0
+    times_used: int = 0
+    is_active: bool = True
+    status: str = "active"  # "active", "scheduled", "expired", "exhausted", "disabled"
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class CouponValidateRequest(BaseModel):
+    code: str
+    amount: Optional[int] = 999
+    email: Optional[str] = None
+
+class CouponValidateResponse(BaseModel):
+    valid: bool
+    code: str
+    message: str
+    discount_type: Optional[str] = "percent"
+    discount_value: Optional[int] = 0
+    discount_amount: int = 0
+    original_amount: int = 0
+    final_amount: int = 0

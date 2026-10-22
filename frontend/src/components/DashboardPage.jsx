@@ -49,7 +49,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
   const [activeModal, setActiveModal] = useState(null); // "tamil_reading", "english_reading", "online_class", "nmms", "treast", "news"
   const [isEnrolled, setIsEnrolled] = useState(user?.role === "admin");
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
-  const [publicSettings, setPublicSettings] = useState({ course_price: 999, razorpay_key_id: "" });
+  const [publicSettings, setPublicSettings] = useState({ course_price: 999, original_price: 2499, discount_percent: 60, razorpay_key_id: "" });
   const [showNewsFeed, setShowNewsFeed] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -771,6 +771,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
           onClose={() => setIsEnrollmentModalOpen(false)}
           user={user}
           coursePrice={publicSettings.course_price || 999}
+          originalPrice={publicSettings.original_price || 2499}
+          discountPercent={publicSettings.discount_percent || 60}
           razorpayKey={publicSettings.razorpay_key_id || ""}
           lang={lang}
           onEnrollmentSuccess={() => {

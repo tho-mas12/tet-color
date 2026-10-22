@@ -12,11 +12,24 @@ import {
   CreditCard,
   AlertCircle,
   Loader2,
-  Check
+  Check,
+  Tag,
+  Sparkles,
+  Percent
 } from "lucide-react";
 import { fetchApi } from "../api";
 
-export default function EnrollmentModal({ isOpen, onClose, user, onEnrollmentSuccess, coursePrice = 999, razorpayKey = "", lang = "en" }) {
+export default function EnrollmentModal({ 
+  isOpen, 
+  onClose, 
+  user, 
+  onEnrollmentSuccess, 
+  coursePrice = 999, 
+  originalPrice = 2499,
+  discountPercent = 60,
+  razorpayKey = "", 
+  lang = "en" 
+}) {
   const isTa = lang === "ta";
 
   const [name, setName] = useState(user?.name || "");
@@ -27,7 +40,63 @@ export default function EnrollmentModal({ isOpen, onClose, user, onEnrollmentSuc
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  // Coupon State
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [couponSuccess, setCouponSuccess] = useState("");
+
   if (!isOpen) return null;
+
+  const effectivePrice = appliedCoupon ? appliedCoupon.final_amount : coursePrice;
+  const couponSavings = appliedCoupon ? appliedCoupon.discount_amount : 0;
+
+  // Handle Coupon Validation
+  const handleApplyCoupon = async (e) => {
+    if (e) e.preventDefault();
+    const cleanCode = couponCode.trim().toUpperCase();
+    if (!cleanCode) {
+      setCouponError(isTa ? "கூப்பன் குறியீட்டை உள்ளிடவும்" : "Please enter a coupon code");
+      return;
+    }
+
+    setValidatingCoupon(true);
+    setCouponError("");
+    setCouponSuccess("");
+
+    try {
+      const res = await fetchApi("/coupons/validate", {
+        method: "POST",
+        body: JSON.stringify({
+          code: cleanCode,
+          amount: coursePrice,
+          email: email.trim().toLowerCase()
+        })
+      });
+
+      if (res && res.valid) {
+        setAppliedCoupon(res);
+        setCouponSuccess(res.message || (isTa ? `கூப்பன் '${res.code}' வெற்றிகரமாக பயன்படுத்தப்பட்டது!` : `Coupon '${res.code}' applied successfully!`));
+        setCouponError("");
+      } else {
+        setAppliedCoupon(null);
+        setCouponError(res?.message || (isTa ? "தவறான அல்லது காலாவதியான கூப்பன் குறியீடு" : "Invalid or expired coupon code"));
+      }
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponError(err.message || (isTa ? "கூப்பனை சரிபார்க்க முடியவில்லை" : "Failed to validate coupon code"));
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+    setCouponSuccess("");
+  };
 
   // Load Razorpay Script dynamically if needed
   const loadRazorpayScript = () => {
@@ -65,7 +134,7 @@ export default function EnrollmentModal({ isOpen, onClose, user, onEnrollmentSuc
     setLoading(true);
 
     try {
-      // 1. Register Enrollment Lead
+      // 1. Register Enrollment Lead with Applied Coupon
       const res = await fetchApi("/enrollments/register", {
         method: "POST",
         body: JSON.stringify({
@@ -73,7 +142,8 @@ export default function EnrollmentModal({ isOpen, onClose, user, onEnrollmentSuc
           mobile: cleanMobile,
           email: email.trim().toLowerCase(),
           designation,
-          amount: coursePrice,
+          amount: effectivePrice,
+          coupon_code: appliedCoupon ? appliedCoupon.code : null,
           course_name: "TET Combo (TET 1, TET 2 & Live Class)"
         })
       });
@@ -98,12 +168,16 @@ export default function EnrollmentModal({ isOpen, onClose, user, onEnrollmentSuc
           return;
         }
 
+        const payablePaise = Math.round((res.amount !== undefined ? res.amount : effectivePrice) * 100);
+
         const options = {
           key: activeRazorpayKey,
-          amount: (res.amount || coursePrice) * 100, // in paise
+          amount: payablePaise, // in paise
           currency: res.currency || "INR",
           name: "TN Teachers Eligibility Benchmark Portal",
-          description: "All-in-One Pass: TET 1 + TET 2 + Live Interactive Classes",
+          description: appliedCoupon 
+            ? `TET All-in-One Pass (Coupon: ${appliedCoupon.code})`
+            : "All-in-One Pass: TET 1 + TET 2 + Live Interactive Classes",
           image: "/favicon.png",
           order_id: res.order_id || undefined,
           handler: async function (response) {
@@ -302,16 +376,131 @@ export default function EnrollmentModal({ isOpen, onClose, user, onEnrollmentSuc
               </select>
             </div>
 
+            {/* ================= PROMO / COUPON CODE SECTION ================= */}
+            <div className="pt-1">
+              <label className="block text-xs font-extrabold text-slate-700 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center space-x-1">
+                  <Tag className="w-3.5 h-3.5 text-[#0055ff]" />
+                  <span>{isTa ? "தள்ளுபடி கூப்பன் குறியீடு (Promo / Coupon Code)" : "Promo / Coupon Code"}</span>
+                </span>
+                {appliedCoupon && (
+                  <span className="text-[10px] text-emerald-600 font-black flex items-center space-x-0.5">
+                    <Check className="w-3 h-3" />
+                    <span>Applied</span>
+                  </span>
+                )}
+              </label>
+
+              {!appliedCoupon ? (
+                <div className="flex items-center space-x-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        setCouponError("");
+                      }}
+                      placeholder={isTa ? "எ.கா. TET2026, SAVE50" : "e.g. TET2026, SAVE50"}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-[#0055ff] focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={validatingCoupon || !couponCode.trim()}
+                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-xs font-black transition cursor-pointer flex items-center space-x-1 shrink-0"
+                  >
+                    {validatingCoupon ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>...</span>
+                      </>
+                    ) : (
+                      <span>{isTa ? "பயன்படுத்து" : "Apply"}</span>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 flex items-center justify-between animate-fade-in">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                      %
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-1.5">
+                        <span className="text-xs font-black text-emerald-950 tracking-wider uppercase">
+                          {appliedCoupon.code}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-200 text-emerald-900">
+                          {appliedCoupon.discount_type === "percent" ? `${appliedCoupon.discount_value}% OFF` : `₹${appliedCoupon.discount_value} OFF`}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-700 block">
+                        {isTa ? `₹${couponSavings} தள்ளுபடி பெறப்பட்டது!` : `You saved ₹${couponSavings} on this course!`}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    className="px-2.5 py-1 rounded-lg text-rose-600 hover:text-rose-800 hover:bg-rose-50 text-[11px] font-black cursor-pointer transition"
+                  >
+                    {isTa ? "நீக்கு ✕" : "Remove ✕"}
+                  </button>
+                </div>
+              )}
+
+              {couponError && (
+                <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center space-x-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  <span>{couponError}</span>
+                </p>
+              )}
+            </div>
+
             {/* Price Summary Box */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold text-slate-500 block">Total Investment</span>
-                <span className="text-lg font-black text-[#061b36]">₹{coursePrice}</span>
-                <span className="text-[10px] text-emerald-600 font-bold ml-1.5">(One-Time Full Access)</span>
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+                <span>Course MRP</span>
+                <span className="line-through text-slate-400">₹{originalPrice}</span>
               </div>
-              <div className="text-right">
-                <span className="text-[10px] font-bold text-slate-400 block line-through">₹2,499</span>
-                <span className="text-xs font-extrabold text-[#0055ff]">60% Launch Discount</span>
+
+              <div className="flex items-center justify-between text-xs text-slate-600 font-semibold">
+                <span>Standard Portal Fee</span>
+                <span className="font-bold text-slate-700">₹{coursePrice}</span>
+              </div>
+
+              {appliedCoupon && (
+                <div className="flex items-center justify-between text-xs text-emerald-700 font-bold border-t border-dashed border-emerald-200 pt-1.5">
+                  <span className="flex items-center space-x-1">
+                    <Tag className="w-3 h-3 text-emerald-600" />
+                    <span>Coupon Discount ({appliedCoupon.code})</span>
+                  </span>
+                  <span className="font-black">-₹{couponSavings}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 block">
+                    {isTa ? "செலுத்த வேண்டிய தொகை (Total Payable)" : "Total Investment"}
+                  </span>
+                  <div className="flex items-baseline space-x-1.5">
+                    <span className="text-xl font-black text-[#061b36]">₹{effectivePrice}</span>
+                    <span className="text-[10px] text-emerald-600 font-bold">
+                      {isTa ? "(முழு அணுகல்)" : "(One-Time Full Access)"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-[#0055ff] border border-blue-200">
+                    {appliedCoupon 
+                      ? `${Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)}% Total Savings`
+                      : `${discountPercent}% Launch Offer`}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -331,8 +520,8 @@ export default function EnrollmentModal({ isOpen, onClose, user, onEnrollmentSuc
                   <CreditCard className="w-4 h-4" />
                   <span>
                     {isTa 
-                      ? `பாதுகாப்பான கட்டணம் செலுத்த தொடர்க (₹${coursePrice})`
-                      : `PROCEED TO SECURE PAYMENT (₹${coursePrice})`}
+                      ? `பாதுகாப்பான கட்டணம் செலுத்த தொடர்க (₹${effectivePrice})`
+                      : `PROCEED TO SECURE PAYMENT (₹${effectivePrice})`}
                   </span>
                 </>
               )}
