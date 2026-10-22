@@ -578,11 +578,13 @@ export default function AdminPage({ user, lang = "en" }) {
   const [enrollmentsList, setEnrollmentsList] = useState([]);
   const [enrollmentSearch, setEnrollmentSearch] = useState("");
   const [enrollmentStatusFilter, setEnrollmentStatusFilter] = useState("all");
+  const [enrollmentCourseFilter, setEnrollmentCourseFilter] = useState("all");
   const [isManualEnrollModalOpen, setIsManualEnrollModalOpen] = useState(false);
   const [manualEnrollName, setManualEnrollName] = useState("");
   const [manualEnrollMobile, setManualEnrollMobile] = useState("");
   const [manualEnrollEmail, setManualEnrollEmail] = useState("");
   const [manualEnrollDesignation, setManualEnrollDesignation] = useState("TET Aspirant");
+  const [manualEnrollCourse, setManualEnrollCourse] = useState("TET 1 and TET 2");
   const [manualEnrollNotes, setManualEnrollNotes] = useState("");
   const [submittingManualEnroll, setSubmittingManualEnroll] = useState(false);
 
@@ -2018,7 +2020,7 @@ export default function AdminPage({ user, lang = "en" }) {
           email: manualEnrollEmail.trim().toLowerCase(),
           designation: manualEnrollDesignation,
           notes: manualEnrollNotes.trim() || "Free enrollment added by Administrator",
-          course_name: "TET Combo (TET 1, TET 2 & Live Class)"
+          course_name: manualEnrollCourse || "TET 1 and TET 2"
         })
       });
       showToast(`Student ${manualEnrollName} successfully enrolled for FREE with full access!`, "success");
@@ -2625,6 +2627,32 @@ export default function AdminPage({ user, lang = "en" }) {
                 </div>
               </div>
 
+              {/* Learning Need Breakdown Pills */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-xs flex flex-wrap items-center gap-2 text-xs font-bold">
+                <span className="text-[11px] font-black uppercase text-slate-400 mr-1 flex items-center space-x-1">
+                  <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Target Exam Focus:</span>
+                </span>
+                <span className="px-3 py-1 rounded-xl bg-blue-50 text-[#0055ff] border border-blue-200 font-extrabold flex items-center space-x-1">
+                  <span>TET 1 Focus:</span>
+                  <span className="bg-blue-600 text-white rounded-full px-1.5 py-0.2 text-[10px] ml-1">
+                    {enrollmentsList.filter(e => (e.course_name || "").includes("TET 1") && !(e.course_name || "").includes("and") && !(e.course_name || "").includes("TET 2")).length}
+                  </span>
+                </span>
+                <span className="px-3 py-1 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 font-extrabold flex items-center space-x-1">
+                  <span>TET 2 Focus:</span>
+                  <span className="bg-purple-600 text-white rounded-full px-1.5 py-0.2 text-[10px] ml-1">
+                    {enrollmentsList.filter(e => (e.course_name || "").includes("TET 2") && !(e.course_name || "").includes("and") && !(e.course_name || "").includes("TET 1")).length}
+                  </span>
+                </span>
+                <span className="px-3 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold flex items-center space-x-1">
+                  <span>TET 1 & 2 Combo:</span>
+                  <span className="bg-emerald-600 text-white rounded-full px-1.5 py-0.2 text-[10px] ml-1">
+                    {enrollmentsList.filter(e => (e.course_name || "").includes("and") || ((e.course_name || "").includes("TET 1") && (e.course_name || "").includes("TET 2"))).length}
+                  </span>
+                </span>
+              </div>
+
               {/* Search & Filter Controls */}
               <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div className="relative w-full sm:w-80">
@@ -2638,7 +2666,18 @@ export default function AdminPage({ user, lang = "en" }) {
                   />
                 </div>
 
-                <div className="flex items-center space-x-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={enrollmentCourseFilter}
+                    onChange={(e) => setEnrollmentCourseFilter(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 focus:outline-none focus:border-[#0055ff]"
+                  >
+                    <option value="all">All Goals / Courses</option>
+                    <option value="TET 1">TET 1 Focus</option>
+                    <option value="TET 2">TET 2 Focus</option>
+                    <option value="TET 1 and TET 2">TET 1 & 2 Combo</option>
+                  </select>
+
                   <select
                     value={enrollmentStatusFilter}
                     onChange={(e) => setEnrollmentStatusFilter(e.target.value)}
@@ -2690,7 +2729,14 @@ export default function AdminPage({ user, lang = "en" }) {
                           const matchesStatus = enrollmentStatusFilter === "all" ||
                             (enrollmentStatusFilter === "admin_free" ? e.payment_method === "admin_free" : e.status === enrollmentStatusFilter);
 
-                          return matchesQuery && matchesStatus;
+                          const matchesCourse = enrollmentCourseFilter === "all" ||
+                            (enrollmentCourseFilter === "TET 1 and TET 2"
+                              ? (e.course_name || "").includes("and") || ((e.course_name || "").includes("TET 1") && (e.course_name || "").includes("TET 2"))
+                              : enrollmentCourseFilter === "TET 1"
+                              ? (e.course_name || "").includes("TET 1") && !(e.course_name || "").includes("and") && !(e.course_name || "").includes("TET 2")
+                              : (e.course_name || "").includes("TET 2") && !(e.course_name || "").includes("and") && !(e.course_name || "").includes("TET 1"));
+
+                          return matchesQuery && matchesStatus && matchesCourse;
                         });
 
                         if (filtered.length === 0) {
@@ -2866,6 +2912,19 @@ export default function AdminPage({ user, lang = "en" }) {
                           <option value="Post Graduate Teacher (PG)">Post Graduate Teacher (PG)</option>
                           <option value="Private School Teacher">Private School Teacher</option>
                           <option value="Other">Other / Special Candidate</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Target Course / Goal Focus</label>
+                        <select
+                          value={manualEnrollCourse}
+                          onChange={(e) => setManualEnrollCourse(e.target.value)}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-bold text-[#061b36] focus:outline-none focus:border-[#0055ff] bg-white"
+                        >
+                          <option value="TET 1">TET 1 (Classes 1 to 8 — Paper 1)</option>
+                          <option value="TET 2">TET 2 (Classes 6 to 12 — Paper 2)</option>
+                          <option value="TET 1 and TET 2">TET 1 and TET 2 (Both Papers)</option>
                         </select>
                       </div>
 

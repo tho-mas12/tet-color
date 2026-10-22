@@ -50,8 +50,8 @@ export default function EnrollmentModal({
 
   if (!isOpen) return null;
 
-  const courseBasePrice = selectedCourse === "TET 1 and TET 2" ? (coursePrice || 999) : 499;
-  const courseOriginalPrice = selectedCourse === "TET 1 and TET 2" ? (originalPrice || 2499) : 1499;
+  const courseBasePrice = coursePrice || 999;
+  const courseOriginalPrice = originalPrice || 2499;
 
   const effectivePrice = appliedCoupon ? appliedCoupon.final_amount : courseBasePrice;
   const couponSavings = appliedCoupon ? appliedCoupon.discount_amount : 0;
@@ -360,21 +360,29 @@ export default function EnrollmentModal({
               />
             </div>
 
-            {/* Target Course Dropdown: TET 1, TET 2, TET 1 and TET 2 */}
+            {/* Target Course / Primary Preparation Goal */}
             <div>
               <label className="block text-xs font-extrabold text-slate-700 mb-1 flex items-center space-x-1">
                 <BookOpen className="w-3.5 h-3.5 text-slate-500" />
-                <span>{isTa ? "தேர்வுப் பிரிவு (Target Course)" : "Select Target Course"} *</span>
+                <span>{isTa ? "முதன்மை தேர்வு / கற்றல் தேவை (Target Course)" : "Select Target Course"} *</span>
               </label>
               <select
                 value={selectedCourse}
                 onChange={(e) => setSelectedCourse(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-[#061b36] focus:outline-none focus:border-[#0055ff] focus:ring-2 focus:ring-blue-100 bg-white"
               >
-                <option value="TET 1">TET 1 (Classes 1 to 8) — ₹499</option>
-                <option value="TET 2">TET 2 (Classes 6 to 12) — ₹499</option>
-                <option value="TET 1 and TET 2">TET 1 and TET 2 (All-in-One Combo) — ₹{coursePrice || 999}</option>
+                <option value="TET 1">TET 1 (Classes 1 to 8 — Paper 1)</option>
+                <option value="TET 2">TET 2 (Classes 6 to 12 — Paper 2)</option>
+                <option value="TET 1 and TET 2">TET 1 and TET 2 (Both Papers)</option>
               </select>
+              <p className="text-[11px] text-emerald-700 font-bold mt-1.5 flex items-center space-x-1.5 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>
+                  {isTa 
+                    ? "முழு அணுகல்: நீங்கள் எதைத் தேர்ந்தெடுத்தாலும், ஒரே கட்டணத்தில் TET 1, TET 2 மற்றும் அனைத்து சிறப்பு வகுப்புகளும் திறக்கப்படும்." 
+                    : "Complete Access: Enrolling gives you full access to TET 1, TET 2, and all live & special modules."}
+                </span>
+              </p>
             </div>
 
             {/* Designation */}
@@ -483,12 +491,12 @@ export default function EnrollmentModal({
             {/* Price Summary Box */}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
-                <span>{selectedCourse === "TET 1 and TET 2" ? "Combo MRP" : "Course MRP"}</span>
+                <span>Course MRP</span>
                 <span className="line-through text-slate-400">₹{courseOriginalPrice}</span>
               </div>
 
               <div className="flex items-center justify-between text-xs text-slate-600 font-semibold">
-                <span>{selectedCourse === "TET 1 and TET 2" ? "Combo Access (TET 1 & 2)" : `Single Course Pass (${selectedCourse})`}</span>
+                <span>Standard Portal Fee</span>
                 <span className="font-bold text-slate-700">₹{courseBasePrice}</span>
               </div>
 
