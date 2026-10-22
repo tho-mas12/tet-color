@@ -422,3 +422,45 @@ class CouponValidateResponse(BaseModel):
     discount_amount: int = 0
     original_amount: int = 0
     final_amount: int = 0
+
+class IncomeTaxCalculateRequest(BaseModel):
+    name: str
+    sex: Optional[str] = "MALE"
+    designation: Optional[str] = "S..G.TEACHER"
+    pan_number: Optional[str] = ""
+    tan_number: Optional[str] = ""
+    phone: Optional[str] = ""
+    whatsapp_number: Optional[str] = ""
+    school_type: Optional[str] = ""
+    school_name: Optional[str] = ""
+    office_address: Optional[str] = ""
+    basic_pay: float = 0.0
+    increment_month: Optional[int] = 0
+    pp: Optional[float] = 0.0
+    bonus: Optional[float] = 3000.0
+    hra_grade: Optional[int] = 1
+    cca_grade: Optional[int] = 0
+    spl_transport_allowance: Optional[float] = 0.0
+    surrender_month: Optional[int] = 0
+    pp_surrender: Optional[float] = 0.0
+    selection_grade_pay: Optional[float] = 0.0
+    selection_grade_month: Optional[int] = 0
+    selection_grade_arrears: Optional[float] = 0.0
+    strike_month: Optional[int] = 0
+    strike_days: Optional[float] = 0.0
+    it_advance_monthly: Optional[dict] = {}
+    user_email: Optional[str] = "candidate@tet.com"
+
+class IncomeTaxSettingsUpdate(BaseModel):
+    heading_title: Optional[str] = None
+    sub_heading: Optional[str] = None
+    financial_year: Optional[str] = None
+    assessment_year: Optional[str] = None
+    standard_deduction: Optional[float] = None
+    da_mar_apr_pct: Optional[float] = None
+    da_may_oct_pct: Optional[float] = None
+    da_nov_feb_pct: Optional[float] = None
+    cess_pct: Optional[float] = None
+    rebate_87a_limit: Optional[float] = None
+    footer_credit: Optional[str] = None
+

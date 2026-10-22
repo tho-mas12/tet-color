@@ -30,7 +30,8 @@ import {
   Check,
   Share2,
   Lock,
-  Smartphone
+  Smartphone,
+  Calculator
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
@@ -38,6 +39,7 @@ import DailyPracticeModal from "./DailyPracticeModal";
 import NewsSection from "./NewsSection";
 import MinnalNewsMobile from "./MinnalNewsMobile";
 import EnrollmentModal from "./EnrollmentModal";
+import IncomeTaxModal from "./IncomeTaxModal";
 
 export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, lang = "en" }) {
   const [dashboardData, setDashboardData] = useState(null);
@@ -229,6 +231,19 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       is_active: true
     },
     {
+      container_key: "income_tax",
+      title: "INCOME TAX CALCULATION STATEMENT",
+      subtitle: "FY 2025-26 & AY 2026-27 (New Tax Regime)",
+      category: "income_tax",
+      description: "வருமான வரி கணக்கீட்டு படிவம் (Sheet 3 I PAGE) - உடனடி கணக்கீடு மற்றும் PDF பதிவிறக்கம்",
+      badge_text: "FY 2025-26",
+      button_text: "CALCULATE TAX →",
+      action_url: "income_tax",
+      icon_name: "Calculator",
+      order_index: 8,
+      is_active: true
+    },
+    {
       container_key: "nmms",
       title: "NMMS",
       subtitle: "தேசிய வருவாய் வழி மற்றும் திறன் தேர்வு",
@@ -238,7 +253,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       button_text: "OPEN NMMS →",
       action_url: "nmms",
       icon_name: "Award",
-      order_index: 8,
+      order_index: 9,
       is_active: true
     },
     {
@@ -251,7 +266,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       button_text: "OPEN TREAST →",
       action_url: "treast",
       icon_name: "Trophy",
-      order_index: 9,
+      order_index: 10,
       is_active: true
     }
   ];
@@ -283,6 +298,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       case "Award": return <Award className="w-5 h-5 text-amber-600" />;
       case "Trophy": return <Trophy className="w-5 h-5 text-teal-600" />;
       case "Sparkles": return <Trophy className="w-5 h-5 text-teal-600" />;
+      case "Calculator": return <Calculator className="w-5 h-5 text-emerald-600" />;
       default: return <BookOpen className="w-5 h-5 text-[#0055ff]" />;
     }
   };
@@ -311,6 +327,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       } else {
         setActiveModal("online_class");
       }
+    } else if (key === "income_tax") {
+      setActiveModal("income_tax");
     } else if (key === "tamil_reading") {
       setActiveModal("tamil_reading");
     } else if (key === "english_reading") {
@@ -1161,6 +1179,13 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
           lang={lang}
         />
       )}
+
+      {/* INCOME TAX CALCULATION STATEMENT MODAL */}
+      <IncomeTaxModal
+        isOpen={activeModal === "income_tax"}
+        onClose={() => setActiveModal(null)}
+        user={user}
+      />
 
     </div>
   );

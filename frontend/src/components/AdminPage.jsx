@@ -61,12 +61,14 @@ import {
   ShieldAlert,
   Tag,
   Sparkles,
-  Percent
+  Percent,
+  Calculator
 } from "lucide-react";
 import { fetchApi, saveUploadedMaterialClient, saveUploadedLessonClient } from "../api";
 import { translations } from "../translations";
 import Toast from "./Toast";
 import { downloadQuizAsPdf } from "../utils/pdfExport";
+import AdminIncomeTaxSection from "./AdminIncomeTaxSection";
 
 const cleanQuestionText = (text, lessonTitle = "") => {
   if (!text) return "";
@@ -2226,6 +2228,7 @@ export default function AdminPage({ user, lang = "en" }) {
   const navTabs = [
     { id: "stats", label: "Dashboard", icon: LayoutDashboard, badge: null },
     { id: "enrollments", label: "Student Enrollments", icon: CreditCard, badge: Array.isArray(enrollmentsList) ? enrollmentsList.length : 0 },
+    { id: "income_tax", label: "Income Tax Statements", icon: Calculator, badge: null },
     { id: "mat_upload", label: "Textbooks & Materials", icon: FolderPlus, badge: Array.isArray(materialsList) ? materialsList.length : 0 },
     { id: "les_upload", label: "Courses & Lessons", icon: BookOpen, badge: Array.isArray(lessonsList) ? lessonsList.length : 0 },
     { id: "quiz_manager", label: "Quizzes & Tests", icon: FileText, badge: "New" },
@@ -2555,6 +2558,11 @@ export default function AdminPage({ user, lang = "en" }) {
               </div>
 
             </div>
+          )}
+
+          {/* ================= TAB: INCOME TAX CALCULATION STATEMENTS ================= */}
+          {activeTab === "income_tax" && (
+            <AdminIncomeTaxSection showToast={showToast} />
           )}
 
           {/* ================= TAB: ENROLLMENTS & ACCESS MANAGEMENT ================= */}
