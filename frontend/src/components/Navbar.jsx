@@ -1,6 +1,7 @@
-import React from "react";
-import { BookOpen, Layers, GraduationCap, ShieldCheck, Flame, LogIn, LogOut, Globe, Share2, Zap } from "lucide-react";
+import React, { useState } from "react";
+import { BookOpen, Layers, GraduationCap, ShieldCheck, Flame, LogIn, LogOut, Globe, Share2, Zap, Bell } from "lucide-react";
 import { translations } from "../translations";
+import PhoneNotificationModal from "./PhoneNotificationModal";
 
 export default function Navbar({ 
   activeTab, 
@@ -15,6 +16,8 @@ export default function Navbar({
 }) {
   const isAdmin = user && user.role === "admin";
   const t = translations[lang] || translations.en;
+  const [isPhoneNotifOpen, setIsPhoneNotifOpen] = useState(false);
+  const [unreadNotifs, setUnreadNotifs] = useState(3);
 
   const toggleLanguage = () => {
     setLang(lang === "en" ? "ta" : "en");
@@ -74,6 +77,23 @@ export default function Navbar({
         {/* User Info & Actions */}
         <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
           
+          {/* PHONE NOTIFICATIONS BELL BUTTON */}
+          <button
+            onClick={() => {
+              setIsPhoneNotifOpen(true);
+              setUnreadNotifs(0);
+            }}
+            title={lang === "ta" ? "அறிவிப்புகள் மற்றும் செய்திகள்" : "Announcements & News"}
+            className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/25 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer shrink-0"
+          >
+            <Bell className="w-4 h-4 text-white" />
+            {unreadNotifs > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center animate-pulse border border-[#061b36]">
+                {unreadNotifs}
+              </span>
+            )}
+          </button>
+
           {/* CIRCLE SHAPE LANGUAGE SWITCHER BUTTON (Globe Icon Alone) */}
           <button
             onClick={toggleLanguage}
@@ -181,6 +201,14 @@ export default function Navbar({
           </button>
         )}
       </nav>
+
+      {/* Phone Notification Center Modal */}
+      <PhoneNotificationModal
+        isOpen={isPhoneNotifOpen}
+        onClose={() => setIsPhoneNotifOpen(false)}
+        onNavigateNews={() => handleNav("/news", "news")}
+        lang={lang}
+      />
     </header>
   );
 }

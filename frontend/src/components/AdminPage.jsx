@@ -455,6 +455,8 @@ export default function AdminPage({ user, lang = "en" }) {
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [isUpdatingMaterial, setIsUpdatingMaterial] = useState(false);
   const [lesFilterSubject, setLesFilterSubject] = useState("All");
+  const [lesFilterClass, setLesFilterClass] = useState("All");
+  const [lesSearchQuery, setLesSearchQuery] = useState("");
 
   // Upload Form State for Materials Explorer
   const [matClass, setMatClass] = useState(1);
@@ -669,7 +671,8 @@ export default function AdminPage({ user, lang = "en" }) {
   const standardSubjects = [
     "Tamil", "English", "Mathematics", "Science", "Social Science",
     "Physics", "Chemistry", "Botany", "Zoology", "Computer Science",
-    "Commerce", "Economics", "Accountancy"
+    "Commerce", "Economics", "Accountancy",
+    "Psychology", "Tamil Grammar", "English Grammar", "Previous Year Papers"
   ];
 
   // Daily Practice Management State
@@ -3399,40 +3402,101 @@ export default function AdminPage({ user, lang = "en" }) {
                 </h3>
 
                 <form onSubmit={handleUploadLesson} className="space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Class (1 to 12)</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-1">
+                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Class / Module</label>
                       <select
                         value={lesClass}
-                        onChange={(e) => setLesClass(Number(e.target.value))}
-                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setLesClass(val);
+                          if (val === 101) {
+                            setLesSubject("Psychology");
+                            setLesTerm("Special Module");
+                            setIsCustomLesSubject(false);
+                          } else if (val === 102) {
+                            setLesSubject("Tamil Grammar");
+                            setLesMedium("Tamil Medium");
+                            setLesTerm("Classes 1-12");
+                            setIsCustomLesSubject(false);
+                          } else if (val === 103) {
+                            setLesSubject("English Grammar");
+                            setLesMedium("English Medium");
+                            setLesTerm("Classes 1-12");
+                            setIsCustomLesSubject(false);
+                          } else if (val === 104) {
+                            setLesSubject("Previous Year Papers");
+                            setLesTerm("Classes 1-12");
+                            setIsCustomLesSubject(false);
+                          }
+                        }}
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
                       >
-                        {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => <option key={c} value={c}>Class {c}</option>)}
+                        <optgroup label="Standard Classes (1–12)">
+                          {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => <option key={c} value={c}>Class {c}</option>)}
+                        </optgroup>
+                        <optgroup label="✨ TET Special Class Modules (TET 1 & TET 2)">
+                          <option value="101">🧠 101: Psychology (Tamil / English Medium)</option>
+                          <option value="102">📖 102: Tamil Grammar (Classes 1–12 Scope)</option>
+                          <option value="103">🔤 103: English Grammar (Classes 1–12 Scope)</option>
+                          <option value="104">📜 104: Previous Year Question Papers</option>
+                        </optgroup>
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Term</label>
+                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Term / Scope</label>
                       <select
                         value={lesTerm}
                         onChange={(e) => setLesTerm(e.target.value)}
-                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
                       >
-                        {["Term-1", "Term-2", "Term-3"].map(t => <option key={t} value={t}>{t}</option>)}
+                        {lesClass >= 101 ? (
+                          <>
+                            <option value="Special Module">Special Module</option>
+                            <option value="Classes 1-12">Classes 1–12 Scope</option>
+                            <option value="Term-1">Term-1</option>
+                            <option value="Term-2">Term-2</option>
+                            <option value="Term-3">Term-3</option>
+                          </>
+                        ) : (
+                          ["Term-1", "Term-2", "Term-3"].map(t => <option key={t} value={t}>{t}</option>)
+                        )}
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Sequence</label>
+                      <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Sequence #</label>
                       <input
                         type="number"
                         min="1"
                         value={lesOrder}
                         onChange={(e) => setLesOrder(Number(e.target.value))}
-                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
                       />
                     </div>
                   </div>
+
+                  {lesClass >= 101 && (
+                    <div className="p-3 rounded-2xl bg-indigo-50/90 border border-indigo-200 text-xs font-bold text-indigo-950 flex items-start space-x-2 animate-fade-in shadow-2xs">
+                      <span className="text-lg">
+                        {lesClass === 101 ? "🧠" : lesClass === 102 ? "📖" : lesClass === 103 ? "🔤" : "📜"}
+                      </span>
+                      <div>
+                        <span className="font-black text-indigo-900 block">
+                          TET 1 & TET 2 Special Module: {
+                            lesClass === 101 ? "Psychology (Tamil / English Medium)" :
+                            lesClass === 102 ? "Tamil Grammar (Classes 1–12 Scope)" :
+                            lesClass === 103 ? "English Grammar (Classes 1–12 Scope)" :
+                            "Previous Year Question Papers (Classes 1–12 Scope)"
+                          }
+                        </span>
+                        <span className="text-[11px] text-indigo-700 font-semibold block mt-0.5">
+                          Content uploaded here will appear automatically under both TET 1 and TET 2 special module shelves for all enrolled teachers & students.
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -3451,29 +3515,29 @@ export default function AdminPage({ user, lang = "en" }) {
                       <input
                         type="text"
                         required
-                        placeholder="Enter subject name e.g. Computer Applications"
+                        placeholder="Enter subject name e.g. Psychology or Computer Science"
                         value={customLesSubject}
                         onChange={(e) => setCustomLesSubject(e.target.value)}
-                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
                       />
                     ) : (
                       <select
                         value={lesSubject}
                         onChange={(e) => setLesSubject(e.target.value)}
-                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
                       >
                         {standardSubjects.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     )}
                   </div>
 
-                  {lesSubject !== "Tamil" && lesSubject !== "English" ? (
+                  {((lesSubject !== "Tamil" && lesSubject !== "English") || lesClass === 101) ? (
                     <div>
                       <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Language Medium</label>
                       <select
                         value={lesMedium}
                         onChange={(e) => setLesMedium(e.target.value)}
-                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
                       >
                         <option value="Tamil Medium">தமிழ் Medium (Tamil Medium)</option>
                         <option value="English Medium">English Medium</option>
@@ -3569,36 +3633,83 @@ export default function AdminPage({ user, lang = "en" }) {
                 </form>
               </div>
 
-              {/* Lessons Catalog with Edit & Delete & Schedule Indicators */}
+              {/* Lessons Catalog with Class, Subject & Search Filters */}
               <div className="lg:col-span-6 bg-white border border-sky-100 rounded-3xl p-6 shadow-xs space-y-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-sky-100 pb-3">
-                  <h3 className="text-base font-bold text-[#1E3A8A]">
-                    Learning Modules Catalog ({lessonsList.length})
-                  </h3>
+                <div className="flex flex-col gap-2.5 border-b border-sky-100 pb-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-bold text-[#1E3A8A]">
+                      Learning Modules Catalog ({lessonsList.length})
+                    </h3>
+                  </div>
                   
-                  {/* Subject Filter Dropdown */}
-                  <div className="flex items-center space-x-2">
-                    <Filter className="w-3.5 h-3.5 text-[#0284C7]" />
-                    <select
-                      value={lesFilterSubject}
-                      onChange={(e) => setLesFilterSubject(e.target.value)}
-                      className="p-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold focus:outline-none focus:border-[#0284C7]"
-                    >
-                      <option value="All">All Subjects ({lessonsList.length})</option>
-                      {standardSubjects.map(s => (
-                        <option key={s} value={s}>
-                          {s} ({lessonsList.filter(l => l.subject === s).length})
-                        </option>
-                      ))}
-                    </select>
+                  {/* Class, Subject & Search Filter Controls */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Class Filter Dropdown */}
+                    <div className="flex items-center space-x-1.5 flex-1 min-w-[130px]">
+                      <Filter className="w-3.5 h-3.5 text-[#0284C7] shrink-0" />
+                      <select
+                        value={lesFilterClass}
+                        onChange={(e) => setLesFilterClass(e.target.value)}
+                        className="w-full p-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold focus:outline-none focus:border-[#0284C7]"
+                      >
+                        <option value="All">All Classes ({lessonsList.length})</option>
+                        <optgroup label="Standard Classes (1–12)">
+                          {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => (
+                            <option key={c} value={c}>Class {c} ({lessonsList.filter(l => l.class_num === c).length})</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="✨ TET Special Class Modules">
+                          <option value="101">🧠 101: Psychology ({lessonsList.filter(l => l.class_num === 101).length})</option>
+                          <option value="102">📖 102: Tamil Grammar ({lessonsList.filter(l => l.class_num === 102).length})</option>
+                          <option value="103">🔤 103: English Grammar ({lessonsList.filter(l => l.class_num === 103).length})</option>
+                          <option value="104">📜 104: Previous Papers ({lessonsList.filter(l => l.class_num === 104).length})</option>
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    {/* Subject Filter Dropdown */}
+                    <div className="flex items-center space-x-1.5 flex-1 min-w-[120px]">
+                      <select
+                        value={lesFilterSubject}
+                        onChange={(e) => setLesFilterSubject(e.target.value)}
+                        className="w-full p-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold focus:outline-none focus:border-[#0284C7]"
+                      >
+                        <option value="All">All Subjects ({lessonsList.length})</option>
+                        {standardSubjects.map(s => (
+                          <option key={s} value={s}>
+                            {s} ({lessonsList.filter(l => l.subject === s).length})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Quick Search */}
+                    <div className="relative w-full">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Search module title or notes..."
+                        value={lesSearchQuery}
+                        onChange={(e) => setLesSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
                   {lessonsList
-                    .filter(l => lesFilterSubject === "All" || l.subject === lesFilterSubject)
+                    .filter(l => {
+                      const matchesClass = lesFilterClass === "All" || String(l.class_num) === String(lesFilterClass);
+                      const matchesSubject = lesFilterSubject === "All" || l.subject === lesFilterSubject;
+                      const matchesSearch = !lesSearchQuery.trim() || 
+                        (l.title || "").toLowerCase().includes(lesSearchQuery.toLowerCase()) ||
+                        (l.description || "").toLowerCase().includes(lesSearchQuery.toLowerCase());
+                      return matchesClass && matchesSubject && matchesSearch;
+                    })
                     .map((l) => {
                       const isFuture = l.available_at && new Date(l.available_at) > new Date();
+                      const isSpecial = l.class_num >= 101;
                       return (
                         <div
                           key={l.id}
@@ -3606,11 +3717,24 @@ export default function AdminPage({ user, lang = "en" }) {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-start space-x-3">
-                              <BookOpen className="w-5 h-5 text-[#0284C7] shrink-0 mt-0.5" />
+                              <span className="text-xl shrink-0 mt-0.5">
+                                {l.class_num === 101 ? "🧠" : l.class_num === 102 ? "📖" : l.class_num === 103 ? "🔤" : l.class_num === 104 ? "📜" : "📚"}
+                              </span>
                               <div>
-                                <h4 className="text-xs font-bold text-[#1E3A8A]">{l.title}</h4>
+                                <h4 className="text-xs font-bold text-[#1E3A8A] flex items-center space-x-1.5 flex-wrap">
+                                  <span>{l.title}</span>
+                                  {isSpecial && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                      TET Special
+                                    </span>
+                                  )}
+                                </h4>
                                 <span className="text-[10px] text-slate-500 font-semibold block">
-                                  Class {l.class_num} • {l.subject} ({l.medium}) • {l.term} • Lesson #{l.lesson_order}
+                                  {l.class_num === 101 ? "Psychology (Tamil / English)" :
+                                   l.class_num === 102 ? "Tamil Grammar (1–12 Scope)" :
+                                   l.class_num === 103 ? "English Grammar (1–12 Scope)" :
+                                   l.class_num === 104 ? "Previous Papers (1–12 Scope)" :
+                                   `Class ${l.class_num}`} • {l.subject} ({l.medium}) • {l.term} • Lesson #{l.lesson_order}
                                 </span>
                               </div>
                             </div>
@@ -3735,8 +3859,16 @@ export default function AdminPage({ user, lang = "en" }) {
                       onChange={(e) => setQuizGradeFilter(e.target.value)}
                       className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-[#1E3A8A] text-xs font-bold focus:outline-none focus:border-[#0284C7]"
                     >
-                      <option value="All">All Grades (1–12)</option>
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => <option key={c} value={c}>Class {c}</option>)}
+                      <option value="All">All Grades (1–12 & Specials)</option>
+                      <optgroup label="Standard Classes (1–12)">
+                        {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => <option key={c} value={c}>Class {c}</option>)}
+                      </optgroup>
+                      <optgroup label="✨ TET Special Modules">
+                        <option value="101">🧠 101: Psychology</option>
+                        <option value="102">📖 102: Tamil Grammar</option>
+                        <option value="103">🔤 103: English Grammar</option>
+                        <option value="104">📜 104: Previous Papers</option>
+                      </optgroup>
                     </select>
                   </div>
 
@@ -7023,7 +7155,15 @@ export default function AdminPage({ user, lang = "en" }) {
                       onChange={(e) => setEditingLesson({ ...editingLesson, class_num: Number(e.target.value) })}
                       className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
                     >
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => <option key={c} value={c}>Class {c}</option>)}
+                      <optgroup label="Standard Classes (1–12)">
+                        {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => <option key={c} value={c}>Class {c}</option>)}
+                      </optgroup>
+                      <optgroup label="✨ TET Special Class Modules">
+                        <option value="101">🧠 101: Psychology (Tamil / English Medium)</option>
+                        <option value="102">📖 102: Tamil Grammar (Classes 1–12 Scope)</option>
+                        <option value="103">🔤 103: English Grammar (Classes 1–12 Scope)</option>
+                        <option value="104">📜 104: Previous Year Question Papers</option>
+                      </optgroup>
                     </select>
                   </div>
 

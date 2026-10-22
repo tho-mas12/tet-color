@@ -7,7 +7,6 @@ import MaterialsPage from "./components/MaterialsPage";
 import LearningPage from "./components/LearningPage";
 import AdminPage from "./components/AdminPage";
 import MinnalNewsMobile from "./components/MinnalNewsMobile";
-import TopNotificationBar from "./components/TopNotificationBar";
 import { translations } from "./translations";
 import { CheckCircle2, Share2, Info } from "lucide-react";
 
@@ -462,12 +461,6 @@ export default function App() {
           <span className="text-xs sm:text-sm font-bold leading-snug">{toastMessage}</span>
         </div>
       )}
-
-      {/* Mobile Top Notification for Breaking News & Official Announcements (TASK 15) */}
-      <TopNotificationBar
-        onOpenNews={() => navigateTo("/news")}
-        lang={lang}
-      />
 
       {/* Navigation Bar */}
       <Navbar
