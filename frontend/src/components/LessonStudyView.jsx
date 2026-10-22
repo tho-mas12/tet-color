@@ -336,7 +336,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
     setTestActive(false);
     setTestLoading(true);
     try {
-      const email = user ? user.email : "student@tet.com";
+      const email = user ? user.email : "candidate@tet.com";
       const res = await fetchApi(`/learning/lesson/${lessonId}/submit-test?user_email=${encodeURIComponent(email)}`, {
         method: "POST",
         body: JSON.stringify({ user_answers: testAnswers })
@@ -1117,6 +1117,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                       onClick={() => {
                         setActiveStage(4);
                         setQuestionsData([]);
+                        setUserPracticeAnswers({});
                         handleLoadPracticeQuestions("type2");
                       }}
                       className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black shadow-md cursor-pointer min-h-[42px] animate-pulse"
@@ -1127,18 +1128,32 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                   )}
 
                   <button
-                    onClick={() => setShowDetailedReview(!showDetailedReview)}
+                    onClick={() => {
+                      const next = !showDetailedReview;
+                      setShowDetailedReview(next);
+                      if (next) {
+                        setTimeout(() => {
+                          const el = document.getElementById("solution-review-section");
+                          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 100);
+                      }
+                    }}
                     className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
                   >
                     <HelpCircle className="w-4 h-4" />
-                    <span>{showDetailedReview ? "Hide Solution Review" : "🔍 View Solutions & Review Questions (விடைகள் & விளக்கங்கள்)"}</span>
+                    <span>{showDetailedReview ? "Hide Solution Review (விளக்கங்களை மறை)" : "🔍 View Solutions & Review Questions (விடைகள் & விளக்கங்கள்)"}</span>
                   </button>
 
                   <button
                     onClick={handleStartTest}
-                    className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#061b36] text-xs sm:text-sm font-bold border border-slate-300 shadow-xs cursor-pointer min-h-[42px]"
+                    disabled={testLoading}
+                    className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#061b36] text-xs sm:text-sm font-bold border border-slate-300 shadow-xs cursor-pointer min-h-[42px] disabled:opacity-60"
                   >
-                    <RotateCcw className="w-4 h-4" />
+                    {testLoading ? (
+                      <span className="w-4 h-4 border-2 border-[#0055ff] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-4 h-4" />
+                    )}
                     <span>{testResult.passed ? "Retake for Higher Score" : "🔄 Retake Final Exam (80% Pass)"}</span>
                   </button>
 
@@ -1152,20 +1167,30 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                 </div>
 
                 {/* DETAILED QUESTION-BY-QUESTION SOLUTION REVIEW */}
-                {showDetailedReview && testResult.detailed_results && (
-                  <div className="space-y-4 pt-6 border-t border-slate-200 text-left animate-slide-up">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
-                      <h4 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
-                        <FileCheck className="w-5 h-5 text-[#0055ff]" />
-                        <span>Question-by-Question Solution Review ({testResult.detailed_results.length} Questions)</span>
-                      </h4>
-                      <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200">
-                        🟢 Green = Correct • 🔴 Red = Selected Wrong
-                      </span>
-                    </div>
+                {(() => {
+                  const reviewList = testResult.detailed_results || testResult.results || [];
+                  if (!showDetailedReview) return null;
+                  if (reviewList.length === 0) {
+                    return (
+                      <div id="solution-review-section" className="p-5 bg-slate-100 rounded-2xl text-slate-700 text-sm font-medium">
+                        No individual question solutions found for this test result.
+                      </div>
+                    );
+                  }
+                  return (
+                    <div id="solution-review-section" className="space-y-4 pt-6 border-t border-slate-200 text-left animate-slide-up">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
+                        <h4 className="text-base sm:text-lg font-black text-[#061b36] flex items-center space-x-2">
+                          <FileCheck className="w-5 h-5 text-[#0055ff]" />
+                          <span>Question-by-Question Solution Review ({reviewList.length} Questions)</span>
+                        </h4>
+                        <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200">
+                          🟢 Green = Correct • 🔴 Red = Selected Wrong
+                        </span>
+                      </div>
 
-                    <div className="space-y-4 max-h-[700px] overflow-y-auto pr-1">
-                      {testResult.detailed_results.map((item, idx) => (
+                      <div className="space-y-4 max-h-[700px] overflow-y-auto pr-1">
+                        {reviewList.map((item, idx) => (
                         <div
                           key={item.id || idx}
                           className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 shadow-2xs ${
@@ -1226,7 +1251,8 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
                       ))}
                     </div>
                   </div>
-                )}
+                );
+              })()}
               </div>
             ) : !testActive ? (
               isTimeLocked ? (

@@ -990,7 +990,7 @@ def get_stage3_practice_questions(lesson: models.Lesson, settings: Optional[mode
 
 def get_stage4_exam_questions(lesson: models.Lesson, settings: Optional[models.AdminSettings] = None, user_email: str = "student@tet.com", db: Optional[Session] = None):
     # 1. Obtain Stage 3 practice questions
-    stage3_questions, _ = get_stage3_practice_questions(lesson, settings, user_email, db=db)
+    stage3_questions, is_stage3_type2 = get_stage3_practice_questions(lesson, settings, user_email, db=db)
     stage3_stems = set(normalize_stem(q.get("question", "")) for q in stage3_questions if q.get("question"))
 
     # 2. Collect candidate questions: prioritize dedicated quiz_type2, or remaining pool of quiz_type1
@@ -1025,8 +1025,12 @@ def get_stage4_exam_questions(lesson: models.Lesson, settings: Optional[models.A
         if not q.get("answer") and opts and 0 <= ans_idx < len(opts):
             q["answer"] = opts[ans_idx]
 
-    stage3_count = len(stage3_questions)
-    candidates = q2 if q2 else q1[stage3_count:]
+    # If Stage 3 used Type 2, exam questions should prioritize Type 1 (q1).
+    # If Stage 3 used Type 1, exam questions should prioritize Type 2 (q2) if available.
+    if is_stage3_type2:
+        candidates = q1 + q2
+    else:
+        candidates = q2 + q1 if q2 else q1
 
     # 3. Strictly filter out any question matching Stage 3 (ZERO REPETITION GUARANTEED)
     test_questions = []
@@ -1057,23 +1061,36 @@ def get_stage4_exam_questions(lesson: models.Lesson, settings: Optional[models.A
             "count_chronological": getattr(settings, "stage4_count_chronological", 5) or 5,
         }
         all_avoid = stage3_stems.union(seen_stems)
-        extra_questions = ai_generator.generate_test_questions(
-            class_num=lesson.class_num,
-            subject=lesson.subject,
-            term=lesson.term,
-            lesson_title=lesson.title,
-            count=needed,
-            api_key=api_key,
-            medium=getattr(lesson, "medium", ""),
-            description=getattr(lesson, "description", ""),
-            pdf_url=getattr(lesson, "pdf_url", "") or "",
-            type_counts=type_counts,
-            avoid_stems=all_avoid
-        )
-        for q in extra_questions:
+        try:
+            extra_questions = ai_generator.generate_test_questions(
+                class_num=lesson.class_num,
+                subject=lesson.subject,
+                term=lesson.term,
+                lesson_title=lesson.title,
+                count=needed,
+                api_key=api_key,
+                medium=getattr(lesson, "medium", ""),
+                description=getattr(lesson, "description", ""),
+                pdf_url=getattr(lesson, "pdf_url", "") or "",
+                type_counts=type_counts,
+                avoid_stems=all_avoid
+            )
+            for q in extra_questions:
+                stem = normalize_stem(q.get("question", ""))
+                if stem and stem not in all_avoid:
+                    all_avoid.add(stem)
+                    seen_stems.add(stem)
+                    test_questions.append(q)
+                if len(test_questions) >= test_count:
+                    break
+        except Exception as e:
+            print(f"[Exam Question Fallback Gen Error]: {e}")
+
+    # Fallback to candidate questions if still under test_count
+    if len(test_questions) < test_count and (q1 or q2):
+        for q in (q1 + q2):
             stem = normalize_stem(q.get("question", ""))
-            if stem and stem not in all_avoid:
-                all_avoid.add(stem)
+            if stem and stem not in seen_stems:
                 seen_stems.add(stem)
                 test_questions.append(q)
             if len(test_questions) >= test_count:
@@ -1280,7 +1297,8 @@ def submit_test(
         "pass_mark": pass_mark,
         "requires_type2_restudy": not passed,
         "new_streak": user.streak_count,
-        "results": detailed_results
+        "results": detailed_results,
+        "detailed_results": detailed_results
     }
 
 @app.get("/api/public-stats")
