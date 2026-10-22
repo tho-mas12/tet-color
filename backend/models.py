@@ -55,6 +55,7 @@ class Lesson(Base):
     stage4_force_open = Column(Boolean, default=False) # Manual override by admin to open immediately
     stage5_unlock_time = Column(String(50), default="20:00") # Stage 5 final exam unlock
     stage5_force_open = Column(Boolean, default=False)
+    active_stages = Column(String(50), default="1,2,3,4,5") # Active stages e.g. "1,2,3,4,5"
     quiz_type1 = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True) # JSON string of questions array
     quiz_type2 = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True) # JSON string of alternate questions array
     created_at = Column(DateTime, default=datetime.utcnow)

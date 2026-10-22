@@ -332,6 +332,20 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const questionsDone = progress?.stage3_questions;
   const testDone = progress?.stage4_test;
 
+  const activeStages = React.useMemo(() => {
+    const raw = lessonData?.active_stages;
+    if (!raw) return [1, 2, 3, 4, 5];
+    if (Array.isArray(raw)) return raw.map(Number);
+    if (typeof raw === "string") return raw.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n));
+    return [1, 2, 3, 4, 5];
+  }, [lessonData?.active_stages]);
+
+  React.useEffect(() => {
+    if (activeStages.length > 0 && !activeStages.includes(activeStage)) {
+      setActiveStage(activeStages[0]);
+    }
+  }, [activeStages, activeStage]);
+
   const isDirect = Boolean(initialStage && [1, 2, 3, 4, 5].includes(Number(initialStage)));
   const canAccessStage2 = isDirect || pdfDone;
   const canAccessStage3 = isDirect || notesDone || pdfDone;
@@ -381,6 +395,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
         
         {/* STAGE 1: BOOK / PDF */}
+        {activeStages.includes(1) && (
         <button
           onClick={() => setActiveStage(1)}
           className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative card-interactive cursor-pointer min-h-[92px] ${
@@ -398,8 +413,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage1Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage1Desc}</span>
         </button>
+        )}
 
         {/* STAGE 2: SHORT NOTES */}
+        {activeStages.includes(2) && (
         <button
           onClick={() => canAccessStage2 && setActiveStage(2)}
           disabled={!canAccessStage2}
@@ -426,8 +443,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage2Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage2Desc}</span>
         </button>
+        )}
 
         {/* STAGE 3: VIDEO */}
+        {activeStages.includes(3) && (
         <button
           onClick={() => canAccessStage3 && setActiveStage(3)}
           disabled={!canAccessStage3}
@@ -448,8 +467,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage3Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage3Desc}</span>
         </button>
+        )}
 
         {/* STAGE 4: PRACTICE QUESTIONS */}
+        {activeStages.includes(4) && (
         <button
           onClick={() => canAccessStage4 && setActiveStage(4)}
           disabled={!canAccessStage4}
@@ -470,8 +491,10 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
           <h4 className="text-sm sm:text-base font-bold truncate leading-tight">{t.stage4Title}</h4>
           <span className="text-xs opacity-80 font-medium block mt-1 line-clamp-1">{t.stage4Desc}</span>
         </button>
+        )}
 
         {/* STAGE 5: QUIZ / FINAL EXAM */}
+        {activeStages.includes(5) && (
         <button
           onClick={() => canAccessStage5 && setActiveStage(5)}
           disabled={!canAccessStage5}
@@ -511,6 +534,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
             {!isTimeLocked ? "🔓 Unlocked & Live Now • Click to Start Exam" : t.stage5Desc}
           </span>
         </button>
+        )}
       </div>
 
       {/* ================= ACTIVE STAGE CONTENT VIEWER ================= */}

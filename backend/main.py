@@ -104,6 +104,22 @@ def run_db_migrations():
                 if "discount_amount" not in cols:
                     conn.execute(text("ALTER TABLE enrollments ADD COLUMN discount_amount INTEGER DEFAULT 0"))
                 conn.commit()
+        if "lessons" in tables:
+            cols = [c["name"] for c in inspector.get_columns("lessons")]
+            with engine.connect() as conn:
+                if "active_stages" not in cols:
+                    conn.execute(text("ALTER TABLE lessons ADD COLUMN active_stages VARCHAR(50) DEFAULT '1,2,3,4,5'"))
+                if "short_notes_pdf_url" not in cols:
+                    conn.execute(text("ALTER TABLE lessons ADD COLUMN short_notes_pdf_url VARCHAR(500) NULL"))
+                if "stage4_unlock_time" not in cols:
+                    conn.execute(text("ALTER TABLE lessons ADD COLUMN stage4_unlock_time VARCHAR(50) DEFAULT '20:00'"))
+                if "stage4_force_open" not in cols:
+                    conn.execute(text("ALTER TABLE lessons ADD COLUMN stage4_force_open BOOLEAN DEFAULT 0"))
+                if "stage5_unlock_time" not in cols:
+                    conn.execute(text("ALTER TABLE lessons ADD COLUMN stage5_unlock_time VARCHAR(50) DEFAULT '20:00'"))
+                if "stage5_force_open" not in cols:
+                    conn.execute(text("ALTER TABLE lessons ADD COLUMN stage5_force_open BOOLEAN DEFAULT 0"))
+                conn.commit()
     except Exception as e:
         print(f"[DB Migration Info] {e}")
 
@@ -811,6 +827,7 @@ def get_lesson_detail(lesson_id: int, user_email: str = "student@tet.com", db: S
             "short_notes_pdf_url": getattr(lesson, "short_notes_pdf_url", "") or "",
             "video_url": lesson.video_url,
             "available_at": lesson.available_at,
+            "active_stages": getattr(lesson, "active_stages", "1,2,3,4,5") or "1,2,3,4,5",
             "is_disabled_by_schedule": is_scheduled_future,
             "stage4_unlock_time": stage4_time,
             "stage4_force_open": bool(lesson.stage4_force_open),
@@ -1583,6 +1600,7 @@ def admin_get_lessons(db: Session = Depends(get_db)):
             "stage4_force_open": bool(l.stage4_force_open),
             "stage5_unlock_time": getattr(l, "stage5_unlock_time", "20:00") or "20:00",
             "stage5_force_open": bool(getattr(l, "stage5_force_open", False)),
+            "active_stages": getattr(l, "active_stages", "1,2,3,4,5") or "1,2,3,4,5",
             "has_quiz_type1": bool(l.quiz_type1),
             "quiz_type1_count": q1_count,
             "has_quiz_type2": bool(l.quiz_type2),
@@ -1662,6 +1680,29 @@ def admin_upload_short_notes(
         "short_notes_pdf_url": les.short_notes_pdf_url
     }
 
+@app.post("/api/admin/lessons/{lesson_id}/upload-pdf")
+def admin_upload_lesson_pdf(
+    lesson_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    les = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not les:
+        raise HTTPException(status_code=404, detail="Lesson module not found.")
+
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    les.pdf_url = f"/static_uploads/{file.filename}"
+    db.commit()
+    db.refresh(les)
+    return {
+        "message": "Stage 1 Lesson Book PDF uploaded successfully!",
+        "lesson_id": les.id,
+        "pdf_url": les.pdf_url
+    }
+
 @app.put("/api/admin/lessons/{lesson_id}")
 def admin_update_lesson(
     lesson_id: int,
@@ -1679,12 +1720,16 @@ def admin_update_lesson(
     if lesson_data.lesson_order is not None: les.lesson_order = lesson_data.lesson_order
     if lesson_data.title is not None: les.title = lesson_data.title
     if lesson_data.description is not None: les.description = lesson_data.description
+    if lesson_data.pdf_url is not None: les.pdf_url = lesson_data.pdf_url
     if lesson_data.short_notes_pdf_url is not None: les.short_notes_pdf_url = lesson_data.short_notes_pdf_url
     if lesson_data.video_url is not None: les.video_url = lesson_data.video_url
     if lesson_data.available_at is not None:
         les.available_at = lesson_data.available_at.strip() if lesson_data.available_at.strip() else None
+    if lesson_data.stage4_unlock_time is not None: les.stage4_unlock_time = lesson_data.stage4_unlock_time
+    if lesson_data.stage4_force_open is not None: les.stage4_force_open = lesson_data.stage4_force_open
     if lesson_data.stage5_unlock_time is not None: les.stage5_unlock_time = lesson_data.stage5_unlock_time
     if lesson_data.stage5_force_open is not None: les.stage5_force_open = lesson_data.stage5_force_open
+    if lesson_data.active_stages is not None: les.active_stages = lesson_data.active_stages
 
     db.commit()
     db.refresh(les)

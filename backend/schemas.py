@@ -76,6 +76,7 @@ class LessonOut(BaseModel):
     stage5_unlock_time: Optional[str] = "20:00"
     stage5_force_open: Optional[bool] = False
     is_stage5_locked_by_time: Optional[bool] = False
+    active_stages: Optional[str] = "1,2,3,4,5"
 
 class Question(BaseModel):
     id: int
@@ -153,6 +154,7 @@ class LessonUpdate(BaseModel):
     lesson_order: Optional[int] = None
     title: Optional[str] = None
     description: Optional[str] = None
+    pdf_url: Optional[str] = None
     short_notes_pdf_url: Optional[str] = None
     video_url: Optional[str] = None
     available_at: Optional[str] = None
@@ -160,6 +162,7 @@ class LessonUpdate(BaseModel):
     stage4_force_open: Optional[bool] = None
     stage5_unlock_time: Optional[str] = None
     stage5_force_open: Optional[bool] = None
+    active_stages: Optional[str] = None
 
 class QuizSavePayload(BaseModel):
     questions: List[dict]

@@ -490,6 +490,8 @@ export default function AdminPage({ user, lang = "en" }) {
   const [isEditLessonModalOpen, setIsEditLessonModalOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
   const [savingEditLesson, setSavingEditLesson] = useState(false);
+  const [editLessonPdfFile, setEditLessonPdfFile] = useState(null);
+  const [editLessonNotesFile, setEditLessonNotesFile] = useState(null);
 
   // Quiz Management States
   const [quizGradeFilter, setQuizGradeFilter] = useState("All");
@@ -1301,9 +1303,19 @@ export default function AdminPage({ user, lang = "en" }) {
   };
 
   const handleOpenEditLesson = (lesson) => {
+    setEditLessonPdfFile(null);
+    setEditLessonNotesFile(null);
     setEditingLesson({
       ...lesson,
-      available_at: lesson.available_at ? lesson.available_at.slice(0, 16) : ""
+      available_at: lesson.available_at ? lesson.available_at.slice(0, 16) : "",
+      pdf_url: lesson.pdf_url || "",
+      short_notes_pdf_url: lesson.short_notes_pdf_url || "",
+      video_url: lesson.video_url || "",
+      stage4_unlock_time: lesson.stage4_unlock_time || "20:00",
+      stage4_force_open: Boolean(lesson.stage4_force_open),
+      stage5_unlock_time: lesson.stage5_unlock_time || "20:00",
+      stage5_force_open: Boolean(lesson.stage5_force_open),
+      active_stages: lesson.active_stages || "1,2,3,4,5"
     });
     setIsEditLessonModalOpen(true);
   };
@@ -1313,6 +1325,38 @@ export default function AdminPage({ user, lang = "en" }) {
     if (!editingLesson) return;
     setSavingEditLesson(true);
     try {
+      let finalPdfUrl = editingLesson.pdf_url;
+      let finalNotesUrl = editingLesson.short_notes_pdf_url;
+
+      // 1. If replacement Stage 1 PDF was selected, upload it
+      if (editLessonPdfFile) {
+        const formData = new FormData();
+        formData.append("file", editLessonPdfFile);
+        const res = await fetch(`/api/admin/lessons/${editingLesson.id}/upload-pdf`, {
+          method: "POST",
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.pdf_url) finalPdfUrl = data.pdf_url;
+        }
+      }
+
+      // 2. If replacement Stage 2 Short Notes PDF was selected, upload it
+      if (editLessonNotesFile) {
+        const formData = new FormData();
+        formData.append("file", editLessonNotesFile);
+        const res = await fetch(`/api/admin/lessons/${editingLesson.id}/upload-short-notes`, {
+          method: "POST",
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.short_notes_pdf_url) finalNotesUrl = data.short_notes_pdf_url;
+        }
+      }
+
+      // 3. Save all updated metadata and stage settings
       await fetchApi(`/admin/lessons/${editingLesson.id}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -1323,13 +1367,22 @@ export default function AdminPage({ user, lang = "en" }) {
           lesson_order: Number(editingLesson.lesson_order),
           title: editingLesson.title,
           description: editingLesson.description,
+          pdf_url: finalPdfUrl,
+          short_notes_pdf_url: finalNotesUrl,
           video_url: editingLesson.video_url,
-          available_at: editingLesson.available_at || ""
+          available_at: editingLesson.available_at || "",
+          stage4_unlock_time: editingLesson.stage4_unlock_time || "20:00",
+          stage4_force_open: Boolean(editingLesson.stage4_force_open),
+          stage5_unlock_time: editingLesson.stage5_unlock_time || "20:00",
+          stage5_force_open: Boolean(editingLesson.stage5_force_open),
+          active_stages: editingLesson.active_stages || "1,2,3,4,5"
         })
       });
-      showToast("Lesson updated successfully!");
+      showToast("Lesson module, stages & schedule updated successfully!");
       setIsEditLessonModalOpen(false);
       setEditingLesson(null);
+      setEditLessonPdfFile(null);
+      setEditLessonNotesFile(null);
       loadLessons();
     } catch (err) {
       showToast(err.message || "Failed to update lesson.", "error");
@@ -3532,16 +3585,25 @@ export default function AdminPage({ user, lang = "en" }) {
                               </span>
                             )}
 
-                            <span className={`px-2 py-0.5 rounded-full font-bold ${l.short_notes_pdf_url ? "bg-sky-100 text-[#0284c7]" : "bg-slate-200 text-slate-600"}`}>
-                              Stage 2 Notes: {l.short_notes_pdf_url ? "✅ PDF Ready" : "❌ None"}
+                            {/* All 5 Stage Status Badges */}
+                            <span className={`px-2 py-0.5 rounded-full font-bold ${l.pdf_url ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-600"}`}>
+                              Stage 1 Book: {l.pdf_url ? "✅ Ready" : "❌ None"}
                             </span>
 
-                            <span className={`px-2 py-0.5 rounded-full font-bold ${l.has_quiz_type1 ? "bg-blue-100 text-[#0284C7]" : "bg-slate-200 text-slate-600"}`}>
-                              Type 1 Quiz: {l.has_quiz_type1 ? `✅ Ready (${l.quiz_type1_count} Qs)` : "❌ None"}
+                            <span className={`px-2 py-0.5 rounded-full font-bold ${l.short_notes_pdf_url ? "bg-sky-100 text-[#0284c7]" : "bg-slate-200 text-slate-600"}`}>
+                              Stage 2 Notes: {l.short_notes_pdf_url ? "✅ Ready" : "❌ None"}
+                            </span>
+
+                            <span className={`px-2 py-0.5 rounded-full font-bold ${l.video_url ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                              Stage 3 Video: {l.video_url ? "✅ Ready" : "❌ None"}
+                            </span>
+
+                            <span className={`px-2 py-0.5 rounded-full font-bold ${l.has_quiz_type1 ? "bg-amber-100 text-amber-800" : "bg-slate-200 text-slate-600"}`}>
+                              Stage 4 Practice: {l.has_quiz_type1 ? `✅ ${l.quiz_type1_count} Qs` : "❌ None"} {l.stage4_force_open ? "• 🔓 Open" : `• ${l.stage4_unlock_time || "8:00 PM"}`}
                             </span>
 
                             <span className={`px-2 py-0.5 rounded-full font-bold ${l.has_quiz_type2 ? "bg-purple-100 text-purple-700" : "bg-slate-200 text-slate-600"}`}>
-                              Type 2 Quiz: {l.has_quiz_type2 ? `✅ Ready (${l.quiz_type2_count} Qs)` : "❌ None"}
+                              Stage 5 Exam: {l.has_quiz_type2 ? `✅ ${l.quiz_type2_count} Qs` : "❌ None"} {l.stage5_force_open ? "• 🔓 Open" : `• ${l.stage5_unlock_time || "8:00 PM"}`}
                             </span>
                           </div>
                         </div>
@@ -6678,147 +6740,520 @@ export default function AdminPage({ user, lang = "en" }) {
         </main>
       </div>
 
-      {/* ================= MODAL 1: EDIT LESSON & SCHEDULE ================= */}
+      {/* ================= MODAL 1: EDIT LESSON MODULE & SCHEDULE (ALL 5 UPDATED STAGES) ================= */}
       {isEditLessonModalOpen && editingLesson && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-xl bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-3xl p-5 sm:p-7 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
+            
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center space-x-2">
-                <Edit3 className="w-5 h-5 text-[#0284C7]" />
-                <h3 className="text-base font-black text-[#1E3A8A]">Edit Lesson Module & Schedule</h3>
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-xl bg-sky-50 text-[#0284C7] border border-sky-100">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#1E3A8A]">Edit Lesson Module & Schedule</h3>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-slate-500 mt-0.5">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">ID #{editingLesson.id}</span>
+                    <span>•</span>
+                    <span className="text-[#0284C7]">Class {editingLesson.class_num}</span>
+                    <span>•</span>
+                    <span>{editingLesson.term}</span>
+                    <span>•</span>
+                    <span>{editingLesson.subject}</span>
+                  </div>
+                </div>
               </div>
               <button
                 onClick={() => setIsEditLessonModalOpen(false)}
-                className="p-1 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedLesson} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Class</label>
-                  <select
-                    value={editingLesson.class_num}
-                    onChange={(e) => setEditingLesson({ ...editingLesson, class_num: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
-                  >
-                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => <option key={c} value={c}>Class {c}</option>)}
-                  </select>
+            <form onSubmit={handleSaveEditedLesson} className="space-y-5">
+              
+              {/* SECTION 1: CORE MODULE INFORMATION */}
+              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-3">
+                <span className="text-xs font-black uppercase tracking-wider text-[#1E3A8A] flex items-center space-x-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-[#0284C7]" />
+                  <span>Module Basic Information (பாடம் அடிப்படை விவரங்கள்)</span>
+                </span>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Class</label>
+                    <select
+                      value={editingLesson.class_num}
+                      onChange={(e) => setEditingLesson({ ...editingLesson, class_num: Number(e.target.value) })}
+                      className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
+                    >
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(c => <option key={c} value={c}>Class {c}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Term</label>
+                    <select
+                      value={editingLesson.term}
+                      onChange={(e) => setEditingLesson({ ...editingLesson, term: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
+                    >
+                      {["Term-1", "Term-2", "Term-3"].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Sequence / Order</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editingLesson.lesson_order}
+                      onChange={(e) => setEditingLesson({ ...editingLesson, lesson_order: Number(e.target.value) })}
+                      className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Subject</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingLesson.subject}
+                      onChange={(e) => setEditingLesson({ ...editingLesson, subject: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Language Medium</label>
+                    <select
+                      value={editingLesson.medium}
+                      onChange={(e) => setEditingLesson({ ...editingLesson, medium: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
+                    >
+                      <option value="Tamil Medium">Tamil Medium (தமிழ்)</option>
+                      <option value="English Medium">English Medium</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Term</label>
-                  <select
-                    value={editingLesson.term}
-                    onChange={(e) => setEditingLesson({ ...editingLesson, term: e.target.value })}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
-                  >
-                    {["Term-1", "Term-2", "Term-3"].map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Sequence</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={editingLesson.lesson_order}
-                    onChange={(e) => setEditingLesson({ ...editingLesson, lesson_order: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Subject</label>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Lesson Title *</label>
                   <input
                     type="text"
                     required
-                    value={editingLesson.subject}
-                    onChange={(e) => setEditingLesson({ ...editingLesson, subject: e.target.value })}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
+                    value={editingLesson.title}
+                    onChange={(e) => setEditingLesson({ ...editingLesson, title: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Medium</label>
-                  <select
-                    value={editingLesson.medium}
-                    onChange={(e) => setEditingLesson({ ...editingLesson, medium: e.target.value })}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
-                  >
-                    <option value="Tamil Medium">Tamil Medium</option>
-                    <option value="English Medium">English Medium</option>
-                  </select>
+                  <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Description</label>
+                  <textarea
+                    rows={2}
+                    value={editingLesson.description || ""}
+                    onChange={(e) => setEditingLesson({ ...editingLesson, description: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
+                  />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Lesson Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={editingLesson.title}
-                  onChange={(e) => setEditingLesson({ ...editingLesson, title: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
-                />
-              </div>
+              {/* SECTION 2: SCHEDULED RELEASE DATE & TIME */}
+              <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold text-[#0284C7] flex items-center space-x-1.5">
+                    <Clock className="w-4 h-4" />
+                    <span>Lesson Release Schedule (வெளியீட்டு தேதி & நேரம்)</span>
+                  </label>
+                  {editingLesson.available_at ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                      Scheduled Lock Active
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      ⚡ Immediate Release (Always Open)
+                    </span>
+                  )}
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Description</label>
-                <textarea
-                  rows={2}
-                  value={editingLesson.description || ""}
-                  onChange={(e) => setEditingLesson({ ...editingLesson, description: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
-                />
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-200/80 space-y-1.5">
-                <label className="block text-xs font-extrabold text-[#0284C7] flex items-center space-x-1.5">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Scheduled Release Date & Time</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  value={editingLesson.available_at || ""}
-                  onChange={(e) => setEditingLesson({ ...editingLesson, available_at: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-white border border-sky-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
-                />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="datetime-local"
+                    value={editingLesson.available_at || ""}
+                    onChange={(e) => setEditingLesson({ ...editingLesson, available_at: e.target.value })}
+                    className="flex-1 p-2.5 rounded-xl bg-white border border-sky-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-[#0284C7]"
+                  />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setEditingLesson({ ...editingLesson, available_at: "" })}
+                      className="px-2.5 py-2 text-xs font-bold rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 cursor-pointer"
+                      title="Clear schedule to make immediately accessible"
+                    >
+                      Clear (Immediate)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = new Date();
+                        d.setHours(20, 0, 0, 0);
+                        const iso = d.toISOString().slice(0, 16);
+                        setEditingLesson({ ...editingLesson, available_at: iso });
+                      }}
+                      className="px-2.5 py-2 text-xs font-bold rounded-xl bg-white hover:bg-sky-100 border border-sky-200 text-[#0284c7] cursor-pointer"
+                    >
+                      Tonight 8 PM
+                    </button>
+                  </div>
+                </div>
                 <span className="text-[10px] text-slate-500 font-medium block">
-                  Clear this field to make it immediately accessible to students.
+                  Leave empty for students to access right now, or pick a date/time to lock this entire lesson module until then.
                 </span>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#1E3A8A] mb-1">Stage 2 Video URL</label>
-                <input
-                  type="text"
-                  value={editingLesson.video_url || ""}
-                  onChange={(e) => setEditingLesson({ ...editingLesson, video_url: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold"
-                />
+              {/* SECTION 3: INCLUDED ACTIVE STAGES CONFIGURATION */}
+              <div className="p-4 rounded-2xl bg-orange-50/60 border border-orange-200/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-orange-950 flex items-center space-x-1.5">
+                    <Award className="w-4 h-4 text-orange-600" />
+                    <span>Active Stages Selection (படிநிலைகள் தேர்வு)</span>
+                  </label>
+                  <span className="text-[10px] text-orange-700 font-semibold">
+                    Toggle stages enabled for this lesson
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {[
+                    { id: 1, label: "Stage 1: Lesson Book PDF (பாடநூல் PDF)", color: "text-[#0055ff]" },
+                    { id: 2, label: "Stage 2: Short Notes PDF (சுருக்கக் குறிப்புகள்)", color: "text-[#0284c7]" },
+                    { id: 3, label: "Stage 3: Video Lecture (காணொளி பாடம்)", color: "text-[#00a651]" },
+                    { id: 4, label: "Stage 4: Practice Test (பயிற்சி வினாக்கள்)", color: "text-[#ff7a00]" },
+                    { id: 5, label: "Stage 5: Online Test (80% தேர்ச்சி தேர்வு)", color: "text-[#8a00e6]" },
+                  ].map((stg) => {
+                    const currentStages = typeof editingLesson.active_stages === "string"
+                      ? editingLesson.active_stages.split(",").map(Number).filter(n => !isNaN(n))
+                      : Array.isArray(editingLesson.active_stages) ? editingLesson.active_stages : [1, 2, 3, 4, 5];
+                    const isChecked = currentStages.includes(stg.id);
+
+                    return (
+                      <label
+                        key={stg.id}
+                        className={`flex items-center space-x-2 p-2 rounded-xl border text-xs font-bold cursor-pointer transition ${
+                          isChecked
+                            ? "bg-white border-orange-300 shadow-2xs text-slate-800"
+                            : "bg-slate-100/70 border-slate-200 text-slate-400 opacity-60"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            let next;
+                            if (e.target.checked) {
+                              next = [...currentStages, stg.id].sort((a,b) => a-b);
+                            } else {
+                              if (currentStages.length <= 1) {
+                                return showToast("At least one stage must remain active.", "error");
+                              }
+                              next = currentStages.filter(s => s !== stg.id);
+                            }
+                            setEditingLesson({ ...editingLesson, active_stages: next.join(",") });
+                          }}
+                          className="w-4 h-4 text-[#ff7a00] rounded focus:ring-0 cursor-pointer"
+                        />
+                        <span className={isChecked ? stg.color : ""}>{stg.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="flex items-center space-x-3 pt-2">
+              {/* SECTION 4: THE 5 UPDATED STAGE CARDS & CONTROLS */}
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-[#1E3A8A]">
+                    Stages Configuration & Content Links (அனைத்து 5 படிநிலைகள்)
+                  </h4>
+                  <span className="text-[11px] font-bold text-slate-400">All 5 Stages</span>
+                </div>
+
+                {/* --- STAGE 1: LESSON BOOK PDF --- */}
+                <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-[#0055ff] flex items-center space-x-1.5">
+                      <BookOpen className="w-4 h-4" />
+                      <span>Stage 1: Lesson Textbook PDF (பாடநூல் PDF)</span>
+                    </span>
+                    {editingLesson.pdf_url ? (
+                      <a
+                        href={editingLesson.pdf_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] font-bold text-[#0055ff] hover:underline flex items-center space-x-1"
+                      >
+                        <span>View PDF</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-400">No PDF</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Textbook PDF URL</label>
+                    <input
+                      type="text"
+                      value={editingLesson.pdf_url || ""}
+                      onChange={(e) => setEditingLesson({ ...editingLesson, pdf_url: e.target.value })}
+                      placeholder="/static_uploads/... or https://..."
+                      className="w-full p-2 rounded-xl bg-white border border-blue-200 text-xs font-semibold text-slate-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Upload New Replacement PDF (மாற்று பாடநூல் கோப்பு)
+                    </label>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setEditLessonPdfFile(e.target.files[0])}
+                      className="w-full p-1.5 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-700"
+                    />
+                    {editLessonPdfFile && (
+                      <p className="text-[10px] font-bold text-emerald-600 mt-1">
+                        ✓ Selected file: {editLessonPdfFile.name} (will be uploaded upon saving)
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* --- STAGE 2: SHORT NOTES PDF --- */}
+                <div className="p-4 rounded-2xl bg-sky-50/50 border border-sky-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-[#0284c7] flex items-center space-x-1.5">
+                      <FileText className="w-4 h-4" />
+                      <span>Stage 2: Short Notes & Summary PDF (சுருக்கக் குறிப்புகள்)</span>
+                    </span>
+                    {editingLesson.short_notes_pdf_url ? (
+                      <a
+                        href={editingLesson.short_notes_pdf_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] font-bold text-[#0284c7] hover:underline flex items-center space-x-1"
+                      >
+                        <span>View Notes PDF</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-400">Not Uploaded</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Short Notes PDF URL</label>
+                    <input
+                      type="text"
+                      value={editingLesson.short_notes_pdf_url || ""}
+                      onChange={(e) => setEditingLesson({ ...editingLesson, short_notes_pdf_url: e.target.value })}
+                      placeholder="/static_uploads/... or https://..."
+                      className="w-full p-2 rounded-xl bg-white border border-sky-200 text-xs font-semibold text-slate-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Upload New Short Notes PDF (மாற்று சுருக்கக் குறிப்புகள் கோப்பு)
+                    </label>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setEditLessonNotesFile(e.target.files[0])}
+                      className="w-full p-1.5 rounded-xl bg-white border border-sky-200 text-xs font-medium text-slate-700"
+                    />
+                    {editLessonNotesFile && (
+                      <p className="text-[10px] font-bold text-emerald-600 mt-1">
+                        ✓ Selected file: {editLessonNotesFile.name} (will be uploaded upon saving)
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* --- STAGE 3: VIDEO LECTURE --- */}
+                <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-[#00a651] flex items-center space-x-1.5">
+                      <Video className="w-4 h-4" />
+                      <span>Stage 3: Video Lecture Explanation (காணொளி பாடம்)</span>
+                    </span>
+                    {editingLesson.video_url && (
+                      <a
+                        href={editingLesson.video_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] font-bold text-[#00a651] hover:underline flex items-center space-x-1"
+                      >
+                        <span>Test Video URL</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Video Embed / Watch URL (YouTube / Drive)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://www.youtube.com/embed/..."
+                      value={editingLesson.video_url || ""}
+                      onChange={(e) => setEditingLesson({ ...editingLesson, video_url: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-white border border-emerald-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* --- STAGE 4: PRACTICE TEST (TYPE 1 QUIZ) --- */}
+                <div className="p-4 rounded-2xl bg-orange-50/50 border border-orange-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-[#ff7a00] flex items-center space-x-1.5">
+                      <HelpCircle className="w-4 h-4" />
+                      <span>Stage 4: Practice Test / QA Engine (பயிற்சி வினாக்கள்)</span>
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${editingLesson.has_quiz_type1 ? "bg-orange-100 text-orange-800" : "bg-slate-200 text-slate-600"}`}>
+                      {editingLesson.has_quiz_type1 ? `✅ Type 1 Quiz (${editingLesson.quiz_type1_count} Qs)` : "❌ No Quiz Loaded"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Unlock Time (தினசரி திறக்கும் நேரம்)
+                      </label>
+                      <input
+                        type="time"
+                        value={editingLesson.stage4_unlock_time || "20:00"}
+                        onChange={(e) => setEditingLesson({ ...editingLesson, stage4_unlock_time: e.target.value })}
+                        className="w-full p-2 rounded-xl bg-white border border-orange-200 text-xs font-semibold text-slate-900"
+                      />
+                    </div>
+
+                    <div className="flex flex-col justify-end">
+                      <label className="flex items-center space-x-2 p-2 rounded-xl bg-white border border-orange-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(editingLesson.stage4_force_open)}
+                          onChange={(e) => setEditingLesson({ ...editingLesson, stage4_force_open: e.target.checked })}
+                          className="w-4 h-4 text-[#ff7a00] rounded focus:ring-0 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-800">
+                          {editingLesson.stage4_force_open ? "🔓 Open Immediately (திறக்கப்பட்டது)" : "🔒 Locked Until Time"}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="pt-1 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Practice questions with detailed explanations.</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditLessonModalOpen(false);
+                        setActiveTab("quiz_manager");
+                      }}
+                      className="text-xs font-bold text-[#ff7a00] hover:underline cursor-pointer"
+                    >
+                      Manage Type 1 Questions →
+                    </button>
+                  </div>
+                </div>
+
+                {/* --- STAGE 5: ONLINE TIMED TEST (TYPE 2 QUIZ, PASS MARK 80%) --- */}
+                <div className="p-4 rounded-2xl bg-purple-50/50 border border-purple-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-[#8a00e6] flex items-center space-x-1.5">
+                      <Award className="w-4 h-4" />
+                      <span>Stage 5: Online Timed Test (மாதிரித் தேர்வு - தேர்ச்சி: 80%)</span>
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${editingLesson.has_quiz_type2 ? "bg-purple-100 text-purple-700" : "bg-slate-200 text-slate-600"}`}>
+                      {editingLesson.has_quiz_type2 ? `✅ Type 2 Quiz (${editingLesson.quiz_type2_count} Qs)` : "❌ No Quiz Loaded"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Exam Unlock Time (தினசரி திறக்கும் நேரம்)
+                      </label>
+                      <input
+                        type="time"
+                        value={editingLesson.stage5_unlock_time || "20:00"}
+                        onChange={(e) => setEditingLesson({ ...editingLesson, stage5_unlock_time: e.target.value })}
+                        className="w-full p-2 rounded-xl bg-white border border-purple-200 text-xs font-semibold text-slate-900"
+                      />
+                    </div>
+
+                    <div className="flex flex-col justify-end">
+                      <label className="flex items-center space-x-2 p-2 rounded-xl bg-white border border-purple-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(editingLesson.stage5_force_open)}
+                          onChange={(e) => setEditingLesson({ ...editingLesson, stage5_force_open: e.target.checked })}
+                          className="w-4 h-4 text-[#8a00e6] rounded focus:ring-0 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-800">
+                          {editingLesson.stage5_force_open ? "🔓 Open Immediately (திறக்கப்பட்டது)" : "🔒 Locked Until Time"}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="pt-1 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Timed benchmark exam required to pass and unlock next lesson.</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditLessonModalOpen(false);
+                        setActiveTab("quiz_manager");
+                      }}
+                      className="text-xs font-bold text-[#8a00e6] hover:underline cursor-pointer"
+                    >
+                      Manage Type 2 Questions →
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* ACTION FOOTER */}
+              <div className="flex items-center space-x-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setIsEditLessonModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-100 cursor-pointer"
+                  onClick={() => {
+                    setIsEditLessonModalOpen(false);
+                    setEditLessonPdfFile(null);
+                    setEditLessonNotesFile(null);
+                  }}
+                  className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-100 transition cursor-pointer"
                 >
-                  Cancel
+                  Cancel (ரத்து செய்)
                 </button>
                 <button
                   type="submit"
                   disabled={savingEditLesson}
-                  className="flex-1 py-2.5 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold cursor-pointer"
+                  className="flex-1 py-3 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold shadow-md cursor-pointer transition flex items-center justify-center space-x-2"
                 >
-                  {savingEditLesson ? "Saving Changes..." : "Save Lesson Changes"}
+                  <Save className="w-4 h-4" />
+                  <span>{savingEditLesson ? "Saving Changes..." : "Save Lesson Changes (மாற்றங்களைச் சேமி)"}</span>
                 </button>
               </div>
+
             </form>
           </div>
         </div>
