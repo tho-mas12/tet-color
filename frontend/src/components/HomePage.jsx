@@ -145,16 +145,6 @@ export default function HomePage({ onOpenLogin, onOpenRegister, onNavigateMateri
                 <Smartphone className="w-4 h-4 text-indigo-600" />
                 <span>{isTa ? "மொபைல் செயலி (.apk)" : "Android App (.apk)"}</span>
               </a>
-
-              {onNavigateMaterials && (
-                <button
-                  onClick={onNavigateMaterials}
-                  className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-98"
-                >
-                  <BookOpen className="w-4 h-4 text-emerald-700" />
-                  <span>{isTa ? "பாடப்புத்தகங்கள் (1–12)" : "Download All Books (1–12)"}</span>
-                </button>
-              )}
             </div>
 
             {/* Academic Credential Bar */}
