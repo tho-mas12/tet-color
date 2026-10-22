@@ -670,7 +670,7 @@ def check_user_access(user_email: str, db: Session):
         
     enrollment = db.query(models.Enrollment).filter(
         (models.Enrollment.user_id == user.id) | (models.Enrollment.email == user.email),
-        models.Enrollment.status == "approved"
+        models.Enrollment.status.in_(["active", "approved", "admin_free", "paid"])
     ).first()
     
     if not enrollment:
@@ -694,7 +694,7 @@ def get_learning_structure(
     if user and not is_admin:
         enr = db.query(models.Enrollment).filter(
             (models.Enrollment.user_id == user.id) | (models.Enrollment.email == user.email),
-            models.Enrollment.status == "approved"
+            models.Enrollment.status.in_(["active", "approved", "admin_free", "paid"])
         ).first()
         is_enrolled = bool(enr)
 

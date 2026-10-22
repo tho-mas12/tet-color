@@ -32,6 +32,17 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const hasInitializedStage = useRef(false);
   const hasTriggeredUnlockRef = useRef(false);
 
+  // Keep browser URL synchronized to the exact lesson and active stage
+  useEffect(() => {
+    if (!lessonId) return;
+    try {
+      const targetUrl = `/learning/lesson/${lessonId}?stage=${activeStage}`;
+      if (window.location.pathname + window.location.search !== targetUrl) {
+        window.history.replaceState(null, "", targetUrl);
+      }
+    } catch (e) {}
+  }, [lessonId, activeStage]);
+
   const [isVideoModal, setIsVideoModal] = useState(false);
 
   const [questionsData, setQuestionsData] = useState([]);

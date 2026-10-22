@@ -26,7 +26,8 @@ import {
   Search,
   Filter,
   CreditCard,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
@@ -63,7 +64,28 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
   const [selectedMedium, setSelectedMedium] = useState("Tamil Medium");
   const [learningStructure, setLearningStructure] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [activeLessonId, setActiveLessonId] = useState(directLesson?.lessonId || null);
+
+  // Parse direct lesson and stage from URL or directLesson prop
+  const getDirectLessonFromUrl = () => {
+    try {
+      const pathname = window.location.pathname || "";
+      const match = pathname.match(/^(?:\/learning)?\/lesson\/(\d+)/i);
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get("lesson");
+      const id = parseInt(match ? match[1] : q, 10);
+      const stageParam = params.get("stage");
+      const s = stageParam ? parseInt(stageParam, 10) : 1;
+      const stage = [1, 2, 3, 4, 5].includes(s) ? s : 1;
+      if (!isNaN(id) && id > 0) {
+        return { lessonId: id, stage };
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const initialUrlLesson = getDirectLessonFromUrl();
+  const [activeLessonId, setActiveLessonId] = useState(directLesson?.lessonId || initialUrlLesson?.lessonId || null);
+  const [directStage, setDirectStage] = useState(directLesson?.stage || initialUrlLesson?.stage || 1);
   const [streakCount, setStreakCount] = useState(user?.streak_count || 0);
   const [liveMeetings, setLiveMeetings] = useState([]);
 
@@ -121,6 +143,9 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
   useEffect(() => {
     if (directLesson && directLesson.lessonId) {
       setActiveLessonId(directLesson.lessonId);
+      if (directLesson.stage) {
+        setDirectStage(directLesson.stage);
+      }
     }
   }, [directLesson]);
 
@@ -162,6 +187,7 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
 
   // Store paper choice & adjust selected class to stay within valid range and sync URL
   useEffect(() => {
+    if (activeLessonId) return; // CRITICAL: NEVER overwrite URL when viewing a lesson study!
     localStorage.setItem("tet_paper_choice", tetPaper);
     let validClass = selectedClass;
     if (selectedClass <= 12) {
@@ -178,7 +204,7 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
       const paperSlug = tetPaper === "paper2" ? "tet-2" : "tet-1";
       window.history.replaceState(null, "", `/course/${paperSlug}?class=${validClass}`);
     } catch (e) {}
-  }, [tetPaper, selectedClass]);
+  }, [tetPaper, selectedClass, activeLessonId]);
 
   useEffect(() => {
     loadUserStreak();
@@ -329,35 +355,95 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
     ? t.tet1BadgesDesc
     : t.tet2BadgesDesc;
 
-  if (activeLessonId) {
-    if (!checkingEnrollment && !isEnrolled && user?.role !== "admin") {
-      setActiveLessonId(null);
-    } else {
-      return (
-        <LessonStudyView
-          lessonId={activeLessonId}
-          user={user}
-          lang={lang}
-          initialStage={directLesson?.stage || 1}
-          onBack={() => {
-            setActiveLessonId(null);
-            if (onClearDirectLesson) onClearDirectLesson();
-            loadStructure();
-          }}
-        />
-      );
-    }
-  }
-
   // Enrollment check loading state
   if (checkingEnrollment) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-28 text-center space-y-4 animate-fade-in">
         <Loader2 className="w-10 h-10 text-[#0055ff] animate-spin mx-auto" />
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-          {lang === "ta" ? "பாடத்திட்ட அணுகல் சரிபார்க்கப்படுகிறது..." : "Verifying Course Enrollment Access..."}
+          {lang === "ta" ? "பாட அணுகல் சரிபார்க்கப்படுகிறது..." : "Verifying Course Enrollment Access..."}
         </p>
       </div>
+    );
+  }
+
+  if (activeLessonId) {
+    if (!isEnrolled && user?.role !== "admin") {
+      return (
+        <div className="max-w-4xl mx-auto px-4 py-10 space-y-6 animate-fade-in text-center">
+          <div className="flex justify-start">
+            <button
+              onClick={() => {
+                setActiveLessonId(null);
+                if (onClearDirectLesson) onClearDirectLesson();
+                const paperSlug = tetPaper === "paper2" ? "tet-2" : "tet-1";
+                window.history.replaceState(null, "", `/course/${paperSlug}?class=${selectedClass}`);
+              }}
+              className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-[#0055ff] hover:bg-slate-50 cursor-pointer shadow-2xs"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>{lang === "ta" ? "பாடத்திட்டத்திற்குத் திரும்பு" : "Back to Curriculum"}</span>
+            </button>
+          </div>
+          
+          <div className="bg-gradient-to-br from-slate-900 via-[#061b36] to-blue-950 text-white rounded-3xl p-6 sm:p-12 border border-blue-400/30 shadow-2xl space-y-6">
+            <div className="w-20 h-20 rounded-3xl bg-[#0055ff]/30 border border-[#0055ff] flex items-center justify-center mx-auto text-white shadow-xl">
+              <Lock className="w-10 h-10 text-sky-400" />
+            </div>
+            <div className="space-y-2 max-w-xl mx-auto">
+              <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-amber-400/20 text-amber-300 border border-amber-400/30 uppercase tracking-widest inline-block shadow-xs">
+                {lang === "ta" ? "பூட்டப்பட்ட பாடம் (Course Access Required)" : "Course Access Required"}
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                {lang === "ta" ? "இப்பாடத்தை படிக்க பதிவு செய்யவும்" : "Enroll to Unlock Lesson & Complete TET Course"}
+              </h2>
+              <p className="text-xs sm:text-sm text-sky-200/90 leading-relaxed">
+                {lang === "ta" 
+                  ? "நீங்கள் அணுக முயன்ற பாடம் மற்றும் அதன் 5 நிலைகள் (PDF, முக்கியக் குறிப்புகள், காணொளி, மாதிரி வினாக்கள், தேர்வுகள்) கட்டணப் பாடத்திட்டத்தில் மட்டுமே கிடைக்கும்."
+                  : "The lesson you selected (with all 5 stages: PDF, Short Notes, Video Explanation, Practice Q&A, and Timed Test) requires active course enrollment."}
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={() => setShowEnrollmentModal(true)}
+                className="px-8 py-4 rounded-2xl bg-gradient-to-r from-[#0055ff] to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-black text-sm sm:text-base shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer inline-flex items-center space-x-2"
+              >
+                <CreditCard className="w-5 h-5" />
+                <span>{lang === "ta" ? `இப்போதே பதிவு செய்து அணுகலை திறக்க (₹${publicSettings.course_price || 999}) →` : `Enroll & Unlock Lesson Access (₹${publicSettings.course_price || 999}) →`}</span>
+              </button>
+            </div>
+          </div>
+
+          <EnrollmentModal
+            isOpen={showEnrollmentModal}
+            onClose={() => setShowEnrollmentModal(false)}
+            user={user}
+            coursePrice={publicSettings.course_price || 999}
+            razorpayKey={publicSettings.razorpay_key_id}
+            lang={lang}
+            onEnrollmentSuccess={() => {
+              setIsEnrolled(true);
+              setShowEnrollmentModal(false);
+            }}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <LessonStudyView
+        lessonId={activeLessonId}
+        user={user}
+        lang={lang}
+        initialStage={directStage}
+        onBack={() => {
+          setActiveLessonId(null);
+          if (onClearDirectLesson) onClearDirectLesson();
+          const paperSlug = tetPaper === "paper2" ? "tet-2" : "tet-1";
+          window.history.replaceState(null, "", `/course/${paperSlug}?class=${selectedClass}`);
+          loadStructure();
+        }}
+      />
     );
   }
 

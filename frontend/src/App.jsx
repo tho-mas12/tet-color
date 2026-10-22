@@ -536,7 +536,13 @@ export default function App() {
               )}
 
               {activeTab === "learning" && (
-                <LearningPage user={user} lang={lang} onShare={handleSharePage} />
+                <LearningPage 
+                  user={user} 
+                  lang={lang} 
+                  onShare={handleSharePage} 
+                  directLesson={directLesson}
+                  onClearDirectLesson={() => setDirectLesson(null)}
+                />
               )}
 
               {activeTab === "news" && (
