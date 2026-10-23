@@ -40,6 +40,7 @@ import NewsSection from "./NewsSection";
 import MinnalNewsMobile from "./MinnalNewsMobile";
 import EnrollmentModal from "./EnrollmentModal";
 import IncomeTaxModal from "./IncomeTaxModal";
+import WhatsAppJoinModal from "./WhatsAppJoinModal";
 
 export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, onNavigate, lang = "en" }) {
   const [dashboardData, setDashboardData] = useState(null);
@@ -52,6 +53,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
   const [activeModal, setActiveModal] = useState(null); // "tamil_reading", "english_reading", "online_class", "nmms", "treast", "news"
   const [isEnrolled, setIsEnrolled] = useState(user?.role === "admin");
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [publicSettings, setPublicSettings] = useState({ course_price: 999, original_price: 2499, discount_percent: 60, razorpay_key_id: "" });
   const [showNewsFeed, setShowNewsFeed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -67,15 +69,23 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
   }, [user]);
 
   const checkEnrollmentStatus = async () => {
+    let userEnrolled = user?.role === "admin";
+    let waLink = "";
+    let waTitle = "";
+    let waEnabled = false;
+
     if (user?.role === "admin") {
       setIsEnrolled(true);
-      return;
-    }
-    if (user?.email) {
+      userEnrolled = true;
+    } else if (user?.email) {
       try {
         const res = await fetchApi(`/enrollments/my-status?email=${encodeURIComponent(user.email)}`);
         if (res && res.is_enrolled) {
           setIsEnrolled(true);
+          userEnrolled = true;
+          if (res.whatsapp_group_link) waLink = res.whatsapp_group_link;
+          if (res.whatsapp_group_title) waTitle = res.whatsapp_group_title;
+          if (res.whatsapp_group_enabled !== undefined) waEnabled = res.whatsapp_group_enabled;
         } else {
           setIsEnrolled(false);
         }
@@ -83,10 +93,26 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         setIsEnrolled(false);
       }
     }
+
     try {
       const settings = await fetchApi("/public-settings");
-      if (settings) setPublicSettings(settings);
+      if (settings) {
+        setPublicSettings(settings);
+        if (!waLink && settings.whatsapp_group_link) waLink = settings.whatsapp_group_link;
+        if (!waTitle && settings.whatsapp_group_title) waTitle = settings.whatsapp_group_title;
+        if (settings.whatsapp_group_enabled !== undefined) waEnabled = settings.whatsapp_group_enabled;
+      }
     } catch (e) {}
+
+    // Auto pop-out WhatsApp modal for enrolled users if not yet joined
+    if (userEnrolled && waEnabled && waLink) {
+      try {
+        const alreadyJoined = localStorage.getItem("tet_wa_joined");
+        if (!alreadyJoined) {
+          setIsWhatsAppModalOpen(true);
+        }
+      } catch (e) {}
+    }
   };
 
   const loadContainers = async () => {
@@ -171,8 +197,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       subtitle: "Class 1 to 12 School Books",
       category: "textbooks",
       description: "தமிழ்நாடு அரசு பாடநூல் கழகத்தின் 1 முதல் 12 ஆம் வகுப்பு அனைத்துப் பாடப் புத்தகங்கள் (PDF) & கையேடுகள்",
-      badge_text: "Textbooks",
-      button_text: "EXPLORE BOOKS →",
+      badge_text: "FREE ACCESS",
+      button_text: "OPEN BOOKS (FREE) →",
       action_url: "textbooks",
       icon_name: "Library",
       order_index: 3,
@@ -184,8 +210,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       subtitle: "கல்வி மற்றும் தேர்வு செய்திகள்",
       category: "news",
       description: "TNTET, TRB, அரசுத் தேர்வுகள், பள்ளிக் கல்வித்துறை முக்கிய சுற்றறிக்கைகள் & கல்வி செய்திகள்",
-      badge_text: "Latest News",
-      button_text: "VIEW NEWS →",
+      badge_text: "FREE ACCESS",
+      button_text: "OPEN NEWS (FREE) ↗",
       action_url: "news",
       icon_name: "Newspaper",
       order_index: 4,
@@ -197,8 +223,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       subtitle: "தமிழ் வாசிப்பு & இலக்கணம்",
       category: "tamil_reading",
       description: "செய்யுள் நயம், உரைநடை, இலக்கண விதிகள், பொருள் அறிதல் & சொல்லகராதி பயிற்சிகள்",
-      badge_text: "தமிழ் மொழி",
-      button_text: "START READING →",
+      badge_text: "FREE ACCESS",
+      button_text: "OPEN TAMIL READING (FREE) →",
       action_url: "tamil_reading",
       icon_name: "BookCheck",
       order_index: 5,
@@ -210,8 +236,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       subtitle: "Comprehension & Vocabulary",
       category: "english_reading",
       description: "Daily English comprehension passages, grammar guides, vocabulary exercises & practice tests",
-      badge_text: "English",
-      button_text: "START READING →",
+      badge_text: "FREE ACCESS",
+      button_text: "OPEN ENGLISH READING (FREE) →",
       action_url: "english_reading",
       icon_name: "Languages",
       order_index: 6,
@@ -236,8 +262,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       subtitle: "FY 2025-26 & AY 2026-27 (New Tax Regime)",
       category: "income_tax",
       description: "வருமான வரி கணக்கீட்டு படிவம் (Sheet 3 I PAGE) - உடனடி கணக்கீடு மற்றும் PDF பதிவிறக்கம்",
-      badge_text: "FY 2025-26",
-      button_text: "CALCULATE TAX →",
+      badge_text: "FREE ACCESS",
+      button_text: "OPEN TAX CALCULATOR (FREE) →",
       action_url: "income_tax",
       icon_name: "Calculator",
       order_index: 8,
@@ -249,8 +275,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       subtitle: "தேசிய வருவாய் வழி மற்றும் திறன் தேர்வு",
       category: "nmms",
       description: "8-ஆம் வகுப்பு மாணவர்களுக்கான NMMS உதவித்தொகைத் தேர்வு MAT & SAT பாடக்குறிப்புகள் மற்றும் மாதிரி தேர்வுகள்",
-      badge_text: "Scholarship",
-      button_text: "OPEN NMMS →",
+      badge_text: "FREE ACCESS",
+      button_text: "OPEN NMMS (FREE) →",
       action_url: "nmms",
       icon_name: "Award",
       order_index: 9,
@@ -262,8 +288,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       subtitle: "ஊரகத் திறனாய்வுத் தேர்வு (TRUST / TREAST)",
       category: "treast",
       description: "கிராமப்புற மாணவர்களுக்கான திறனாய்வுத் தேர்வு வழிகாட்டி, வினா-விடை வங்கி மற்றும் பயிற்சித் தேர்வுகள்",
-      badge_text: "Talent Search",
-      button_text: "OPEN TREAST →",
+      badge_text: "FREE ACCESS",
+      button_text: "OPEN TREAST (FREE) →",
       action_url: "treast",
       icon_name: "Trophy",
       order_index: 10,
@@ -285,6 +311,116 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
   // Determine active/live meeting notification for Online Class
   const currentLiveMeeting = activeMeetings.find(m => m.is_live) || (activeMeetings.length > 0 ? activeMeetings[0] : null);
+
+  const CONTAINER_THEMES = {
+    tet_1: {
+      ribbon: "from-blue-600 via-sky-500 to-indigo-600",
+      headerBg: "bg-gradient-to-r from-blue-100/90 via-sky-50/70 to-indigo-50/40",
+      border: "border-blue-300 hover:border-blue-500 shadow-blue-100",
+      iconBg: "bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md shadow-blue-500/30",
+      titleColor: "text-blue-950 font-black",
+      categoryBadge: "bg-blue-600 text-white border-blue-700",
+      categoryLabel: "📘 TET • தாள் 1 (வகுப்பு 1-8)",
+    },
+    tet_2: {
+      ribbon: "from-purple-600 via-indigo-600 to-violet-700",
+      headerBg: "bg-gradient-to-r from-purple-100/90 via-indigo-50/70 to-violet-50/40",
+      border: "border-purple-300 hover:border-purple-500 shadow-purple-100",
+      iconBg: "bg-gradient-to-br from-purple-600 to-indigo-700 text-white shadow-md shadow-purple-500/30",
+      titleColor: "text-purple-950 font-black",
+      categoryBadge: "bg-purple-700 text-white border-purple-800",
+      categoryLabel: "🎓 TET • தாள் 2 (வகுப்பு 6-12)",
+    },
+    textbooks: {
+      ribbon: "from-emerald-600 via-teal-500 to-green-600",
+      headerBg: "bg-gradient-to-r from-emerald-100/90 via-teal-50/70 to-green-50/40",
+      border: "border-emerald-300 hover:border-emerald-500 shadow-emerald-100",
+      iconBg: "bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-500/30",
+      titleColor: "text-emerald-950 font-black",
+      categoryBadge: "bg-emerald-600 text-white border-emerald-700",
+      categoryLabel: "📚 அரசுப் பாடநூல்கள் (வகுப்பு 1-12)",
+    },
+    news: {
+      ribbon: "from-rose-600 via-red-500 to-orange-600",
+      headerBg: "bg-gradient-to-r from-rose-100/90 via-orange-50/70 to-amber-50/40",
+      border: "border-rose-300 hover:border-rose-500 shadow-rose-100",
+      iconBg: "bg-gradient-to-br from-rose-600 to-red-600 text-white shadow-md shadow-rose-500/30",
+      titleColor: "text-rose-950 font-black",
+      categoryBadge: "bg-rose-600 text-white border-rose-700",
+      categoryLabel: "⚡ மின்னல் கல்விச் செய்திகள்",
+    },
+    tamil_reading: {
+      ribbon: "from-amber-600 via-orange-500 to-amber-700",
+      headerBg: "bg-gradient-to-r from-amber-100/90 via-orange-50/70 to-amber-50/40",
+      border: "border-amber-300 hover:border-amber-500 shadow-amber-100",
+      iconBg: "bg-gradient-to-br from-amber-600 to-orange-600 text-white shadow-md shadow-amber-500/30",
+      titleColor: "text-amber-950 font-black",
+      categoryBadge: "bg-amber-600 text-white border-amber-700",
+      categoryLabel: "📖 தமிழ் வாசிப்பு & இலக்கணம்",
+    },
+    english_reading: {
+      ribbon: "from-violet-600 via-purple-500 to-fuchsia-600",
+      headerBg: "bg-gradient-to-r from-violet-100/90 via-purple-50/70 to-fuchsia-50/40",
+      border: "border-violet-300 hover:border-violet-500 shadow-violet-100",
+      iconBg: "bg-gradient-to-br from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/30",
+      titleColor: "text-violet-950 font-black",
+      categoryBadge: "bg-violet-700 text-white border-violet-800",
+      categoryLabel: "🔤 English Reading & Grammar",
+    },
+    online_class: {
+      ribbon: "from-pink-600 via-rose-500 to-red-600",
+      headerBg: "bg-gradient-to-r from-pink-100/90 via-rose-50/70 to-red-50/40",
+      border: "border-rose-300 hover:border-rose-500 shadow-rose-100",
+      iconBg: "bg-gradient-to-br from-pink-600 to-rose-600 text-white shadow-md shadow-rose-500/30",
+      titleColor: "text-rose-950 font-black",
+      categoryBadge: "bg-pink-600 text-white border-pink-700",
+      categoryLabel: "🔴 நேரலை வகுப்புகள் & பதிவுகள்",
+    },
+    income_tax: {
+      ribbon: "from-teal-600 via-cyan-500 to-emerald-600",
+      headerBg: "bg-gradient-to-r from-teal-100/90 via-cyan-50/70 to-emerald-50/40",
+      border: "border-teal-300 hover:border-teal-500 shadow-teal-100",
+      iconBg: "bg-gradient-to-br from-teal-700 to-cyan-700 text-white shadow-md shadow-teal-500/30",
+      titleColor: "text-teal-950 font-black",
+      categoryBadge: "bg-teal-700 text-white border-teal-800",
+      categoryLabel: "🧮 வருமான வரி படிவம்",
+    },
+    nmms: {
+      ribbon: "from-amber-500 via-yellow-500 to-orange-500",
+      headerBg: "bg-gradient-to-r from-amber-100/90 via-yellow-50/70 to-orange-50/40",
+      border: "border-amber-300 hover:border-amber-500 shadow-amber-100",
+      iconBg: "bg-gradient-to-br from-amber-500 to-yellow-600 text-white shadow-md shadow-amber-500/30",
+      titleColor: "text-amber-950 font-black",
+      categoryBadge: "bg-amber-600 text-white border-amber-700",
+      categoryLabel: "🏆 NMMS தேர்வு (வகுப்பு 8)",
+    },
+    treast: {
+      ribbon: "from-emerald-600 via-teal-500 to-cyan-600",
+      headerBg: "bg-gradient-to-r from-emerald-100/90 via-teal-50/70 to-cyan-50/40",
+      border: "border-teal-300 hover:border-teal-500 shadow-teal-100",
+      iconBg: "bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-md shadow-teal-500/30",
+      titleColor: "text-teal-950 font-black",
+      categoryBadge: "bg-teal-700 text-white border-teal-800",
+      categoryLabel: "🏅 TRUST / TREAST ஊரகத் தேர்வு",
+    }
+  };
+
+  const renderWhiteIcon = (iconName) => {
+    switch (iconName) {
+      case "GraduationCap": return <GraduationCap className="w-5 h-5 text-white" />;
+      case "BookOpen": return <BookOpen className="w-5 h-5 text-white" />;
+      case "Library": return <Library className="w-5 h-5 text-white" />;
+      case "Newspaper": return <Newspaper className="w-5 h-5 text-white" />;
+      case "BookCheck": return <BookCheck className="w-5 h-5 text-white" />;
+      case "Languages": return <Languages className="w-5 h-5 text-white" />;
+      case "Video": return <Video className="w-5 h-5 text-white" />;
+      case "Award": return <Award className="w-5 h-5 text-white" />;
+      case "Trophy": return <Trophy className="w-5 h-5 text-white" />;
+      case "Sparkles": return <Trophy className="w-5 h-5 text-white" />;
+      case "Calculator": return <Calculator className="w-5 h-5 text-white" />;
+      default: return <BookOpen className="w-5 h-5 text-white" />;
+    }
+  };
 
   const renderIcon = (iconName) => {
     switch (iconName) {
@@ -492,6 +628,52 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         </div>
       </div>
 
+      {/* ================= VIP WHATSAPP COMMUNITY BANNER FOR ENROLLED MEMBERS ================= */}
+      {isEnrolled && publicSettings?.whatsapp_group_enabled && publicSettings?.whatsapp_group_link && (
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 border-2 border-emerald-400 rounded-3xl p-4 sm:p-5 shadow-lg shadow-emerald-600/20 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in relative overflow-hidden">
+          <div className="flex items-center space-x-3.5 sm:space-x-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shrink-0 shadow-inner">
+              <svg className="w-7 h-7 sm:w-8 sm:h-8 fill-white" viewBox="0 0 24 24">
+                <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24h-.18zm4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.24-.75-.67-1.25-1.49-1.4-1.74-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.43.13-.15.17-.25.25-.42.08-.17.04-.32-.02-.45-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.72 4.31 3.81.6.26 1.07.42 1.44.53.61.19 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.22-.17-.47-.3z"/>
+              </svg>
+            </div>
+
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-900/60 border border-emerald-300/40 text-emerald-100 shadow-2xs">
+                  VIP COMMUNITY
+                </span>
+                <span className="text-[11px] text-emerald-100 font-bold">
+                  {publicSettings?.whatsapp_group_title || (lang === "ta" ? "TET VIP ஆசிரியர்கள் வாட்ஸ்அப் குழு" : "TET VIP Teachers Community")}
+                </span>
+              </div>
+              <h3 className="text-sm sm:text-base font-black tracking-tight mt-0.5">
+                {lang === "ta" 
+                  ? "அங்கீகரிக்கப்பட்ட ஆசிரியர்களுக்கான அதிகாரப்பூர்வ வாட்ஸ்அப் குழு" 
+                  : "Official Enrolled Teachers WhatsApp VIP Group"}
+              </h3>
+              <p className="text-xs text-emerald-100 font-medium mt-0.5">
+                {lang === "ta" 
+                  ? "தினசரி Google Meet நேரலை வகுப்பு இணைப்புகள், தேர்வு அறிவிப்புகள் மற்றும் சுருக்கக் குறிப்புகளை உடனுக்குடன் பெற குழுவில் இணையுங்கள்." 
+                  : "Daily live class links, test alerts & short notes are shared here. Join now to never miss a live session."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto shrink-0 pt-2 md:pt-0">
+            <button
+              onClick={() => setIsWhatsAppModalOpen(true)}
+              className="w-full md:w-auto px-5 py-3 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-800 font-black text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            >
+              <svg className="w-4 h-4 fill-emerald-700" viewBox="0 0 24 24">
+                <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24h-.18zm4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.24-.75-.67-1.25-1.49-1.4-1.74-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.43.13-.15.17-.25.25-.42.08-.17.04-.32-.02-.45-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.72 4.31 3.81.6.26 1.07.42 1.44.53.61.19 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.22-.17-.47-.3z"/>
+              </svg>
+              <span>{lang === "ta" ? "குழுவில் இணையுங்கள் ↗" : "Join WhatsApp Group ↗"}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ================= PLATFORM ANNOUNCEMENTS (MARQUEE TICKER) ================= */}
       {announcements && announcements.length > 0 && (
         <div className="bg-gradient-to-r from-[#061b36] via-[#092d62] to-[#0055ff] border border-[#0055ff]/40 rounded-2xl p-2 sm:p-2.5 shadow-sm text-white overflow-hidden relative flex items-center gap-3">
@@ -645,46 +827,64 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
             const hasLiveAlert = isOnlineClass && Boolean(currentLiveMeeting);
             const LOCKED_KEYS = ["tet_1", "tet_2", "online_class"];
             const isLocked = LOCKED_KEYS.includes(key) && !isEnrolled && user?.role !== "admin";
+            const isFree = !LOCKED_KEYS.includes(key);
+
+            const theme = CONTAINER_THEMES[key] || {
+              ribbon: "from-blue-600 via-indigo-600 to-blue-700",
+              headerBg: "bg-gradient-to-r from-blue-50/90 via-indigo-50/40 to-white",
+              border: "border-blue-200/90 hover:border-blue-500",
+              iconBg: "bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25",
+              titleColor: "text-blue-950 font-black",
+              categoryBadge: "bg-blue-100 text-blue-900 border-blue-300",
+              categoryLabel: c.badge_text || "Module",
+            };
 
             return (
               <div
                 key={c.id || c.container_key}
-                className={`bg-white border rounded-3xl p-5 sm:p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 relative ${
+                className={`bg-white border-2 rounded-3xl overflow-hidden shadow-xs hover:shadow-lg transition-all flex flex-col justify-between relative ${
                   isLocked
-                    ? "border-amber-200/90 hover:border-amber-400/80 bg-gradient-to-b from-white to-amber-50/20"
+                    ? "border-amber-300 hover:border-amber-400 bg-gradient-to-b from-white to-amber-50/20"
                     : hasLiveAlert 
                     ? "border-rose-400 ring-2 ring-rose-200/70" 
-                    : isTet1 || isTet2 
-                    ? "border-slate-200/90 hover:border-[#0055ff]/50" 
-                    : "border-slate-200/90 hover:border-slate-300"
+                    : theme.border
                 }`}
               >
-                {/* Header & Badges */}
-                <div className="space-y-2.5">
+                {/* Top Colorful Accent Ribbon Stripe */}
+                <div className={`h-2 w-full bg-gradient-to-r ${theme.ribbon}`} />
+
+                {/* Distinct Tinted Card Header */}
+                <div className={`${theme.headerBg} p-4 sm:p-5 border-b border-slate-100/90`}>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center space-x-2.5">
-                      <div className="relative">
-                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center p-2 shadow-2xs ${
+                    <div className="flex items-center space-x-3">
+                      <div className="relative shrink-0">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center p-2.5 shadow-sm ${
                           isLocked
-                            ? "bg-amber-50 border border-amber-200 text-amber-700"
-                            : hasLiveAlert 
-                            ? "bg-rose-50 border border-rose-200" 
-                            : "bg-blue-50 border border-blue-200/70"
+                            ? "bg-gradient-to-br from-amber-600 to-orange-600 text-white shadow-amber-300"
+                            : theme.iconBg
                         }`}>
-                          {renderIcon(c.icon_name)}
+                          {renderWhiteIcon(c.icon_name)}
                         </div>
                         {isLocked && (
-                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-600 text-white flex items-center justify-center shadow-xs">
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-700 text-white flex items-center justify-center shadow-xs">
                             <Lock className="w-2.5 h-2.5" />
+                          </div>
+                        )}
+                        {!isLocked && isFree && (
+                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white" title="Free Access">
+                            <span className="w-2 h-2 rounded-full bg-white animate-ping" />
                           </div>
                         )}
                       </div>
                       <div>
-                        <h2 className="text-lg sm:text-xl font-black text-[#061b36] tracking-tight">
+                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider inline-block mb-1 shadow-2xs border ${theme.categoryBadge}`}>
+                          {theme.categoryLabel}
+                        </span>
+                        <h2 className={`text-base sm:text-lg font-black tracking-tight leading-snug ${theme.titleColor}`}>
                           {c.title}
                         </h2>
                         {c.subtitle && (
-                          <span className="text-[11px] font-bold text-slate-500 block leading-tight">
+                          <span className="text-[11px] font-bold text-slate-600 block leading-tight mt-0.5">
                             {c.subtitle}
                           </span>
                         )}
@@ -693,75 +893,84 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
                     {/* Badge */}
                     {isLocked ? (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1 shadow-xs">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1 shadow-xs shrink-0">
                         <Lock className="w-3 h-3 text-amber-700" />
                         <span>LOCKED</span>
                       </span>
                     ) : LOCKED_KEYS.includes(key) && isEnrolled ? (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1 shadow-xs">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1 shadow-xs shrink-0">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                         <span>UNLOCKED</span>
                       </span>
                     ) : hasLiveAlert ? (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-rose-600 text-white flex items-center space-x-1 animate-pulse shadow-xs">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-rose-600 text-white flex items-center space-x-1 animate-pulse shadow-xs shrink-0">
                         <Radio className="w-3 h-3 animate-ping" />
                         <span>LIVE NOW</span>
                       </span>
+                    ) : isFree ? (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center space-x-1.5 shadow-xs shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                        <span>100% FREE</span>
+                      </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
                         {c.badge_text || "Available"}
                       </span>
                     )}
                   </div>
-
-                  {/* Description */}
-                  <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
-                    {c.description}
-                  </p>
-
-                  {/* SPECIAL EMBEDDED NOTIFICATION FOR ONLINE CLASS */}
-                  {isOnlineClass && (
-                    <div className="p-3 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200/80 space-y-1.5">
-                      <div className="flex items-center space-x-2">
-                        <span className={`w-2 h-2 rounded-full ${hasLiveAlert ? "bg-rose-500 animate-ping" : "bg-emerald-500"}`} />
-                        <span className="text-xs font-black uppercase tracking-wider text-rose-900">
-                          {hasLiveAlert ? "🔴 Live Class Notification" : "🔔 Live Meeting Portal"}
-                        </span>
-                      </div>
-                      {hasLiveAlert && currentLiveMeeting ? (
-                        <div>
-                          <p className="text-xs font-black text-[#061b36] line-clamp-1">
-                            {currentLiveMeeting.title}
-                          </p>
-                          <p className="text-[11px] text-slate-600 font-semibold">
-                            Scheduled: {currentLiveMeeting.start_time || "Now Streaming"}
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-slate-500 font-medium">
-                          No active live stream right now. Click below to view scheduled classes or join upcoming meetings.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* EMBEDDED DAILY TASK COMPLETION STATUS FOR TET 1 & TET 2 */}
-                  {!isLocked && isTet1 && renderDailyTaskPanel(selectedTetPaper === "paper1", "paper1")}
-                  {!isLocked && isTet2 && renderDailyTaskPanel(selectedTetPaper === "paper2", "paper2")}
-
-                  {/* SPECIAL NEWS PREVIEW WHEN NEWS CONTAINER */}
-                  {key === "news" && (
-                    <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 space-y-1">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-sky-800 flex items-center space-x-1">
-                        <Newspaper className="w-3.5 h-3.5" />
-                        <span>Daily Flash News Feed</span>
-                      </span>
-                      <p className="text-xs text-slate-600 font-medium">
-                        Instant updates on TNTET, TRB Hall Tickets, Exam Schedules & GOs.
-                      </p>
-                    </div>
-                  )}
                 </div>
+
+                {/* Card Body & Actions */}
+                <div className="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    {/* Description */}
+                    <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+                      {c.description}
+                    </p>
+
+                    {/* SPECIAL EMBEDDED NOTIFICATION FOR ONLINE CLASS */}
+                    {isOnlineClass && (
+                      <div className="p-3 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200/80 space-y-1.5">
+                        <div className="flex items-center space-x-2">
+                          <span className={`w-2 h-2 rounded-full ${hasLiveAlert ? "bg-rose-500 animate-ping" : "bg-emerald-500"}`} />
+                          <span className="text-xs font-black uppercase tracking-wider text-rose-900">
+                            {hasLiveAlert ? "🔴 Live Class Notification" : "🔔 Live Meeting Portal"}
+                          </span>
+                        </div>
+                        {hasLiveAlert && currentLiveMeeting ? (
+                          <div>
+                            <p className="text-xs font-black text-[#061b36] line-clamp-1">
+                              {currentLiveMeeting.title}
+                            </p>
+                            <p className="text-[11px] text-slate-600 font-semibold">
+                              Scheduled: {currentLiveMeeting.start_time || "Now Streaming"}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-slate-500 font-medium">
+                            No active live stream right now. Click below to view scheduled classes or join upcoming meetings.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* EMBEDDED DAILY TASK COMPLETION STATUS FOR TET 1 & TET 2 */}
+                    {!isLocked && isTet1 && renderDailyTaskPanel(selectedTetPaper === "paper1", "paper1")}
+                    {!isLocked && isTet2 && renderDailyTaskPanel(selectedTetPaper === "paper2", "paper2")}
+
+                    {/* SPECIAL NEWS PREVIEW WHEN NEWS CONTAINER */}
+                    {key === "news" && (
+                      <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 space-y-1">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-sky-800 flex items-center space-x-1">
+                          <Newspaper className="w-3.5 h-3.5" />
+                          <span>Daily Flash News Feed</span>
+                        </span>
+                        <p className="text-xs text-slate-600 font-medium">
+                          Instant updates on TNTET, TRB Hall Tickets, Exam Schedules & GOs.
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
                 {/* Container Action Button */}
                 <div className="pt-3 border-t border-slate-100">
@@ -772,6 +981,34 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                     >
                       <Lock className="w-4 h-4" />
                       <span>UNLOCK (TET 1, 2 & LIVE) 🔒</span>
+                    </button>
+                  ) : isFree ? (
+                    <button
+                      onClick={() => handleContainerAction(c)}
+                      className="w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 shadow-md flex items-center justify-center space-x-2 cursor-pointer group min-h-[44px] bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-600 hover:from-emerald-700 hover:to-green-700 text-white border-2 border-emerald-400/90 shadow-emerald-600/30 animate-green-blink"
+                    >
+                      <span className="relative flex h-2.5 w-2.5 mr-1">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-200 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+                      </span>
+                      <span>
+                        {key === "news"
+                          ? "OPEN NEWS (FREE) ↗"
+                          : key === "textbooks"
+                          ? "OPEN BOOKS (FREE) →"
+                          : key === "tamil_reading"
+                          ? "OPEN TAMIL READING (FREE) →"
+                          : key === "english_reading"
+                          ? "OPEN ENGLISH READING (FREE) →"
+                          : key === "income_tax"
+                          ? "OPEN TAX CALCULATOR (FREE) →"
+                          : key === "nmms"
+                          ? "OPEN NMMS (FREE) →"
+                          : key === "treast"
+                          ? "OPEN TREAST (FREE) →"
+                          : (c.button_text?.includes("FREE") ? c.button_text : `OPEN ${c.title.toUpperCase()} (FREE) →`)}
+                      </span>
+                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                     </button>
                   ) : (
                     <button
@@ -785,8 +1022,6 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                       <span>
                         {hasLiveAlert 
                           ? "JOIN LIVE CLASS NOW ↗" 
-                          : key === "news" 
-                          ? "OPEN NEWS (NEW TAB) ↗" 
                           : (c.button_text || `OPEN ${c.title} →`)}
                       </span>
                       <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -794,7 +1029,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                   )}
                 </div>
               </div>
-            );
+            </div>
+          );
           })}
         </div>
       </div>
@@ -815,6 +1051,15 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
           }}
         />
       )}
+
+      {/* ================= WHATSAPP VIP COMMUNITY POP-OUT MODAL ================= */}
+      <WhatsAppJoinModal
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        whatsappGroupLink={publicSettings?.whatsapp_group_link}
+        whatsappGroupTitle={publicSettings?.whatsapp_group_title}
+        lang={lang}
+      />
 
       {/* ================= MODAL: TAMIL READING ================= */}
       {activeModal === "tamil_reading" && (

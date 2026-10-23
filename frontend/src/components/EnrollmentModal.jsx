@@ -15,7 +15,8 @@ import {
   Tag,
   Sparkles,
   Percent,
-  BookOpen
+  BookOpen,
+  Check
 } from "lucide-react";
 import { fetchApi } from "../api";
 
@@ -40,67 +41,12 @@ export default function EnrollmentModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-
-  // Coupon State
-  const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [validatingCoupon, setValidatingCoupon] = useState(false);
-  const [couponError, setCouponError] = useState("");
-  const [couponSuccess, setCouponSuccess] = useState("");
+  const [activatedWhatsApp, setActivatedWhatsApp] = useState(null);
 
   if (!isOpen) return null;
 
   const courseBasePrice = coursePrice || 999;
   const courseOriginalPrice = originalPrice || 2499;
-
-  const effectivePrice = appliedCoupon ? appliedCoupon.final_amount : courseBasePrice;
-  const couponSavings = appliedCoupon ? appliedCoupon.discount_amount : 0;
-
-  // Handle Coupon Validation
-  const handleApplyCoupon = async (e) => {
-    if (e) e.preventDefault();
-    const cleanCode = couponCode.trim().toUpperCase();
-    if (!cleanCode) {
-      setCouponError(isTa ? "கூப்பன் குறியீட்டை உள்ளிடவும்" : "Please enter a coupon code");
-      return;
-    }
-
-    setValidatingCoupon(true);
-    setCouponError("");
-    setCouponSuccess("");
-
-    try {
-      const res = await fetchApi("/coupons/validate", {
-        method: "POST",
-        body: JSON.stringify({
-          code: cleanCode,
-          amount: courseBasePrice,
-          email: email.trim().toLowerCase()
-        })
-      });
-
-      if (res && res.valid) {
-        setAppliedCoupon(res);
-        setCouponSuccess(res.message || (isTa ? `கூப்பன் '${res.code}' வெற்றிகரமாக பயன்படுத்தப்பட்டது!` : `Coupon '${res.code}' applied successfully!`));
-        setCouponError("");
-      } else {
-        setAppliedCoupon(null);
-        setCouponError(res?.message || (isTa ? "தவறான அல்லது காலாவதியான கூப்பன் குறியீடு" : "Invalid or expired coupon code"));
-      }
-    } catch (err) {
-      setAppliedCoupon(null);
-      setCouponError(err.message || (isTa ? "கூப்பனை சரிபார்க்க முடியவில்லை" : "Failed to validate coupon code"));
-    } finally {
-      setValidatingCoupon(false);
-    }
-  };
-
-  const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
-    setCouponCode("");
-    setCouponError("");
-    setCouponSuccess("");
-  };
 
   // Load Razorpay Script dynamically if needed
   const loadRazorpayScript = () => {
@@ -138,7 +84,7 @@ export default function EnrollmentModal({
     setLoading(true);
 
     try {
-      // 1. Register Enrollment Lead with Applied Coupon
+      // 1. Register Enrollment Lead
       const res = await fetchApi("/enrollments/register", {
         method: "POST",
         body: JSON.stringify({
@@ -146,16 +92,23 @@ export default function EnrollmentModal({
           mobile: cleanMobile,
           email: email.trim().toLowerCase(),
           designation,
-          amount: effectivePrice,
-          coupon_code: appliedCoupon ? appliedCoupon.code : null,
+          amount: courseBasePrice,
+          coupon_code: null,
           course_name: selectedCourse
         })
       });
 
       if (res && res.already_active) {
+        if (onEnrollmentSuccess) onEnrollmentSuccess();
+        if (res.whatsapp_group_link && res.whatsapp_group_enabled !== false) {
+          setActivatedWhatsApp({
+            link: res.whatsapp_group_link,
+            title: res.whatsapp_group_title || "TET VIP Teachers Community"
+          });
+          return;
+        }
         setSuccessMsg(isTa ? "உங்கள் சேர்க்கை ஏற்கனவே செயலில் உள்ளது!" : "Your access is already active!");
         setTimeout(() => {
-          if (onEnrollmentSuccess) onEnrollmentSuccess();
           if (onClose) onClose();
         }, 1500);
         return;
@@ -172,16 +125,14 @@ export default function EnrollmentModal({
           return;
         }
 
-        const payablePaise = Math.round((res.amount !== undefined ? res.amount : effectivePrice) * 100);
+        const payablePaise = Math.round((res.amount !== undefined ? res.amount : courseBasePrice) * 100);
 
         const options = {
           key: activeRazorpayKey,
           amount: payablePaise, // in paise
           currency: res.currency || "INR",
           name: "TN Teachers Eligibility Benchmark Portal",
-          description: appliedCoupon 
-            ? `TET All-in-One Pass (Coupon: ${appliedCoupon.code})`
-            : "All-in-One Pass: TET 1 + TET 2 + Live Interactive Classes",
+          description: "All-in-One Pass: TET 1 + TET 2 + Live Interactive Classes",
           image: "/favicon.png",
           order_id: res.order_id || undefined,
           handler: async function (response) {
@@ -196,11 +147,19 @@ export default function EnrollmentModal({
                   signature: response.razorpay_signature
                 })
               });
-              setSuccessMsg(isTa ? "கட்டணம் வெற்றிகரமாக செலுத்தப்பட்டது! அனைத்து தொகுதிகளும் திறக்கப்பட்டன." : "Payment successful! All modules have been unlocked.");
-              setTimeout(() => {
-                if (onEnrollmentSuccess) onEnrollmentSuccess();
-                if (onClose) onClose();
-              }, 1800);
+              if (onEnrollmentSuccess) onEnrollmentSuccess();
+
+              if (verifyRes && verifyRes.whatsapp_group_link && verifyRes.whatsapp_group_enabled !== false) {
+                setActivatedWhatsApp({
+                  link: verifyRes.whatsapp_group_link,
+                  title: verifyRes.whatsapp_group_title || "TET VIP Teachers Community"
+                });
+              } else {
+                setSuccessMsg(isTa ? "கட்டணம் வெற்றிகரமாக செலுத்தப்பட்டது! அனைத்து தொகுதிகளும் திறக்கப்பட்டன." : "Payment successful! All modules have been unlocked.");
+                setTimeout(() => {
+                  if (onClose) onClose();
+                }, 1800);
+              }
             } catch (err) {
               setError(err.message || (isTa ? "கட்டண சரிபார்ப்பில் பிழை ஏற்பட்டது." : "Payment verification failed."));
             } finally {
@@ -245,7 +204,120 @@ export default function EnrollmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-      <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] relative animate-scale-in">
+      {activatedWhatsApp ? (
+        <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border-2 border-emerald-400 flex flex-col max-h-[95vh] relative animate-scale-in">
+          {/* Top Celebration Header */}
+          <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 text-white p-6 relative text-center">
+            <button
+              onClick={() => {
+                if (onEnrollmentSuccess) onEnrollmentSuccess();
+                if (onClose) onClose();
+              }}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase bg-white/20 border border-white/30 text-white mb-2 shadow-xs">
+              <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-spin" />
+              <span>{isTa ? "கட்டணம் வெற்றிகரமாக பெறப்பட்டது!" : "Payment Verified & Activated!"}</span>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug">
+              {isTa ? "🎉 வாழ்த்துகள்! அனைத்து தொகுதிகளும் திறக்கப்பட்டன" : "🎉 Congratulations! Full Pass Activated"}
+            </h2>
+            <p className="text-xs sm:text-sm text-emerald-100 font-medium mt-1.5 leading-relaxed">
+              {isTa 
+                ? "TET 1, TET 2 மற்றும் ஆன்லைன் நேரலை வகுப்புகள் அனைத்தும் இப்போது உங்கள் கணக்கில் முழுமையாக பயன்பாட்டிற்கு வந்துள்ளன!"
+                : "TET Paper 1, Paper 2, and Online Live Classes are now fully active on your account!"}
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[10px] font-black uppercase">
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-800/60 border border-emerald-400/40 text-emerald-100 flex items-center space-x-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-300" />
+                <span>TET 1 (CLASSES 1-8) UNLOCKED</span>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-800/60 border border-emerald-400/40 text-emerald-100 flex items-center space-x-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-300" />
+                <span>TET 2 (CLASSES 6-12) UNLOCKED</span>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-800/60 border border-emerald-400/40 text-emerald-100 flex items-center space-x-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-300" />
+                <span>LIVE CLASSES ACTIVE</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-white border-2 border-emerald-200 text-center space-y-3">
+              <div className="w-16 h-16 rounded-3xl bg-[#25D366] text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30">
+                <svg className="w-9 h-9 fill-white" viewBox="0 0 24 24">
+                  <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24h-.18zm4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.24-.75-.67-1.25-1.49-1.4-1.74-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.43.13-.15.17-.25.25-.42.08-.17.04-.32-.02-.45-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.72 4.31 3.81.6.26 1.07.42 1.44.53.61.19 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.22-.17-.47-.3z"/>
+                </svg>
+              </div>
+
+              <div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 inline-block mb-1">
+                  {isTa ? "பிரத்யேக ஆசிரியர்கள் குழு" : "Official WhatsApp Community"}
+                </span>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                  {activatedWhatsApp.title || "TET 2026 VIP Study Group"}
+                </h3>
+              </div>
+
+              <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed px-2">
+                {isTa 
+                  ? "தினசரி தேர்வு அறிவிப்புகள், நேரலை வகுப்புகளுக்கான கூகுள் மீட் இணைப்புகள் மற்றும் சுருக்கக் குறிப்புகளை உடனுக்குடன் பெற கீழே உள்ள பட்டனைத் தொட்டு உடனே வாட்ஸ்அப் குழுவில் இணையுங்கள்!"
+                  : "Join the VIP WhatsApp group to get daily Google Meet class links, timely practice tests, important circulars & short notes directly!"}
+              </p>
+
+              <div className="p-2.5 rounded-xl bg-white border border-emerald-200/80 text-[11px] text-emerald-900 font-bold flex items-center justify-center space-x-1.5 shadow-2xs">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  {isTa 
+                    ? "கட்டணம் செலுத்திய சரிபார்க்கப்பட்ட ஆசிரியர்களுக்கான பாதுகாப்பான குழு"
+                    : "Verified & private community for enrolled teachers only"}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.setItem("tet_wa_joined", "true");
+                  } catch (e) {}
+                  window.open(activatedWhatsApp.link, "_blank", "noopener,noreferrer");
+                }}
+                className="w-full py-4 px-6 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-black text-sm sm:text-base flex items-center justify-center space-x-2.5 shadow-lg shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer animate-pulse"
+              >
+                <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24">
+                  <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24h-.18zm4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.24-.75-.67-1.25-1.49-1.4-1.74-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.43.13-.15.17-.25.25-.42.08-.17.04-.32-.02-.45-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.72 4.31 3.81.6.26 1.07.42 1.44.53.61.19 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.22-.17-.47-.3z"/>
+                </svg>
+                <span>{isTa ? "வாட்ஸ்அப் குழுவில் இப்போதே இணையுங்கள் ↗" : "Join VIP WhatsApp Group ↗"}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (onEnrollmentSuccess) onEnrollmentSuccess();
+                  if (onClose) onClose();
+                }}
+                className="w-full py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+              >
+                {isTa ? "டேஷ்போர்டிற்குத் செல்லவும் (Continue to Dashboard)" : "Continue to Dashboard"}
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 px-4 py-2 border-t border-slate-200 text-center text-[10px] text-slate-400 font-medium">
+            {isTa 
+              ? "குறிப்பு: குழு உறுப்பினர் வரம்புக்கேற்ப இணைப்புகள் நிர்வாகியால் உடனுக்குடன் புதுப்பிக்கப்படும்."
+              : "Note: Group links are dynamically managed by administrators."}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] relative animate-scale-in">
         
         {/* Header Strip */}
         <div className="bg-gradient-to-r from-[#061b36] via-[#003db3] to-[#0055ff] p-5 sm:p-6 text-white relative">
@@ -405,89 +477,6 @@ export default function EnrollmentModal({
               </select>
             </div>
 
-            {/* ================= PROMO / COUPON CODE SECTION ================= */}
-            <div className="pt-1">
-              <label className="block text-xs font-extrabold text-slate-700 mb-1.5 flex items-center justify-between">
-                <span className="flex items-center space-x-1">
-                  <Tag className="w-3.5 h-3.5 text-[#0055ff]" />
-                  <span>{isTa ? "தள்ளுபடி கூப்பன் குறியீடு (Promo / Coupon Code)" : "Promo / Coupon Code"}</span>
-                </span>
-                {appliedCoupon && (
-                  <span className="text-[10px] text-emerald-600 font-black flex items-center space-x-0.5">
-                    <Check className="w-3 h-3" />
-                    <span>Applied</span>
-                  </span>
-                )}
-              </label>
-
-              {!appliedCoupon ? (
-                <div className="flex items-center space-x-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={couponCode}
-                      onChange={(e) => {
-                        setCouponCode(e.target.value.toUpperCase());
-                        setCouponError("");
-                      }}
-                      placeholder={isTa ? "எ.கா. TET2026, SAVE50" : "e.g. TET2026, SAVE50"}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-[#0055ff] focus:ring-2 focus:ring-blue-100"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleApplyCoupon}
-                    disabled={validatingCoupon || !couponCode.trim()}
-                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-xs font-black transition cursor-pointer flex items-center space-x-1 shrink-0"
-                  >
-                    {validatingCoupon ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>...</span>
-                      </>
-                    ) : (
-                      <span>{isTa ? "பயன்படுத்து" : "Apply"}</span>
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 flex items-center justify-between animate-fade-in">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
-                      %
-                    </div>
-                    <div>
-                      <div className="flex items-center space-x-1.5">
-                        <span className="text-xs font-black text-emerald-950 tracking-wider uppercase">
-                          {appliedCoupon.code}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-200 text-emerald-900">
-                          {appliedCoupon.discount_type === "percent" ? `${appliedCoupon.discount_value}% OFF` : `₹${appliedCoupon.discount_value} OFF`}
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-bold text-emerald-700 block">
-                        {isTa ? `₹${couponSavings} தள்ளுபடி பெறப்பட்டது!` : `You saved ₹${couponSavings} on this course!`}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRemoveCoupon}
-                    className="px-2.5 py-1 rounded-lg text-rose-600 hover:text-rose-800 hover:bg-rose-50 text-[11px] font-black cursor-pointer transition"
-                  >
-                    {isTa ? "நீக்கு ✕" : "Remove ✕"}
-                  </button>
-                </div>
-              )}
-
-              {couponError && (
-                <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center space-x-1">
-                  <AlertCircle className="w-3 h-3 shrink-0" />
-                  <span>{couponError}</span>
-                </p>
-              )}
-            </div>
-
             {/* Price Summary Box */}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
@@ -500,23 +489,13 @@ export default function EnrollmentModal({
                 <span className="font-bold text-slate-700">₹{courseBasePrice}</span>
               </div>
 
-              {appliedCoupon && (
-                <div className="flex items-center justify-between text-xs text-emerald-700 font-bold border-t border-dashed border-emerald-200 pt-1.5">
-                  <span className="flex items-center space-x-1">
-                    <Tag className="w-3 h-3 text-emerald-600" />
-                    <span>Coupon Discount ({appliedCoupon.code})</span>
-                  </span>
-                  <span className="font-black">-₹{couponSavings}</span>
-                </div>
-              )}
-
               <div className="flex items-center justify-between border-t border-slate-200 pt-2">
                 <div>
                   <span className="text-[11px] font-bold text-slate-500 block">
                     {isTa ? "செலுத்த வேண்டிய தொகை (Total Payable)" : "Total Investment"}
                   </span>
                   <div className="flex items-baseline space-x-1.5">
-                    <span className="text-xl font-black text-[#061b36]">₹{effectivePrice}</span>
+                    <span className="text-xl font-black text-[#061b36]">₹{courseBasePrice}</span>
                     <span className="text-[10px] text-emerald-600 font-bold">
                       {isTa ? "(முழு அணுகல்)" : "(One-Time Full Access)"}
                     </span>
@@ -524,10 +503,8 @@ export default function EnrollmentModal({
                 </div>
 
                 <div className="text-right">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-[#0055ff] border border-blue-200">
-                    {appliedCoupon 
-                      ? `${Math.round(((courseOriginalPrice - effectivePrice) / courseOriginalPrice) * 100)}% Total Savings`
-                      : `${Math.round(((courseOriginalPrice - courseBasePrice) / courseOriginalPrice) * 100)}% Launch Offer`}
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-blue-100 text-[#0055ff] border border-blue-200">
+                    {Math.round(((courseOriginalPrice - courseBasePrice) / courseOriginalPrice) * 100)}% Launch Offer
                   </span>
                 </div>
               </div>
@@ -549,8 +526,8 @@ export default function EnrollmentModal({
                   <CreditCard className="w-4 h-4" />
                   <span>
                     {isTa 
-                      ? `பாதுகாப்பான கட்டணம் செலுத்த தொடர்க (₹${effectivePrice})`
-                      : `PROCEED TO SECURE PAYMENT (₹${effectivePrice})`}
+                      ? `பாதுகாப்பான கட்டணம் செலுத்த தொடர்க (₹${courseBasePrice})`
+                      : `PROCEED TO SECURE PAYMENT (₹${courseBasePrice})`}
                   </span>
                 </>
               )}
@@ -561,8 +538,8 @@ export default function EnrollmentModal({
             🔒 Secured via 256-bit SSL encryption. Instant activation upon verification.
           </p>
         </div>
-
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 }

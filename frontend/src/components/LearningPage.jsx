@@ -101,10 +101,10 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
 
   // Special Classes in TET 1 and TET 2 (Psychology, Tamil Grammar, English Grammar, PYQ)
   const specialModules = [
-    { class_num: 101, title: lang === "ta" ? "குழந்தை மேம்பாடு & உளவியல் (Psychology)" : "Psychology (Tamil / English)", shortName: "Psychology", icon: "🧠", subject: "Psychology", hasMedium: true },
-    { class_num: 102, title: lang === "ta" ? "தமிழ் இலக்கணம் (Tamil Grammar)" : "Tamil Grammar", shortName: "Tamil Grammar", icon: "📖", subject: "Tamil Grammar", hasMedium: false },
-    { class_num: 103, title: lang === "ta" ? "ஆங்கில இலக்கணம் (English Grammar)" : "English Grammar", shortName: "English Grammar", icon: "🔤", subject: "English Grammar", hasMedium: false },
-    { class_num: 104, title: lang === "ta" ? "முந்தைய ஆண்டு வினாத்தாள்கள் (PYQ)" : "Previous Year Question Papers", shortName: "Previous Papers", icon: "📜", subject: "Previous Year Papers", hasMedium: false }
+    { class_num: 101, title: lang === "ta" ? "குழந்தை மேம்பாடு & உளவியல் (Psychology)" : "Psychology (Tamil / English)", shortName: "Psychology", tamilLabel: "உளவியல்", icon: "🧠", subject: "Psychology", hasMedium: true },
+    { class_num: 102, title: lang === "ta" ? "தமிழ் இலக்கணம் (Tamil Grammar)" : "Tamil Grammar", shortName: "Tamil Gram.", tamilLabel: "தமிழ் இலக்.", icon: "📖", subject: "Tamil Grammar", hasMedium: false },
+    { class_num: 103, title: lang === "ta" ? "ஆங்கில இலக்கணம் (English Grammar)" : "English Grammar", shortName: "Eng. Gram.", tamilLabel: "ஆங்கில இலக்.", icon: "🔤", subject: "English Grammar", hasMedium: false },
+    { class_num: 104, title: lang === "ta" ? "முந்தைய ஆண்டு வினாத்தாள்கள் (PYQ)" : "Previous Year Question Papers", shortName: "Old Papers", tamilLabel: "வினாத்தாள்", icon: "📜", subject: "Previous Year Papers", hasMedium: false }
   ];
 
   useEffect(() => {
@@ -171,6 +171,10 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
     10: { active: "bg-[#8d4b00] text-white border-[#8d4b00]", inactive: "bg-[#8d4b00]/10 text-[#8d4b00] border-[#8d4b00]/30 hover:bg-[#8d4b00]/20" },
     11: { active: "bg-[#0066ff] text-white border-[#0066ff]", inactive: "bg-[#0066ff]/10 text-[#0066ff] border-[#0066ff]/30 hover:bg-[#0066ff]/20" },
     12: { active: "bg-[#ff2a00] text-white border-[#ff2a00]", inactive: "bg-[#ff2a00]/10 text-[#ff2a00] border-[#ff2a00]/30 hover:bg-[#ff2a00]/20" },
+    101: { active: "bg-[#8a00e6] text-white border-[#8a00e6]", inactive: "bg-[#8a00e6]/10 text-[#8a00e6] border-[#8a00e6]/30 hover:bg-[#8a00e6]/20" },
+    102: { active: "bg-[#00a651] text-white border-[#00a651]", inactive: "bg-[#00a651]/10 text-[#00a651] border-[#00a651]/30 hover:bg-[#00a651]/20" },
+    103: { active: "bg-[#0284c7] text-white border-[#0284c7]", inactive: "bg-[#0284c7]/10 text-[#0284c7] border-[#0284c7]/30 hover:bg-[#0284c7]/20" },
+    104: { active: "bg-[#ff7a00] text-white border-[#ff7a00]", inactive: "bg-[#ff7a00]/10 text-[#ff7a00] border-[#ff7a00]/30 hover:bg-[#ff7a00]/20" },
   };
 
   const baseSubjects = ["Tamil", "English", "Mathematics", "Science", "Social Science"];
@@ -451,14 +455,14 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 animate-fade-in text-[#071c38]">
       
       {/* Header Banner & TET Track Selector */}
-      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-7 shadow-xs space-y-3.5 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1">
             <div className="flex items-center space-x-2 text-[#0055ff] font-bold text-xs uppercase tracking-wider">
               <GraduationCap className="w-4 h-4" />
               <span>{tetPaper === "paper1" ? "TET-1 Candidate Portal" : "TET-2 Candidate Portal"}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-[#061b36] tracking-tight">
+            <h1 className="text-xl sm:text-3xl font-black text-[#061b36] tracking-tight">
               {t.learningTitle}
             </h1>
             <p className="text-xs text-slate-500 max-w-2xl font-medium">
@@ -466,43 +470,49 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
             </p>
           </div>
 
-          {/* TET-1 vs TET-2 Interactive Switcher & Share */}
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <div className="flex items-center p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80 w-full sm:w-auto shadow-2xs">
+          {/* TET-1 vs TET-2 Interactive Switcher & Inline Share Button */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center p-1 sm:p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80 flex-1 sm:w-auto shadow-2xs">
               <button
                 onClick={() => {
                   setTetPaper("paper1");
                   setSelectedClass(1);
                 }}
-                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-2 ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
                   tetPaper === "paper1"
                     ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
                     : "text-[#061b36] hover:bg-slate-200/70"
                 }`}
               >
-                <BookOpen className="w-4 h-4" />
-                <span>TET-1 (Classes 1–8)</span>
+                <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="truncate">
+                  <span className="inline sm:hidden">TET-1 (1–8)</span>
+                  <span className="hidden sm:inline">TET-1 (Classes 1–8)</span>
+                </span>
               </button>
               <button
                 onClick={() => {
                   setTetPaper("paper2");
                   setSelectedClass(6);
                 }}
-                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-2 ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
                   tetPaper === "paper2"
                     ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
                     : "text-[#061b36] hover:bg-slate-200/70"
                 }`}
               >
-                <GraduationCap className="w-4 h-4" />
-                <span>TET-2 (Classes 6–12)</span>
+                <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="truncate">
+                  <span className="inline sm:hidden">TET-2 (6–12)</span>
+                  <span className="hidden sm:inline">TET-2 (Classes 6–12)</span>
+                </span>
               </button>
             </div>
 
             {onShare && (
               <button
                 onClick={onShare}
-                className="px-3.5 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] border border-blue-200 font-extrabold text-xs flex items-center space-x-2 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                className="p-2 sm:px-3.5 sm:py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] border border-blue-200 font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
                 title="Share Course Link"
               >
                 <Share2 className="w-4 h-4 text-[#0055ff]" />
@@ -683,21 +693,25 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
             })}
           </div>
 
-          {/* SPECIAL TET MODULES / CLASSES (TASK 5) */}
-          <div className="mt-5 pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-2.5">
+          {/* SPECIAL TET MODULES / CLASSES (COMPACT BUTTONS LIKE CLASS BUTTONS) */}
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider flex items-center space-x-1.5">
                 <GraduationCap className="w-3.5 h-3.5 text-[#0055ff]" />
-                <span>{lang === "ta" ? "TET சிறப்புப் பாடப் பிரிவுகள் (Special Modules)" : "TET Special Class Modules"}</span>
+                <span>{lang === "ta" ? "சிறப்புப் பாடங்கள்" : "Special Class Modules"}</span>
               </span>
-              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-md">
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                 TET 1 & TET 2
               </span>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
               {specialModules.map((sm) => {
                 const isSelected = selectedClass === sm.class_num;
+                const styleMap = classColorMap[sm.class_num] || {
+                  active: "bg-[#0055ff] text-white border-[#0055ff]",
+                  inactive: "bg-[#0055ff]/10 text-[#0055ff] border-[#0055ff]/30 hover:bg-[#0055ff]/20"
+                };
                 return (
                   <button
                     key={sm.class_num}
@@ -708,19 +722,17 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
                         setSelectedMedium("Tamil Medium");
                       }
                     }}
-                    className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex items-center space-x-2.5 ${
+                    className={`py-2.5 px-1 rounded-2xl font-black text-xs transition-all duration-200 border cursor-pointer min-h-[56px] flex flex-col items-center justify-center card-interactive text-center ${
                       isSelected
-                        ? "bg-[#0055ff] text-white border-[#0055ff] shadow-md scale-[1.02] ring-2 ring-[#0055ff]/30"
-                        : "bg-slate-50 hover:bg-blue-50/60 border-slate-200 text-[#061b36]"
+                        ? `${styleMap.active} shadow-md scale-105 ring-2 ring-offset-1`
+                        : `${styleMap.inactive}`
                     }`}
+                    title={sm.title}
                   >
-                    <span className="text-xl shrink-0">{sm.icon}</span>
-                    <div className="overflow-hidden">
-                      <h4 className="text-xs font-black truncate leading-tight">{sm.shortName}</h4>
-                      <p className={`text-[10px] font-medium truncate mt-0.5 ${isSelected ? "text-blue-100" : "text-slate-500"}`}>
-                        {sm.class_num === 101 ? "Tamil / English Medium" : "Classes 1–12 Scope"}
-                      </p>
-                    </div>
+                    <span className="text-base sm:text-lg leading-none">{sm.icon}</span>
+                    <span className="text-[11px] sm:text-xs font-black leading-tight mt-1 truncate max-w-full px-0.5">
+                      {lang === "ta" ? sm.tamilLabel : sm.shortName}
+                    </span>
                   </button>
                 );
               })}
@@ -729,60 +741,64 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
         </div>
 
         {/* Subject & Medium Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-4 border-t border-slate-100">
-          <div className={`${selectedSubject !== "Tamil" && selectedSubject !== "English" ? "md:col-span-8" : "md:col-span-12"} space-y-2`}>
-            <label className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider block">
-              {t.matStep2Title}
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2">
-              {subjects.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSelectedSubject(s)}
-                  className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border truncate cursor-pointer ${
-                    selectedSubject === s
-                      ? "bg-[#0055ff] text-white border-[#0055ff] shadow-xs"
-                      : "bg-slate-50 text-[#061b36] border-slate-200 hover:bg-blue-50/60"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {selectedSubject !== "Tamil" && selectedSubject !== "English" && (
-            <div className="md:col-span-4 space-y-2">
-              <label className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider block flex items-center space-x-1">
-                <Languages className="w-3.5 h-3.5 text-[#0055ff]" />
-                <span>Medium</span>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setSelectedMedium("Tamil Medium")}
-                  className={`py-2 px-3 rounded-xl font-bold text-xs border transition cursor-pointer ${
-                    selectedMedium === "Tamil Medium"
-                      ? "bg-[#061b36] text-white border-[#061b36] shadow-xs"
-                      : "bg-slate-50 text-[#061b36] border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  {t.mediumTamil}
-                </button>
-                <button
-                  onClick={() => setSelectedMedium("English Medium")}
-                  className={`py-2 px-3 rounded-xl font-bold text-xs border transition cursor-pointer ${
-                    selectedMedium === "English Medium"
-                      ? "bg-[#061b36] text-white border-[#061b36] shadow-xs"
-                      : "bg-slate-50 text-[#061b36] border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  {t.mediumEnglish}
-                </button>
+        {(() => {
+          const showMedium = (selectedClass <= 12 && selectedSubject !== "Tamil" && selectedSubject !== "English") || selectedClass === 101;
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 pt-3 sm:pt-4 border-t border-slate-100">
+              <div className={`${showMedium ? "md:col-span-8" : "md:col-span-12"} space-y-2`}>
+                <label className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider block">
+                  {t.matStep2Title}
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+                  {subjects.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSelectedSubject(s)}
+                      className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border truncate cursor-pointer ${
+                        selectedSubject === s
+                          ? "bg-[#0055ff] text-white border-[#0055ff] shadow-xs"
+                          : "bg-slate-50 text-[#061b36] border-slate-200 hover:bg-blue-50/60"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
 
+              {showMedium && (
+                <div className="md:col-span-4 space-y-2">
+                  <label className="text-xs font-extrabold text-[#061b36] uppercase tracking-wider block flex items-center space-x-1">
+                    <Languages className="w-3.5 h-3.5 text-[#0055ff]" />
+                    <span>Medium</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setSelectedMedium("Tamil Medium")}
+                      className={`py-2 px-3 rounded-xl font-bold text-xs border transition cursor-pointer ${
+                        selectedMedium === "Tamil Medium"
+                          ? "bg-[#061b36] text-white border-[#061b36] shadow-xs"
+                          : "bg-slate-50 text-[#061b36] border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      {t.mediumTamil}
+                    </button>
+                    <button
+                      onClick={() => setSelectedMedium("English Medium")}
+                      className={`py-2 px-3 rounded-xl font-bold text-xs border transition cursor-pointer ${
+                        selectedMedium === "English Medium"
+                          ? "bg-[#061b36] text-white border-[#061b36] shadow-xs"
+                          : "bg-slate-50 text-[#061b36] border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      {t.mediumEnglish}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* SEQUENTIAL TERMS & LESSONS LIST */}

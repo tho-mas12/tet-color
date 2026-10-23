@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { BookOpen, Layers, GraduationCap, ShieldCheck, Flame, LogIn, LogOut, Globe, Share2, Zap, Bell } from "lucide-react";
 import { translations } from "../translations";
 import PhoneNotificationModal from "./PhoneNotificationModal";
+import MobileClassesModal from "./MobileClassesModal";
 
 export default function Navbar({ 
   activeTab, 
@@ -18,6 +19,7 @@ export default function Navbar({
   const t = translations[lang] || translations.en;
   const [isPhoneNotifOpen, setIsPhoneNotifOpen] = useState(false);
   const [unreadNotifs, setUnreadNotifs] = useState(3);
+  const [isMobileClassesOpen, setIsMobileClassesOpen] = useState(false);
 
   const toggleLanguage = () => {
     setLang(lang === "en" ? "ta" : "en");
@@ -152,17 +154,31 @@ export default function Navbar({
       >
         {user ? (
           isAdmin ? (
-            <button
-              onClick={() => handleNav("/admin", "admin")}
-              className={`flex flex-col items-center py-1.5 px-6 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
-                activeTab === "admin"
-                  ? "text-white bg-amber-600 shadow-xs ring-1 ring-amber-400"
-                  : "text-amber-200 hover:text-white"
-              }`}
-            >
-              <ShieldCheck className="w-5 h-5 mb-0.5" />
-              <span>{t.admin}</span>
-            </button>
+            <>
+              <button
+                onClick={() => handleNav("/admin", "admin")}
+                className={`flex flex-col items-center py-1.5 px-4 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
+                  activeTab === "admin"
+                    ? "text-white bg-amber-600 shadow-xs ring-1 ring-amber-400"
+                    : "text-amber-200 hover:text-white"
+                }`}
+              >
+                <ShieldCheck className="w-5 h-5 mb-0.5" />
+                <span>{t.admin}</span>
+              </button>
+
+              <button
+                onClick={() => setIsMobileClassesOpen(true)}
+                className={`flex flex-col items-center py-1.5 px-4 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
+                  isMobileClassesOpen
+                    ? "text-white bg-[#0055ff] shadow-xs ring-1 ring-blue-300"
+                    : "text-blue-200 hover:text-white"
+                }`}
+              >
+                <GraduationCap className="w-5 h-5 mb-0.5 text-blue-400" />
+                <span>{lang === "ta" ? "வகுப்புகள் (1-12)" : "Classes"}</span>
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -178,29 +194,62 @@ export default function Navbar({
               </button>
 
               <button
-                onClick={() => handleNav("/materials", "materials")}
+                onClick={() => setIsMobileClassesOpen(true)}
                 className={`flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
-                  activeTab === "materials"
-                    ? "text-white bg-[#0055ff] shadow-xs"
-                    : "text-slate-300 hover:text-white"
+                  isMobileClassesOpen
+                    ? "text-white bg-[#0055ff] shadow-xs ring-1 ring-blue-300"
+                    : "text-sky-300 hover:text-white"
                 }`}
               >
-                <Layers className="w-5 h-5 mb-0.5" />
-                <span>{t.materials}</span>
+                <GraduationCap className="w-5 h-5 mb-0.5 text-blue-400" />
+                <span>{lang === "ta" ? "வகுப்புகள் (1-12)" : "Classes (1-12)"}</span>
               </button>
-
             </>
           )
         ) : (
-          <button
-            onClick={onOpenAuth}
-            className="flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold text-sky-200 hover:text-white min-h-[48px] justify-center cursor-pointer"
-          >
-            <LogIn className="w-5 h-5 mb-0.5 text-[#0055ff]" />
-            <span>{t.login}</span>
-          </button>
+          <>
+            <button
+              onClick={() => handleNav("/", "home")}
+              className={`flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
+                activeTab === "home" || activeTab === "dashboard"
+                  ? "text-white bg-[#0055ff] shadow-xs"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              <BookOpen className="w-5 h-5 mb-0.5" />
+              <span>{lang === "ta" ? "முகப்பு" : "Home"}</span>
+            </button>
+
+            <button
+              onClick={() => setIsMobileClassesOpen(true)}
+              className={`flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold transition-all min-h-[48px] justify-center cursor-pointer ${
+                isMobileClassesOpen
+                  ? "text-white bg-[#0055ff] shadow-xs ring-1 ring-blue-300"
+                  : "text-sky-300 hover:text-white"
+              }`}
+            >
+              <GraduationCap className="w-5 h-5 mb-0.5 text-blue-400" />
+              <span>{lang === "ta" ? "வகுப்புகள் (1-12)" : "Classes"}</span>
+            </button>
+
+            <button
+              onClick={onOpenAuth}
+              className="flex flex-col items-center py-1.5 px-3 rounded-xl text-xs font-bold text-amber-300 hover:text-white min-h-[48px] justify-center cursor-pointer"
+            >
+              <LogIn className="w-5 h-5 mb-0.5 text-amber-400" />
+              <span>{t.login}</span>
+            </button>
+          </>
         )}
       </nav>
+
+      {/* Classes 1 - 12 Direct Jump Modal */}
+      <MobileClassesModal
+        isOpen={isMobileClassesOpen}
+        onClose={() => setIsMobileClassesOpen(false)}
+        onNavigate={handleNav}
+        lang={lang}
+      />
 
       {/* Phone Notification Center Modal */}
       <PhoneNotificationModal

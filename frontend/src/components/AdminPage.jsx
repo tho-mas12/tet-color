@@ -38,6 +38,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   GraduationCap,
   SlidersHorizontal,
   LayoutDashboard,
@@ -62,7 +63,8 @@ import {
   Tag,
   Sparkles,
   Percent,
-  Calculator
+  Calculator,
+  MessageSquare
 } from "lucide-react";
 import { fetchApi, saveUploadedMaterialClient, saveUploadedLessonClient } from "../api";
 import { translations } from "../translations";
@@ -102,6 +104,15 @@ const cleanQuestionText = (text, lessonTitle = "") => {
   }
   return clean;
 };
+
+// WhatsApp SVG Icon Component
+function WhatsAppIcon({ className = "w-3.5 h-3.5" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+  );
+}
 
 // WhatsApp / Telegram Lesson Sharing Modal with Direct Auto-Login Deep Links
 function ShareLessonMessageModal({ lesson, onClose, showToast }) {
@@ -551,13 +562,18 @@ export default function AdminPage({ user, lang = "en" }) {
   const [stage4CountChronological, setStage4CountChronological] = useState(5);
 
   // Download Permissions & Razorpay State
-  const [enableMaterialDownload, setEnableMaterialDownload] = useState(true);
-  const [enableQuizDownload, setEnableQuizDownload] = useState(true);
+  const [enableMaterialDownload, setEnableMaterialDownload] = useState(false);
+  const [enableNotesDownload, setEnableNotesDownload] = useState(false);
+  const [enableQuizDownload, setEnableQuizDownload] = useState(false);
   const [razorpayKeyId, setRazorpayKeyId] = useState("");
   const [razorpayKeySecret, setRazorpayKeySecret] = useState("");
   const [coursePrice, setCoursePrice] = useState(999);
   const [originalPrice, setOriginalPrice] = useState(2499);
   const [discountPercent, setDiscountPercent] = useState(60);
+  const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
+  const [whatsappGroupTitle, setWhatsappGroupTitle] = useState("TET VIP Teachers Community");
+  const [whatsappGroupEnabled, setWhatsappGroupEnabled] = useState(true);
+  const [savingWhatsAppGroup, setSavingWhatsAppGroup] = useState(false);
 
   // Coupon System State
   const [couponsList, setCouponsList] = useState([]);
@@ -591,6 +607,30 @@ export default function AdminPage({ user, lang = "en" }) {
   const [manualEnrollCourse, setManualEnrollCourse] = useState("TET 1 and TET 2");
   const [manualEnrollNotes, setManualEnrollNotes] = useState("");
   const [submittingManualEnroll, setSubmittingManualEnroll] = useState(false);
+  const [isSyncingRazorpay, setIsSyncingRazorpay] = useState(false);
+
+  // Enrollments Date-based Overview & Deduplication State
+  const [enrollmentDateMode, setEnrollmentDateMode] = useState("all"); // "all", "today", "yesterday", "last_7_days", "custom"
+  const [customEnrollmentDate, setCustomEnrollmentDate] = useState(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  });
+  const [applyDateFilterToTable, setApplyDateFilterToTable] = useState(false);
+  const [deduplicateTable, setDeduplicateTable] = useState(true);
+  const [isCleaningDuplicates, setIsCleaningDuplicates] = useState(false);
+
+  // WhatsApp Follow-up Modal State
+  const [whatsAppModalCandidate, setWhatsAppModalCandidate] = useState(null);
+  const [whatsAppCustomMessage, setWhatsAppCustomMessage] = useState("");
+
+  // Admin UPI Payment Lookup & Approval State
+  const [upiLookupQuery, setUpiLookupQuery] = useState("");
+  const [upiLookupLoading, setUpiLookupLoading] = useState(false);
+  const [upiLookupResults, setUpiLookupResults] = useState(null);
+  const [approvingUpiId, setApprovingUpiId] = useState(null);
 
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -1113,13 +1153,17 @@ export default function AdminPage({ user, lang = "en" }) {
       setStage4CountAssertion(data.stage4_count_assertion !== undefined ? data.stage4_count_assertion : 5);
       setStage4CountChronological(data.stage4_count_chronological !== undefined ? data.stage4_count_chronological : 5);
 
-      setEnableMaterialDownload(data.enable_material_download !== undefined ? data.enable_material_download : true);
-      setEnableQuizDownload(data.enable_quiz_download !== undefined ? data.enable_quiz_download : true);
+      setEnableMaterialDownload(data.enable_material_download !== undefined ? data.enable_material_download : false);
+      setEnableNotesDownload(data.enable_notes_download !== undefined ? data.enable_notes_download : false);
+      setEnableQuizDownload(data.enable_quiz_download !== undefined ? data.enable_quiz_download : false);
       setRazorpayKeyId(data.razorpay_key_id || "");
       setRazorpayKeySecret(data.razorpay_key_secret || "");
       setCoursePrice(data.course_price !== undefined ? data.course_price : 999);
       setOriginalPrice(data.original_price !== undefined ? data.original_price : 2499);
       setDiscountPercent(data.discount_percent !== undefined ? data.discount_percent : 60);
+      setWhatsappGroupLink(data.whatsapp_group_link || "");
+      setWhatsappGroupTitle(data.whatsapp_group_title || "TET VIP Teachers Community");
+      setWhatsappGroupEnabled(data.whatsapp_group_enabled !== undefined ? data.whatsapp_group_enabled : true);
     } catch (err) {
       console.error("Settings load error:", err);
     }
@@ -1994,19 +2038,67 @@ export default function AdminPage({ user, lang = "en" }) {
           stage4_count_assertion: Number(stage4CountAssertion || 0),
           stage4_count_chronological: Number(stage4CountChronological || 0),
           enable_material_download: Boolean(enableMaterialDownload),
+          enable_notes_download: Boolean(enableNotesDownload),
           enable_quiz_download: Boolean(enableQuizDownload),
           razorpay_key_id: razorpayKeyId.trim(),
           razorpay_key_secret: razorpayKeySecret.trim(),
           course_price: Number(coursePrice || 999),
           original_price: Number(originalPrice || 2499),
-          discount_percent: Number(discountPercent || 60)
+          discount_percent: Number(discountPercent || 60),
+          whatsapp_group_link: whatsappGroupLink.trim(),
+          whatsapp_group_title: whatsappGroupTitle.trim(),
+          whatsapp_group_enabled: Boolean(whatsappGroupEnabled)
         })
       });
-      showToast("Admin, Downloads & Razorpay Settings saved successfully!");
+      showToast("Admin, Downloads, Razorpay & WhatsApp Group Settings saved successfully!");
     } catch (err) {
       showToast("Settings updated!");
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleQuickSaveWhatsAppLink = async () => {
+    setSavingWhatsAppGroup(true);
+    try {
+      await fetchApi("/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          gemini_api_key: geminiApiKey,
+          practice_question_count: Number(practiceCount),
+          test_question_count: Number(testCount),
+          test_time_limit_mins: Number(timeLimit),
+          pass_percentage: Number(passPercent),
+          count_mcq: Number(countMcq || 0),
+          count_hots: Number(countHots || 0),
+          count_match: Number(countMatch || 0),
+          count_multi_stmt: Number(countMultiStmt || 0),
+          count_assertion: Number(countAssertion || 0),
+          count_chronological: Number(countChronological || 0),
+          stage4_count_mcq: Number(stage4CountMcq || 0),
+          stage4_count_hots: Number(stage4CountHots || 0),
+          stage4_count_match: Number(stage4CountMatch || 0),
+          stage4_count_multi_stmt: Number(stage4CountMultiStmt || 0),
+          stage4_count_assertion: Number(stage4CountAssertion || 0),
+          stage4_count_chronological: Number(stage4CountChronological || 0),
+          enable_material_download: Boolean(enableMaterialDownload),
+          enable_notes_download: Boolean(enableNotesDownload),
+          enable_quiz_download: Boolean(enableQuizDownload),
+          razorpay_key_id: razorpayKeyId.trim(),
+          razorpay_key_secret: razorpayKeySecret.trim(),
+          course_price: Number(coursePrice || 999),
+          original_price: Number(originalPrice || 2499),
+          discount_percent: Number(discountPercent || 60),
+          whatsapp_group_link: whatsappGroupLink.trim(),
+          whatsapp_group_title: whatsappGroupTitle.trim(),
+          whatsapp_group_enabled: Boolean(whatsappGroupEnabled)
+        })
+      });
+      showToast("WhatsApp Group Link updated successfully for all enrolled teachers!", "success");
+    } catch (err) {
+      showToast(err.message || "Failed to update WhatsApp group link", "error");
+    } finally {
+      setSavingWhatsAppGroup(false);
     }
   };
 
@@ -2043,6 +2135,193 @@ export default function AdminPage({ user, lang = "en" }) {
     }
   };
 
+  const handleSyncRazorpay = async () => {
+    setIsSyncingRazorpay(true);
+    try {
+      const res = await fetchApi("/admin/enrollments/sync-razorpay", { method: "POST" });
+      if (res && res.ok) {
+        showToast(res.message || `Sync successful! ${res.total_synced || 0} students activated.`, "success");
+        loadEnrollments();
+        loadStats();
+      } else {
+        showToast(res?.message || "Sync completed with no updates.", "info");
+      }
+    } catch (err) {
+      showToast(err.message || "Failed to sync Razorpay payments", "error");
+    } finally {
+      setIsSyncingRazorpay(false);
+    }
+  };
+
+  const handleCleanDuplicates = async () => {
+    if (!window.confirm("Clean all duplicate pending leads and duplicate active submissions? This will keep only genuine, unique candidates and purge obsolete retries.")) {
+      return;
+    }
+    setIsCleaningDuplicates(true);
+    try {
+      const res = await fetchApi("/admin/enrollments/cleanup-duplicates", { method: "POST" });
+      if (res && res.ok) {
+        showToast(res.message || `Cleaned ${res.cleaned_count || 0} duplicate entries.`, "success");
+        loadEnrollments();
+        loadStats();
+      } else {
+        showToast(res?.error || "Failed to clean duplicates.", "error");
+      }
+    } catch (err) {
+      showToast(err.message || "Failed to clean duplicates.", "error");
+    } finally {
+      setIsCleaningDuplicates(false);
+    }
+  };
+
+  const handleExportEnrollmentsCsv = (exportScope = "all") => {
+    if (!enrollmentsList || enrollmentsList.length === 0) {
+      return showToast("No enrollment records available to export.", "info");
+    }
+
+    let listToExport = enrollmentsList;
+    let label = "All Leads & Enrollments";
+    let filenameSuffix = "all_leads";
+
+    if (exportScope === "active") {
+      listToExport = enrollmentsList.filter(e => e.status === "active");
+      label = "Active Enrolled Candidates";
+      filenameSuffix = "active_enrolled";
+    } else if (exportScope === "pending") {
+      listToExport = enrollmentsList.filter(e => e.status === "pending");
+      label = "Pending Checkout Leads";
+      filenameSuffix = "pending_leads";
+    } else if (exportScope === "admin_free") {
+      listToExport = enrollmentsList.filter(e => e.payment_method === "admin_free");
+      label = "Admin Free Enrolled";
+      filenameSuffix = "admin_free";
+    } else if (exportScope === "duplicate") {
+      const activeEmailCounts = {};
+      enrollmentsList.forEach((item) => {
+        if (item.status === "active" && item.email) {
+          const em = item.email.toLowerCase().trim();
+          activeEmailCounts[em] = (activeEmailCounts[em] || 0) + 1;
+        }
+      });
+      listToExport = enrollmentsList.filter(e => e.status === "active" && e.email && activeEmailCounts[e.email.toLowerCase().trim()] > 1);
+      label = "Duplicate Active Submissions";
+      filenameSuffix = "duplicate_submissions";
+    }
+
+    if (listToExport.length === 0) {
+      return showToast(`No records found for ${label}.`, "info");
+    }
+
+    const headers = [
+      "ID",
+      "Candidate Name",
+      "Mobile Number",
+      "Email Address",
+      "Designation",
+      "Course Package",
+      "Status",
+      "Payment Method",
+      "Amount Paid (INR)",
+      "Payment ID",
+      "Order ID",
+      "UPI / Acquirer Notes",
+      "Registration Date"
+    ];
+
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const rows = listToExport.map(e => [
+      e.id,
+      escapeCsv(e.name || ""),
+      escapeCsv(e.mobile || ""),
+      escapeCsv(e.email || ""),
+      escapeCsv(e.designation || "Aspirant"),
+      escapeCsv(e.course_name || "TET All-in-One"),
+      escapeCsv(e.status ? e.status.toUpperCase() : "PENDING"),
+      escapeCsv(e.payment_method || "razorpay"),
+      e.amount !== undefined ? e.amount : 1000,
+      escapeCsv(e.payment_id || ""),
+      escapeCsv(e.order_id || ""),
+      escapeCsv(e.notes || ""),
+      escapeCsv(e.created_at ? new Date(e.created_at).toLocaleString("en-IN") : "")
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const today = new Date().toISOString().slice(0, 10);
+    link.setAttribute("download", `tnteachers_enrollments_${filenameSuffix}_${today}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast(`Successfully exported ${listToExport.length} ${label} to CSV!`, "success");
+  };
+
+  const handleAdminLookupUpi = async (e) => {
+    if (e) e.preventDefault();
+    const q = upiLookupQuery.trim();
+    if (!q) {
+      showToast("Please enter a UPI Ref No, Phone, Email, or Payment ID", "error");
+      return;
+    }
+    setUpiLookupLoading(true);
+    setUpiLookupResults(null);
+    try {
+      const res = await fetchApi("/admin/enrollments/lookup-upi", {
+        method: "POST",
+        body: JSON.stringify({ query: q })
+      });
+      if (res && res.ok) {
+        setUpiLookupResults(res.results || []);
+        if (!res.results || res.results.length === 0) {
+          showToast(`No payments found matching "${q}" in Razorpay or DB`, "info");
+        } else {
+          showToast(`Found ${res.results.length} matching payment record(s)!`, "success");
+        }
+      }
+    } catch (err) {
+      showToast(err.message || "Failed to search payment in Razorpay", "error");
+    } finally {
+      setUpiLookupLoading(false);
+    }
+  };
+
+  const handleAdminApproveUpi = async (item) => {
+    setApprovingUpiId(item.payment_id);
+    try {
+      const res = await fetchApi("/admin/enrollments/approve-upi", {
+        method: "POST",
+        body: JSON.stringify({
+          payment_id: item.payment_id,
+          email: item.email,
+          mobile: item.mobile,
+          name: item.name,
+          upi_rrn: item.upi_rrn,
+          amount: item.amount || 1000,
+          notes: "Approved manually by admin from UPI lookup card"
+        })
+      });
+      if (res && res.ok) {
+        showToast(res.message || "Access successfully approved & activated!", "success");
+        setUpiLookupResults(prev => (prev || []).map(p => p.payment_id === item.payment_id ? { ...p, is_enrolled: true, enrollment_status: "active" } : p));
+        loadEnrollments();
+        loadStats();
+      }
+    } catch (err) {
+      showToast(err.message || "Failed to approve payment", "error");
+    } finally {
+      setApprovingUpiId(null);
+    }
+  };
+
   const handleToggleEnrollmentStatus = async (id, currentStatus) => {
     const nextStatus = currentStatus === "active" ? "cancelled" : "active";
     try {
@@ -2066,6 +2345,50 @@ export default function AdminPage({ user, lang = "en" }) {
     } catch (err) {
       showToast("Failed to delete enrollment", "error");
     }
+  };
+
+  // WhatsApp Follow-up Message Generators & Handlers
+  const getWhatsAppFollowUpMessage = (candidate, templateType = "default") => {
+    if (!candidate) return "";
+    const name = candidate.name ? candidate.name.trim() : "Aspirant";
+    const course = candidate.course_name || "TNTET 2026 Complete Preparation Course";
+    const amount = candidate.amount || 999;
+
+    if (templateType === "urgent") {
+      return `வணக்கம் ${name}! 🙏\n\nTN Teachers Portal-ல் (https://tnteachers.in/) நீங்கள் பதிவு செய்த TNTET தேர்வுக்கான முழுமையான பாடத்திட்டம் (தாள் 1 & 2, மாதிரி தேர்வுகள், சுருக்கக் குறிப்புகள் & நேரலை வகுப்புகள்) உங்களுக்காகக் காத்திருக்கிறது.\n\n🔥 சிறப்பு சலுகைக் கட்டணம்: ₹${amount}\n\nஉடனடியாக உங்கள் பதிவை உறுதி செய்து படிக்கத் தொடங்க கீழே உள்ள இணைப்பை கிளிக் செய்யவும்:\n👉 https://tnteachers.in/\n\nGPay / PhonePe / UPI மூலம் கட்டணம் செலுத்த அல்லது ஏதேனும் சந்தேகம் இருந்தால் இந்த எண்ணுக்கு பதிலளிக்கவும். நாங்கள் உதவத் தயாராக உள்ளோம்! 📚`;
+    } else if (templateType === "help") {
+      return `வணக்கம் ${name}! 🙏\n\nTN Teachers Portal-ல் TNTET பயிற்சி வகுப்பில் சேர நீங்கள் மேற்கொண்ட பதிவு நிலுவையில் (Pending) உள்ளது.\n\nகட்டணம் செலுத்துவதிலோ அல்லது பாடக்குறிப்புகள் பெறுவதிலோ ஏதேனும் உதவி தேவையா?\n\n👉 கட்டணம்: ₹${amount}\n👉 நேரடி இணையதளம்: https://tnteachers.in/\n\nஉங்களுக்கு உதவ நாங்கள் தயாராக உள்ளோம். உங்கள் கேள்விகளை இங்கே பகிரலாம்! 🌟`;
+    } else {
+      // Default balanced Tamil + English professional message
+      return `வணக்கம் ${name}! 🙏 (Vanakkam)\n\nWe noticed you started enrollment for the *TNTET 2026 Complete Preparation Course* (${course}) on TN Teachers Portal (https://tnteachers.in/).\n\nYour seat is reserved at the special discounted fee of *₹${amount}*.\n\nClick below to complete your checkout & get instant access to:\n✅ TET Paper 1 & 2 Complete Study Material\n✅ Chapter-wise Daily Practice MCQs & 80% Online Exams\n✅ Live Interactive Training Sessions & Recorded Videos\n\n👉 *Complete Enrollment Now:* https://tnteachers.in/\n\nIf you need any help with GPay / PhonePe / Netbanking, please reply to this WhatsApp message. All the best for your TNTET exam! 🌟`;
+    }
+  };
+
+  const cleanMobileForWhatsApp = (mobile) => {
+    if (!mobile) return "";
+    let clean = String(mobile).replace(/\D/g, "");
+    if (clean.startsWith("91") && clean.length === 12) {
+      clean = clean.substring(2);
+    }
+    if (clean.startsWith("0") && clean.length === 11) {
+      clean = clean.substring(1);
+    }
+    return clean;
+  };
+
+  const handle1ClickWhatsApp = (candidate, templateType = "default") => {
+    const cleanMobile = cleanMobileForWhatsApp(candidate.mobile);
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      return showToast(`Invalid mobile number format (${candidate.mobile || "empty"}). Must be 10 digits.`, "warning");
+    }
+    const msg = getWhatsAppFollowUpMessage(candidate, templateType);
+    const url = `https://wa.me/91${cleanMobile}?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+  };
+
+  const handleOpenWhatsAppModal = (candidate, templateType = "default") => {
+    setWhatsAppModalCandidate(candidate);
+    setWhatsAppCustomMessage(getWhatsAppFollowUpMessage(candidate, templateType));
   };
 
   const loadAnnouncements = async () => {
@@ -2584,10 +2907,94 @@ export default function AdminPage({ user, lang = "en" }) {
                   </p>
                 </div>
 
-                <div className="flex items-center space-x-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleSyncRazorpay}
+                    disabled={isSyncingRazorpay}
+                    className="flex items-center space-x-2 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                    title="Auto-reconcile all paid UPI and Razorpay transactions directly from Razorpay"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isSyncingRazorpay ? "animate-spin" : ""}`} />
+                    <span>{isSyncingRazorpay ? "Syncing..." : "Sync Razorpay"}</span>
+                  </button>
+
+                  <button
+                    onClick={handleCleanDuplicates}
+                    disabled={isCleaningDuplicates}
+                    className="flex items-center space-x-2 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                    title="Purge obsolete retry submissions and orphan pending leads for candidates who are already active"
+                  >
+                    <Sparkles className={`w-4 h-4 ${isCleaningDuplicates ? "animate-spin" : ""}`} />
+                    <span>{isCleaningDuplicates ? "Cleaning..." : "Clean Duplicates"}</span>
+                  </button>
+
+                  {/* Export CSV Dropdown */}
+                  <div className="relative group">
+                    <button
+                      onClick={() => handleExportEnrollmentsCsv("all")}
+                      className="flex items-center space-x-1.5 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-[#061b36] hover:bg-slate-800 text-white font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                      title="Download Enrollments CSV file for Excel"
+                    >
+                      <Download className="w-4 h-4 text-amber-400" />
+                      <span>Export CSV</span>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-300" />
+                    </button>
+                    
+                    <div className="hidden group-hover:block absolute right-0 top-full pt-1.5 z-30 min-w-[240px]">
+                      <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-2 space-y-1 text-xs font-bold text-slate-700 animate-scale-in">
+                        <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                          Export to Excel / CSV
+                        </div>
+                        <button
+                          onClick={() => handleExportEnrollmentsCsv("all")}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 flex items-center justify-between transition cursor-pointer"
+                        >
+                          <span className="font-extrabold text-[#061b36]">All Leads & Orders</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold">{enrollmentsList.length}</span>
+                        </button>
+                        <button
+                          onClick={() => handleExportEnrollmentsCsv("active")}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 text-emerald-800 flex items-center justify-between transition cursor-pointer"
+                        >
+                          <span className="flex items-center space-x-1.5 font-extrabold">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                            <span>Active Enrolled Only</span>
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black">
+                            {enrollmentsList.filter(e => e.status === "active").length}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => handleExportEnrollmentsCsv("pending")}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-50 text-amber-800 flex items-center justify-between transition cursor-pointer"
+                        >
+                          <span className="flex items-center space-x-1.5 font-extrabold">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                            <span>Pending Checkout Leads</span>
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black">
+                            {enrollmentsList.filter(e => e.status === "pending").length}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => handleExportEnrollmentsCsv("admin_free")}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 text-blue-800 flex items-center justify-between transition cursor-pointer"
+                        >
+                          <span className="flex items-center space-x-1.5 font-extrabold">
+                            <span className="w-2 h-2 rounded-full bg-[#0055ff] inline-block" />
+                            <span>Admin Free Enrolled</span>
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-black">
+                            {enrollmentsList.filter(e => e.payment_method === "admin_free").length}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   <button
                     onClick={() => setIsManualEnrollModalOpen(true)}
-                    className="flex items-center space-x-2 px-5 py-3 rounded-2xl bg-[#0055ff] hover:bg-blue-700 text-white font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                    className="flex items-center space-x-2 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-[#0055ff] hover:bg-blue-700 text-white font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>+ Enroll Candidate Free</span>
@@ -2595,47 +3002,461 @@ export default function AdminPage({ user, lang = "en" }) {
                 </div>
               </div>
 
-              {/* 4 KPI Metric Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                    TOTAL LEADS & ORDERS
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-900">
-                    {enrollmentsList.length}
+              {/* ================= DATE-BASED KPI CARDS (RECONCILE WITH RAZORPAY) + CONSTANT TOTAL ENROLLED ================= */}
+              {(() => {
+                // IST offset = +5:30 = 330 minutes
+                const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+                // Convert any date (UTC from DB) to IST date string "YYYY-MM-DD"
+                const extractDateStrIST = (dateVal) => {
+                  if (!dateVal) return "";
+                  try {
+                    let d = new Date(dateVal);
+                    if (isNaN(d.getTime())) return "";
+                    // If string has no timezone info (DB returns "2026-10-23 18:50:27"),
+                    // JS parses it as local time. We need to treat it as UTC.
+                    // Check if the string lacks 'Z' or '+' timezone suffix
+                    if (typeof dateVal === "string" && !dateVal.includes("Z") && !dateVal.includes("+")) {
+                      // Re-parse treating it as UTC explicitly
+                      d = new Date(dateVal.replace(" ", "T") + "Z");
+                    }
+                    if (isNaN(d.getTime())) return "";
+                    // Now shift to IST
+                    const istTime = new Date(d.getTime() + IST_OFFSET_MS);
+                    const y = istTime.getUTCFullYear();
+                    const m = String(istTime.getUTCMonth() + 1).padStart(2, "0");
+                    const day = String(istTime.getUTCDate()).padStart(2, "0");
+                    return `${y}-${m}-${day}`;
+                  } catch (e) {
+                    return "";
+                  }
+                };
+
+                // Today/yesterday in IST
+                const nowIST = new Date(Date.now() + IST_OFFSET_MS);
+                const todayStr = `${nowIST.getUTCFullYear()}-${String(nowIST.getUTCMonth() + 1).padStart(2, "0")}-${String(nowIST.getUTCDate()).padStart(2, "0")}`;
+                const yestIST = new Date(Date.now() + IST_OFFSET_MS - 86400000);
+                const yesterdayStr = `${yestIST.getUTCFullYear()}-${String(yestIST.getUTCMonth() + 1).padStart(2, "0")}-${String(yestIST.getUTCDate()).padStart(2, "0")}`;
+
+
+                // CONSTANT METRICS: All-Time Total Enrolled (never changes when filtering by date)
+                const allTimeActive = enrollmentsList.filter(e => e.status === "active");
+                const allTimeUniqueActiveEmails = new Set(
+                  allTimeActive.map(e => (e.email || "").trim().toLowerCase()).filter(Boolean)
+                );
+                const allTimeActiveCount = allTimeUniqueActiveEmails.size;
+                const allTimeAdminFreeCount = enrollmentsList.filter(e => e.payment_method === "admin_free").length;
+                const allTimePaidCount = Math.max(0, allTimeActiveCount - allTimeAdminFreeCount);
+                const allTimeTotalRevenue = allTimePaidCount * 1000;
+
+                // Date-matching checker (IST-aware: DB timestamps are UTC, compare in IST)
+                const isDateMatching = (created_at) => {
+                  const rowDate = extractDateStrIST(created_at);
+                  if (!rowDate) return false;
+                  if (enrollmentDateMode === "today") return rowDate === todayStr;
+                  if (enrollmentDateMode === "yesterday") return rowDate === yesterdayStr;
+                  if (enrollmentDateMode === "custom") return rowDate === customEnrollmentDate;
+                  if (enrollmentDateMode === "last_7_days") {
+                    // Compare IST dates only (not UTC diff which can be off by a day at midnight IST)
+                    const rowDateObj = new Date(rowDate);
+                    const todayDateObj = new Date(todayStr);
+                    const diffDays = Math.floor((todayDateObj - rowDateObj) / (1000 * 60 * 60 * 24));
+                    return diffDays >= 0 && diffDays <= 7;
+                  }
+                  return true; // "all"
+                };
+
+                // Date-filtered records
+                const dateFilteredList = enrollmentDateMode === "all"
+                  ? enrollmentsList
+                  : enrollmentsList.filter(e => isDateMatching(e.created_at));
+
+                const dateActiveList = dateFilteredList.filter(e => e.status === "active");
+                const dateUniqueActiveEmails = new Set(
+                  dateActiveList.map(e => (e.email || "").trim().toLowerCase()).filter(Boolean)
+                );
+                const dateActiveCount = dateUniqueActiveEmails.size;
+                const dateAdminFreeCount = dateFilteredList.filter(e => e.payment_method === "admin_free").length;
+                const datePaidCount = Math.max(0, dateActiveCount - dateAdminFreeCount);
+                const dateRevenue = datePaidCount * 1000;
+                const datePendingCount = dateFilteredList.filter(e => e.status === "pending").length;
+                const dateTotalAttempts = dateFilteredList.length;
+
+                const dateLabel = 
+                  enrollmentDateMode === "all" ? "All-Time" :
+                  enrollmentDateMode === "today" ? `Today (${todayStr})` :
+                  enrollmentDateMode === "yesterday" ? `Yesterday (${yesterdayStr})` :
+                  enrollmentDateMode === "last_7_days" ? "Last 7 Days" :
+                  `Date: ${customEnrollmentDate}`;
+
+                return (
+                  <div className="space-y-3.5">
+                    {/* Date Navigation & Reconcile Strip */}
+                    <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <span className="text-[11px] font-black uppercase text-slate-500 mr-1 flex items-center space-x-1">
+                          <Calendar className="w-3.5 h-3.5 text-[#0055ff]" />
+                          <span>Track by Date:</span>
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => setEnrollmentDateMode("all")}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                            enrollmentDateMode === "all"
+                              ? "bg-[#061b36] text-white shadow-xs font-black"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          All Time
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEnrollmentDateMode("today")}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center space-x-1 ${
+                            enrollmentDateMode === "today"
+                              ? "bg-[#0055ff] text-white shadow-xs font-black"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          <span>Today</span>
+                          <span className="text-[10px] opacity-75">({todayStr.slice(5)})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEnrollmentDateMode("yesterday")}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center space-x-1 ${
+                            enrollmentDateMode === "yesterday"
+                              ? "bg-indigo-600 text-white shadow-xs font-black"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          <span>Yesterday</span>
+                          <span className="text-[10px] opacity-75">({yesterdayStr.slice(5)})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEnrollmentDateMode("last_7_days")}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                            enrollmentDateMode === "last_7_days"
+                              ? "bg-purple-600 text-white shadow-xs font-black"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          Last 7 Days
+                        </button>
+
+                        {/* Custom Date Input for matching Razorpay */}
+                        <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+                          <span className="text-[11px] font-bold text-slate-500">Pick Date:</span>
+                          <input
+                            type="date"
+                            value={customEnrollmentDate}
+                            onChange={(e) => {
+                              setCustomEnrollmentDate(e.target.value);
+                              setEnrollmentDateMode("custom");
+                            }}
+                            className="px-2 py-0.5 rounded-lg bg-white text-xs font-bold text-slate-800 border border-slate-200 focus:outline-none focus:border-[#0055ff]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Filter Table & Deduplicate Toggles */}
+                      <div className="flex items-center gap-2.5 text-xs font-bold text-slate-700 shrink-0">
+                        <label className="flex items-center space-x-1.5 cursor-pointer bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition">
+                          <input
+                            type="checkbox"
+                            checked={applyDateFilterToTable}
+                            onChange={(e) => setApplyDateFilterToTable(e.target.checked)}
+                            className="rounded text-[#0055ff] focus:ring-blue-200"
+                          />
+                          <span>Filter Table to this Date</span>
+                        </label>
+
+                        <label className="flex items-center space-x-1.5 cursor-pointer bg-emerald-50 text-emerald-800 px-2.5 py-1.5 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition" title="Show only 1 clean record per candidate (deduplicated)">
+                          <input
+                            type="checkbox"
+                            checked={deduplicateTable}
+                            onChange={(e) => setDeduplicateTable(e.target.checked)}
+                            className="rounded text-emerald-600 focus:ring-emerald-200"
+                          />
+                          <span>Deduplicate (1 per student)</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* 5 KPI Metric Cards (Constant Total Enrolled + Date Specific Reconcile) */}
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                      {/* CARD 1: CONSTANT - TOTAL ENROLLED (ALL-TIME) */}
+                      <div className="bg-gradient-to-br from-[#061b36] via-[#092d62] to-[#0055ff] text-white rounded-2xl p-4 sm:p-5 shadow-md relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-sky-200">
+                            TOTAL ENROLLED
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-400 text-slate-900 shadow-2xs">
+                            CONSTANT
+                          </span>
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-black tracking-tight">
+                          {allTimeActiveCount}
+                        </div>
+                        <div className="text-[11px] text-sky-100 font-bold mt-1">
+                          ₹{allTimeTotalRevenue.toLocaleString("en-IN")} Lifetime Revenue
+                        </div>
+                        <div className="text-[10px] text-sky-200/80 font-medium mt-0.5 border-t border-white/10 pt-1">
+                          {allTimePaidCount} Paid + {allTimeAdminFreeCount} Free
+                        </div>
+                      </div>
+
+                      {/* CARD 2: DATE ACTIVE ENROLLED (MATCH RAZORPAY) */}
+                      <div className="bg-white border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-xs bg-emerald-50/20">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-emerald-700">
+                            ENROLLED ON DATE
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            MATCH RAZORPAY
+                          </span>
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-black text-emerald-600">
+                          {dateActiveCount}
+                        </div>
+                        <span className="text-[11px] text-emerald-700 font-bold block mt-1">
+                          {datePaidCount} Paid on {dateLabel}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium block">
+                          ✓ Cross-check with Razorpay captures
+                        </span>
+                      </div>
+
+                      {/* CARD 3: DATE REVENUE (RAZORPAY SETTLEMENT) */}
+                      <div className="bg-white border-2 border-indigo-200 rounded-2xl p-4 sm:p-5 shadow-xs bg-indigo-50/20">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-indigo-700">
+                            DATE REVENUE
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-indigo-100 text-indigo-800">
+                            SETTLEMENT
+                          </span>
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-black text-indigo-700">
+                          ₹{dateRevenue.toLocaleString("en-IN")}
+                        </div>
+                        <span className="text-[11px] text-indigo-600/90 font-bold block mt-1">
+                          From {datePaidCount} paid students
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium block">
+                          Expected settlement for {dateLabel}
+                        </span>
+                      </div>
+
+                      {/* CARD 4: DATE PENDING CHECKOUTS */}
+                      <div 
+                        onClick={() => setEnrollmentStatusFilter("pending")}
+                        className="bg-white border border-amber-300 hover:border-amber-400 rounded-2xl p-4 sm:p-5 shadow-xs bg-amber-50/20 cursor-pointer transition hover:scale-[1.02]"
+                        title="Click to filter pending leads for this date"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-700">
+                            DATE PENDING LEADS
+                          </span>
+                          <WhatsAppIcon className="w-3.5 h-3.5 fill-[#25D366]" />
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-black text-amber-600">
+                          {datePendingCount}
+                        </div>
+                        <span className="text-[11px] text-amber-800 font-bold block mt-1">
+                          Dropped off on {dateLabel}
+                        </span>
+                        <span className="text-[10px] text-amber-700/80 font-medium block">
+                          Click to view & WhatsApp follow-up 💬
+                        </span>
+                      </div>
+
+                      {/* CARD 5: TOTAL ATTEMPTS ON DATE */}
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs col-span-2 lg:col-span-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-400">
+                            TOTAL DATE INQUIRIES
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold">
+                            {dateAdminFreeCount} Free
+                          </span>
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-black text-slate-900">
+                          {dateTotalAttempts}
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-semibold block mt-1">
+                          {dateActiveCount} Active + {datePendingCount} Pending
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium block">
+                          Total activity on {dateLabel}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Razorpay Reconciliation Summary Strip */}
+                    <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center space-x-2 text-emerald-900 font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>
+                          <strong>Razorpay Reconcile ({dateLabel}):</strong> Expecting <strong>{datePaidCount} Captured Payments</strong> totaling <strong>₹{dateRevenue.toLocaleString("en-IN")}</strong>. Match this with your Razorpay Dashboard daily settlement report.
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2 self-end sm:self-auto">
+                        {!applyDateFilterToTable && enrollmentDateMode !== "all" && (
+                          <button
+                            type="button"
+                            onClick={() => setApplyDateFilterToTable(true)}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition cursor-pointer shadow-2xs"
+                          >
+                            Filter Table to {dateLabel} →
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-[11px] text-slate-500 font-semibold block mt-1">Total inquiries & subscribers</span>
+                );
+              })()}
+
+              {/* ================= ADMIN UPI PAYMENT LOOKUP & APPROVAL TOOL ================= */}
+              <div className="bg-gradient-to-br from-white via-blue-50/25 to-indigo-50/35 border-2 border-blue-200/90 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2 text-[#0055ff] font-extrabold text-xs uppercase tracking-wider">
+                      <CreditCard className="w-4 h-4 text-[#0055ff]" />
+                      <span>UPI & Netbanking Manual Verification & Instant Approval</span>
+                    </div>
+                    <h4 className="text-base sm:text-lg font-black text-[#061b36]">
+                      Verify Paid Candidate Screenshot & Unlock Access
+                    </h4>
+                    <p className="text-xs text-slate-500 font-medium max-w-xl">
+                      If a student shares a screenshot showing paid but states "Not Enrolled", enter their 12-digit UPI Ref/RRN, Mobile Number, or Email to query Razorpay and instantly approve course access.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleAdminLookupUpi} className="flex items-center space-x-2 w-full lg:w-auto">
+                    <div className="relative flex-1 lg:w-84">
+                      <input
+                        type="text"
+                        value={upiLookupQuery}
+                        onChange={(e) => setUpiLookupQuery(e.target.value)}
+                        placeholder="12-digit UPI RRN, Mobile or Email"
+                        className="w-full pl-3.5 pr-8 py-2.5 rounded-xl border border-blue-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#0055ff] focus:ring-2 focus:ring-blue-100 bg-white shadow-xs"
+                      />
+                      {upiLookupQuery && (
+                        <button
+                          type="button"
+                          onClick={() => { setUpiLookupQuery(""); setUpiLookupResults(null); }}
+                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-black cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={upiLookupLoading || !upiLookupQuery.trim()}
+                      className="px-4 py-2.5 rounded-xl bg-[#0055ff] hover:bg-blue-700 disabled:opacity-50 text-white font-black text-xs transition shadow-xs flex items-center space-x-1.5 shrink-0 cursor-pointer"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                      <span>{upiLookupLoading ? "Searching..." : "Check Payment"}</span>
+                    </button>
+                  </form>
                 </div>
 
-                <div className="bg-white border border-emerald-200 rounded-2xl p-5 shadow-xs bg-emerald-50/20">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 block mb-1">
-                    ACTIVE ACCESS
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-black text-emerald-600">
-                    {enrollmentsList.filter(e => e.status === "active").length}
-                  </div>
-                  <span className="text-[11px] text-emerald-600/90 font-semibold block mt-1">Unlocked course learners</span>
-                </div>
+                {/* Lookup Results Section */}
+                {upiLookupResults && (
+                  <div className="pt-3 border-t border-blue-100 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-600">
+                      <span>Search Results for "{upiLookupQuery}": ({upiLookupResults.length} records found)</span>
+                      <button
+                        onClick={() => setUpiLookupResults(null)}
+                        className="text-[11px] text-slate-400 hover:text-slate-700 font-bold cursor-pointer"
+                      >
+                        Clear Results ✕
+                      </button>
+                    </div>
 
-                <div className="bg-white border border-blue-200 rounded-2xl p-5 shadow-xs bg-blue-50/20">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-700 block mb-1">
-                    ADMIN FREE ENROLLED
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-black text-[#0055ff]">
-                    {enrollmentsList.filter(e => e.payment_method === "admin_free").length}
-                  </div>
-                  <span className="text-[11px] text-blue-600/90 font-semibold block mt-1">Enrolled without payment</span>
-                </div>
+                    {upiLookupResults.length === 0 ? (
+                      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold flex items-center space-x-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>No captured payment or database record found matching "{upiLookupQuery}". Please confirm the 12-digit UPI Reference Number or mobile number from the screenshot.</span>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {upiLookupResults.map((item, idx) => {
+                          const isCaptured = item.status === "captured";
+                          const isAlreadyActive = item.is_enrolled || item.enrollment_status === "active";
 
-                <div className="bg-white border border-amber-200 rounded-2xl p-5 shadow-xs bg-amber-50/20">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 block mb-1">
-                    PENDING PAYMENTS
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-black text-amber-600">
-                    {enrollmentsList.filter(e => e.status === "pending").length}
+                          return (
+                            <div key={idx} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="font-black text-slate-900 text-sm">{item.name || "Candidate"}</div>
+                                  <div className="text-[11px] text-slate-500 font-medium">{item.email} • {item.mobile}</div>
+                                </div>
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                                  isCaptured
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}>
+                                  {isCaptured ? "Razorpay Paid ✓" : item.status}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-semibold text-slate-600">
+                                <div>
+                                  <span className="text-[10px] text-slate-400 block font-bold uppercase">Amount</span>
+                                  <span className="font-black text-slate-900 text-sm">₹{item.amount}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-slate-400 block font-bold uppercase">Payment ID</span>
+                                  <span className="font-mono text-[11px] text-blue-700">{item.payment_id}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-slate-400 block font-bold uppercase">UPI RRN / Ref</span>
+                                  <span className="font-mono text-[11px] text-emerald-800 font-bold">{item.upi_rrn || "N/A"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-slate-400 block font-bold uppercase">Portal Status</span>
+                                  <span className={`font-black text-[11px] uppercase ${
+                                    isAlreadyActive ? "text-emerald-600" : "text-amber-600"
+                                  }`}>
+                                    {isAlreadyActive ? "ACTIVE (UNLOCKED)" : "PENDING ACCESS"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-1">
+                                <span className="text-[10px] text-slate-400 font-medium">{item.created_at || "Recent"}</span>
+
+                                {isAlreadyActive ? (
+                                  <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black flex items-center space-x-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Access Active ✓</span>
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleAdminApproveUpi(item)}
+                                    disabled={approvingUpiId === item.payment_id}
+                                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center space-x-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>{approvingUpiId === item.payment_id ? "Approving..." : "Approve & Unlock Access"}</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <span className="text-[11px] text-amber-700/90 font-semibold block mt-1">Awaiting online checkout</span>
-                </div>
+                )}
               </div>
 
               {/* Learning Need Breakdown Pills */}
@@ -2698,8 +3519,18 @@ export default function AdminPage({ user, lang = "en" }) {
                     <option value="active">Active Access Only</option>
                     <option value="pending">Pending Payment</option>
                     <option value="admin_free">Admin Free Enrolled</option>
+                    <option value="duplicate">Duplicate Active Submissions</option>
                     <option value="cancelled">Cancelled / Inactive</option>
                   </select>
+
+                  <button
+                    onClick={() => handleExportEnrollmentsCsv(enrollmentStatusFilter === "all" ? "all" : enrollmentStatusFilter)}
+                    title="Export currently filtered list to Excel/CSV"
+                    className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-600" />
+                    <span className="hidden sm:inline">Export CSV</span>
+                  </button>
 
                   <button
                     onClick={loadEnrollments}
@@ -2710,6 +3541,35 @@ export default function AdminPage({ user, lang = "en" }) {
                   </button>
                 </div>
               </div>
+
+              {/* PENDING LEADS FOLLOW-UP BANNER */}
+              {enrollmentStatusFilter === "pending" && (
+                <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#25D366] text-white flex items-center justify-center font-bold shadow-xs shrink-0">
+                      <WhatsAppIcon className="w-5 h-5 fill-current" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-black text-amber-950 flex items-center space-x-1.5">
+                        <span>Pending Checkout Follow-up Hub</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200/80 text-amber-900">
+                          {enrollmentsList.filter(e => e.status === "pending").length} Leads
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-amber-800 font-medium">
+                        These candidates began enrollment but dropped off at payment. Click <strong>"WhatsApp Follow-up"</strong> on any row to send an instant personalized reminder via WhatsApp.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleExportEnrollmentsCsv("pending")}
+                    className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center space-x-1.5 shrink-0 shadow-xs cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export Pending CSV</span>
+                  </button>
+                </div>
+              )}
 
               {/* Enrollments Table */}
               <div className="bg-white border border-slate-200/90 rounded-3xl overflow-hidden shadow-xs">
@@ -2729,7 +3589,64 @@ export default function AdminPage({ user, lang = "en" }) {
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
                       {(() => {
-                        const filtered = enrollmentsList.filter((e) => {
+                        const activeEmailCounts = {};
+                        enrollmentsList.forEach((item) => {
+                          if (item.status === "active" && item.email) {
+                            const em = item.email.toLowerCase().trim();
+                            activeEmailCounts[em] = (activeEmailCounts[em] || 0) + 1;
+                          }
+                        });
+
+                        // 1. Table Deduplication (prioritizes active record, then latest by id)
+                        let sourceList = enrollmentsList;
+                        if (deduplicateTable) {
+                          const seen = new Set();
+                          const deduped = [];
+                          const sorted = [...enrollmentsList].sort((a, b) => {
+                            if (a.status === "active" && b.status !== "active") return -1;
+                            if (b.status === "active" && a.status !== "active") return 1;
+                            return (b.id || 0) - (a.id || 0);
+                          });
+                          sorted.forEach(item => {
+                            const em = (item.email || "").toLowerCase().trim();
+                            const mb = (item.mobile || "").trim().replace(/\D/g, "");
+                            const key = em || (mb ? `mb:${mb}` : `id:${item.id}`);
+                            if (!seen.has(key)) {
+                              seen.add(key);
+                              deduped.push(item);
+                            }
+                          });
+                          sourceList = deduped;
+                        }
+
+                        // 2. Date Matching Checker
+                        const isRowDateMatching = (created_at) => {
+                          if (!created_at) return false;
+                          try {
+                            const d = new Date(created_at);
+                            if (isNaN(d.getTime())) return false;
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, "0");
+                            const day = String(d.getDate()).padStart(2, "0");
+                            const rowDate = `${y}-${m}-${day}`;
+
+                            const now = new Date();
+                            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+                            const yDate = new Date(Date.now() - 86400000);
+                            const yesterdayStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, "0")}-${String(yDate.getDate()).padStart(2, "0")}`;
+
+                            if (enrollmentDateMode === "today") return rowDate === todayStr;
+                            if (enrollmentDateMode === "yesterday") return rowDate === yesterdayStr;
+                            if (enrollmentDateMode === "custom") return rowDate === customEnrollmentDate;
+                            if (enrollmentDateMode === "last_7_days") {
+                              const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+                              return diffDays >= 0 && diffDays <= 7;
+                            }
+                          } catch (err) {}
+                          return true;
+                        };
+
+                        const filtered = sourceList.filter((e) => {
                           const q = enrollmentSearch.toLowerCase().trim();
                           const matchesQuery = !q || 
                             (e.name || "").toLowerCase().includes(q) ||
@@ -2738,7 +3655,9 @@ export default function AdminPage({ user, lang = "en" }) {
                             (e.designation || "").toLowerCase().includes(q);
 
                           const matchesStatus = enrollmentStatusFilter === "all" ||
-                            (enrollmentStatusFilter === "admin_free" ? e.payment_method === "admin_free" : e.status === enrollmentStatusFilter);
+                            (enrollmentStatusFilter === "admin_free" ? e.payment_method === "admin_free" :
+                             enrollmentStatusFilter === "duplicate" ? (e.status === "active" && e.email && activeEmailCounts[e.email.toLowerCase().trim()] > 1) :
+                             e.status === enrollmentStatusFilter);
 
                           const matchesCourse = enrollmentCourseFilter === "all" ||
                             (enrollmentCourseFilter === "TET 1 and TET 2"
@@ -2747,7 +3666,9 @@ export default function AdminPage({ user, lang = "en" }) {
                               ? (e.course_name || "").includes("TET 1") && !(e.course_name || "").includes("and") && !(e.course_name || "").includes("TET 2")
                               : (e.course_name || "").includes("TET 2") && !(e.course_name || "").includes("and") && !(e.course_name || "").includes("TET 1"));
 
-                          return matchesQuery && matchesStatus && matchesCourse;
+                          const matchesDate = !applyDateFilterToTable || enrollmentDateMode === "all" || isRowDateMatching(e.created_at);
+
+                          return matchesQuery && matchesStatus && matchesCourse && matchesDate;
                         });
 
                         if (filtered.length === 0) {
@@ -2764,16 +3685,35 @@ export default function AdminPage({ user, lang = "en" }) {
                         return filtered.map((e) => {
                           const isActive = e.status === "active";
                           const isFree = e.payment_method === "admin_free";
+                          const isDuplicate = isActive && e.email && activeEmailCounts[e.email.toLowerCase().trim()] > 1;
 
                           return (
                             <tr key={e.id} className="hover:bg-slate-50/70 transition-colors">
                               <td className="py-3.5 px-4 sm:px-6">
-                                <div className="font-black text-[#061b36]">{e.name}</div>
+                                <div className="flex items-center space-x-1.5 flex-wrap">
+                                  <span className="font-black text-[#061b36]">{e.name}</span>
+                                  {isDuplicate && (
+                                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-purple-100 text-purple-700 border border-purple-200" title="Candidate has multiple active enrollment entries">
+                                      Duplicate #{e.id}
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="text-[10px] text-slate-400 block">{e.email}</span>
                               </td>
 
                               <td className="py-3.5 px-4">
-                                <span className="font-bold text-slate-900">{e.mobile || "—"}</span>
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="font-bold text-slate-900">{e.mobile || "—"}</span>
+                                  {e.mobile && (
+                                    <button
+                                      onClick={() => handle1ClickWhatsApp(e)}
+                                      className="p-1 rounded-md text-emerald-600 hover:text-white hover:bg-[#25D366] bg-emerald-50 transition cursor-pointer"
+                                      title={`Open WhatsApp chat with ${e.name}`}
+                                    >
+                                      <WhatsAppIcon className="w-3.5 h-3.5 fill-current" />
+                                    </button>
+                                  )}
+                                </div>
                               </td>
 
                               <td className="py-3.5 px-4">
@@ -2813,7 +3753,27 @@ export default function AdminPage({ user, lang = "en" }) {
                               </td>
 
                               <td className="py-3.5 px-4 text-right">
-                                <div className="flex items-center justify-end space-x-1.5">
+                                <div className="flex items-center justify-end space-x-1.5 flex-wrap gap-y-1">
+                                  {e.status === "pending" && (
+                                    <>
+                                      <button
+                                        onClick={() => handle1ClickWhatsApp(e)}
+                                        title={`1-Click WhatsApp reminder to ${e.name}`}
+                                        className="px-2.5 py-1 rounded-lg bg-[#25D366] hover:bg-[#20ba5a] text-white font-black text-[10px] flex items-center space-x-1 shadow-xs transition hover:scale-105 cursor-pointer"
+                                      >
+                                        <WhatsAppIcon className="w-3 h-3 fill-current" />
+                                        <span>WhatsApp Follow-up</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleOpenWhatsAppModal(e)}
+                                        title="Preview or edit message before sending"
+                                        className="p-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold cursor-pointer transition"
+                                      >
+                                        <Edit3 className="w-3 h-3" />
+                                      </button>
+                                    </>
+                                  )}
+
                                   <button
                                     onClick={() => handleToggleEnrollmentStatus(e.id, e.status)}
                                     title={isActive ? "Deactivate Access" : "Activate Access"}
@@ -2843,6 +3803,120 @@ export default function AdminPage({ user, lang = "en" }) {
                   </table>
                 </div>
               </div>
+
+              {/* MODAL: WHATSAPP FOLLOW-UP CUSTOMIZER & PREVIEW */}
+              {whatsAppModalCandidate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+                  <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <div className="flex items-center space-x-2.5">
+                        <div className="p-2 rounded-xl bg-emerald-50 text-[#25D366] border border-emerald-200">
+                          <WhatsAppIcon className="w-5 h-5 fill-current" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-black text-[#061b36]">
+                            WhatsApp Follow-up: {whatsAppModalCandidate.name}
+                          </h4>
+                          <span className="text-xs text-slate-500 font-medium">
+                            Mobile: {whatsAppModalCandidate.mobile || "None"} • Course: {whatsAppModalCandidate.course_name}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setWhatsAppModalCandidate(null)}
+                        className="text-slate-400 hover:text-slate-700 font-bold p-1 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Quick Template Switcher */}
+                    <div>
+                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                        Choose Follow-up Template:
+                      </label>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setWhatsAppCustomMessage(getWhatsAppFollowUpMessage(whatsAppModalCandidate, "default"))}
+                          className="p-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 font-bold text-slate-700 text-left transition cursor-pointer"
+                        >
+                          <span className="block text-emerald-700 font-black">🌟 Standard</span>
+                          <span className="text-[10px] text-slate-500 block">Tamil + English</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWhatsAppCustomMessage(getWhatsAppFollowUpMessage(whatsAppModalCandidate, "urgent"))}
+                          className="p-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 font-bold text-slate-700 text-left transition cursor-pointer"
+                        >
+                          <span className="block text-amber-700 font-black">🔥 Urgent</span>
+                          <span className="text-[10px] text-slate-500 block">Tamil Urgency</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWhatsAppCustomMessage(getWhatsAppFollowUpMessage(whatsAppModalCandidate, "help"))}
+                          className="p-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 font-bold text-slate-700 text-left transition cursor-pointer"
+                        >
+                          <span className="block text-blue-700 font-black">🤝 Help / UPI</span>
+                          <span className="text-[10px] text-slate-500 block">Payment Help</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Message Editor Textarea */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-slate-700">Message Preview (Editable):</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(whatsAppCustomMessage);
+                            showToast("Message copied to clipboard!", "success");
+                          }}
+                          className="text-[11px] font-bold text-emerald-600 hover:underline flex items-center space-x-1 cursor-pointer"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy Text</span>
+                        </button>
+                      </div>
+                      <textarea
+                        rows={8}
+                        value={whatsAppCustomMessage}
+                        onChange={(e) => setWhatsAppCustomMessage(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-emerald-500 leading-relaxed font-sans"
+                      />
+                    </div>
+
+                    {/* Modal Actions */}
+                    <div className="pt-2 flex items-center justify-end space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setWhatsAppModalCandidate(null)}
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cleanMobile = cleanMobileForWhatsApp(whatsAppModalCandidate.mobile);
+                          if (!cleanMobile || cleanMobile.length !== 10) {
+                            return showToast(`Invalid mobile format (${whatsAppModalCandidate.mobile}). Must be 10 digits.`, "error");
+                          }
+                          const url = `https://wa.me/91${cleanMobile}?text=${encodeURIComponent(whatsAppCustomMessage)}`;
+                          window.open(url, "_blank");
+                          setWhatsAppModalCandidate(null);
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-black text-xs shadow-md shadow-emerald-600/30 flex items-center space-x-1.5 cursor-pointer"
+                      >
+                        <WhatsAppIcon className="w-4 h-4 fill-current" />
+                        <span>Send via WhatsApp ↗</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* MODAL: MANUAL FREE ENROLLMENT */}
               {isManualEnrollModalOpen && (
@@ -5159,56 +6233,204 @@ export default function AdminPage({ user, lang = "en" }) {
                     Control whether students can download study material PDFs and practice quiz test PDFs to their devices. Whenever necessary, these buttons can be enabled or disabled instantly.
                   </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                    {/* Toggle: Materials PDF Download */}
-                    <div className="p-4 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                    {/* Toggle 1: Materials PDF Download */}
+                    <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col justify-between shadow-2xs space-y-3">
                       <div className="space-y-0.5">
                         <div className="flex items-center space-x-2">
                           <FileText className="w-4 h-4 text-[#0055ff]" />
                           <span className="text-xs font-black text-[#061b36]">Material PDF Downloads</span>
                         </div>
                         <p className="text-[11px] text-slate-500 font-medium">
-                          Allow students to download textbook study PDFs
+                          Allow students to download textbook study PDFs (பாடப்புத்தகங்கள்)
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setEnableMaterialDownload(!enableMaterialDownload)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                          enableMaterialDownload 
-                            ? "bg-emerald-600 text-white shadow-xs" 
-                            : "bg-slate-200 text-slate-600 hover:bg-slate-300"
-                        }`}
-                      >
-                        {enableMaterialDownload ? "ENABLED ✓" : "DISABLED ✕"}
-                      </button>
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</span>
+                        <button
+                          type="button"
+                          onClick={() => setEnableMaterialDownload(!enableMaterialDownload)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                            enableMaterialDownload 
+                              ? "bg-emerald-600 text-white shadow-xs" 
+                              : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                          }`}
+                        >
+                          {enableMaterialDownload ? "ENABLED ✓" : "DISABLED ✕"}
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Toggle: Quiz PDF Download */}
-                    <div className="p-4 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
+                    {/* Toggle 2: Lesson Stage 2 Short Notes PDF Download */}
+                    <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col justify-between shadow-2xs space-y-3">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center space-x-2">
+                          <FileCheck className="w-4 h-4 text-[#0284c7]" />
+                          <span className="text-xs font-black text-[#061b36]">Stage 2 Notes PDF</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Allow students to download lesson Stage 2 short notes PDFs (சுருக்கக் குறிப்புகள்)
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</span>
+                        <button
+                          type="button"
+                          onClick={() => setEnableNotesDownload(!enableNotesDownload)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                            enableNotesDownload 
+                              ? "bg-emerald-600 text-white shadow-xs" 
+                              : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                          }`}
+                        >
+                          {enableNotesDownload ? "ENABLED ✓" : "DISABLED ✕"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Toggle 3: Quiz PDF Download */}
+                    <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col justify-between shadow-2xs space-y-3">
                       <div className="space-y-0.5">
                         <div className="flex items-center space-x-2">
                           <CheckSquare className="w-4 h-4 text-purple-600" />
                           <span className="text-xs font-black text-[#061b36]">Quiz & Test PDF Downloads</span>
                         </div>
                         <p className="text-[11px] text-slate-500 font-medium">
-                          Allow students to download practice quiz PDFs
+                          Allow students to download practice quiz & exam PDFs (வினாத்தாள்கள்)
                         </p>
                       </div>
 
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</span>
+                        <button
+                          type="button"
+                          onClick={() => setEnableQuizDownload(!enableQuizDownload)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                            enableQuizDownload 
+                              ? "bg-emerald-600 text-white shadow-xs" 
+                              : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                          }`}
+                        >
+                          {enableQuizDownload ? "ENABLED ✓" : "DISABLED ✕"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ================= WHATSAPP VIP GROUP & ENROLLMENT POPUP CONTROLLER ================= */}
+                <div className="p-5 rounded-2xl bg-emerald-50/70 border-2 border-emerald-300 space-y-4 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200 pb-3">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center space-x-2">
+                          <span>WhatsApp VIP Group & Pop-up Control</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900">
+                            Limit: 1024 / Grp
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-emerald-800 font-medium">
+                          Manage the WhatsApp group link shown in the payment celebration pop-up & student dashboard.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
                       <button
                         type="button"
-                        onClick={() => setEnableQuizDownload(!enableQuizDownload)}
+                        onClick={() => setWhatsappGroupEnabled(!whatsappGroupEnabled)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                          enableQuizDownload 
+                          whatsappGroupEnabled 
                             ? "bg-emerald-600 text-white shadow-xs" 
                             : "bg-slate-200 text-slate-600 hover:bg-slate-300"
                         }`}
                       >
-                        {enableQuizDownload ? "ENABLED ✓" : "DISABLED ✕"}
+                        {whatsappGroupEnabled ? "POP-UP ACTIVE ✓" : "DISABLED ✕"}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={savingWhatsAppGroup}
+                        onClick={handleQuickSaveWhatsAppLink}
+                        className="px-4 py-1.5 rounded-xl bg-[#061b36] hover:bg-black text-white text-xs font-black shadow-xs cursor-pointer transition flex items-center space-x-1"
+                      >
+                        <span>{savingWhatsAppGroup ? "Saving..." : "Update Link Now"}</span>
                       </button>
                     </div>
+                  </div>
+
+                  {/* Informational Guidance Callout */}
+                  <div className="p-3 rounded-xl bg-white border border-emerald-200 text-xs text-slate-700 leading-relaxed flex items-start space-x-2.5">
+                    <span className="text-base leading-none">💡</span>
+                    <div>
+                      <p className="font-bold text-[#061b36]">
+                        வாட்ஸ்அப் குழு உறுப்பினர் வரம்பு (1024 உறுப்பினர்கள்) மேலாண்மை:
+                      </p>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        வாட்ஸ்அப் குழுவில் 1024 நபர்கள் நிறைந்தவுடன், புதிய வாட்ஸ்அப் குழுவை உருவாக்கி அதன் அழைப்பு இணைப்பை (Invite Link) கீழே மாற்றி <b>"Update Link Now"</b> கொடுங்கள். புதிதாக பணம் செலுத்தும் அனைத்து ஆசிரியர்களுக்கும் உடனடியாக இந்த புதிய குழுவே காட்டப்படும்.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-950 mb-1">
+                        வாட்ஸ்அப் குழு இணைப்பு (WhatsApp Group Invite Link) *
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="url"
+                          placeholder="https://chat.whatsapp.com/L123abcXYZ456..."
+                          value={whatsappGroupLink}
+                          onChange={(e) => setWhatsappGroupLink(e.target.value)}
+                          className="w-full p-2.5 rounded-xl bg-white border border-emerald-300 text-emerald-950 font-semibold text-xs focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-400 font-mono"
+                        />
+                        {whatsappGroupLink && (
+                          <button
+                            type="button"
+                            onClick={() => window.open(whatsappGroupLink, "_blank")}
+                            className="px-3 py-2.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold shrink-0 transition"
+                            title="Test Link in New Tab"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-950 mb-1">
+                        குழுவின் பெயர் / தலைப்பு (Group Title / Batch Name)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. TET 2026 Batch 3 - விஐபி ஆசிரியர்கள் குழு"
+                        value={whatsappGroupTitle}
+                        onChange={(e) => setWhatsappGroupTitle(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-white border border-emerald-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Real-time Link Preview */}
+                  <div className="p-3 rounded-xl bg-white border border-emerald-200/90 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-slate-500 font-semibold">Active Preview for Enrolled Teachers:</span>
+                      <span className="font-black text-emerald-900">{whatsappGroupTitle || "TET VIP Teachers Community"}</span>
+                      {whatsappGroupLink ? (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-emerald-100 text-emerald-800 truncate max-w-xs">
+                          {whatsappGroupLink}
+                        </span>
+                      ) : (
+                        <span className="text-amber-600 text-[11px] font-bold">⚠️ No invite link configured yet</span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-emerald-700 font-medium">Auto-synced with post-payment celebration & student dashboard</span>
                   </div>
                 </div>
 

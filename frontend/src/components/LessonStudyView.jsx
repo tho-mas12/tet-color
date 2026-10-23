@@ -58,7 +58,9 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const [testResult, setTestResult] = useState(null);
   const [showDetailedReview, setShowDetailedReview] = useState(false);
   const [countdownStr, setCountdownStr] = useState("");
-  const [canDownloadQuiz, setCanDownloadQuiz] = useState(true);
+  const [canDownloadQuiz, setCanDownloadQuiz] = useState(false);
+  const [canDownloadNotes, setCanDownloadNotes] = useState(false);
+  const [canDownloadMaterial, setCanDownloadMaterial] = useState(false);
 
   const t = translations[lang] || translations.en;
 
@@ -79,8 +81,16 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   useEffect(() => {
     fetchApi("/public-settings")
       .then((data) => {
-        if (data && typeof data.enable_quiz_download === "boolean") {
-          setCanDownloadQuiz(data.enable_quiz_download);
+        if (data) {
+          if (typeof data.enable_quiz_download === "boolean") {
+            setCanDownloadQuiz(data.enable_quiz_download);
+          }
+          if (typeof data.enable_notes_download === "boolean") {
+            setCanDownloadNotes(data.enable_notes_download);
+          }
+          if (typeof data.enable_material_download === "boolean") {
+            setCanDownloadMaterial(data.enable_material_download);
+          }
         }
       })
       .catch(() => {});
@@ -598,7 +608,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
               </div>
 
               <div className="flex items-center space-x-2.5">
-                {lessonData?.pdf_url && (
+                {lessonData?.pdf_url && canDownloadMaterial && (
                   <a
                     href={lessonData.pdf_url}
                     target="_blank"
@@ -625,7 +635,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
               <div className="w-full h-[540px] sm:h-[680px] bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-2xs">
                 <iframe
                   key={lessonData.pdf_url}
-                  src={lessonData.pdf_url}
+                  src={canDownloadMaterial ? lessonData.pdf_url : `${lessonData.pdf_url}#toolbar=0`}
                   className="w-full h-full border-none"
                   title="Lesson PDF Material"
                 />
@@ -663,7 +673,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
               </div>
 
               <div className="flex items-center space-x-2.5">
-                {lessonData?.short_notes_pdf_url && (
+                {lessonData?.short_notes_pdf_url && canDownloadNotes && (
                   <a
                     href={lessonData.short_notes_pdf_url}
                     target="_blank"
@@ -689,7 +699,7 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
             {lessonData?.short_notes_pdf_url ? (
               <div className="w-full h-[520px] sm:h-[650px] bg-slate-100 rounded-2xl overflow-hidden border border-slate-200">
                 <iframe
-                  src={lessonData.short_notes_pdf_url}
+                  src={canDownloadNotes ? lessonData.short_notes_pdf_url : `${lessonData.short_notes_pdf_url}#toolbar=0`}
                   className="w-full h-full border-none"
                   title="Lesson Short Notes PDF"
                 />

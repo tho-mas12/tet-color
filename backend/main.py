@@ -3,7 +3,7 @@ import re
 import shutil
 import datetime
 import json
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Body, Query, Header
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Body, Query, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -49,6 +49,8 @@ def run_sqlite_migrations():
         as_cols = [row[1] for row in cursor.fetchall()]
         if as_cols and "enable_material_download" not in as_cols:
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN enable_material_download BOOLEAN DEFAULT 1")
+        if as_cols and "enable_notes_download" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN enable_notes_download BOOLEAN DEFAULT 0")
         if as_cols and "enable_quiz_download" not in as_cols:
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN enable_quiz_download BOOLEAN DEFAULT 1")
         if as_cols and "razorpay_key_id" not in as_cols:
@@ -61,6 +63,12 @@ def run_sqlite_migrations():
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN original_price INTEGER DEFAULT 2499")
         if as_cols and "discount_percent" not in as_cols:
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN discount_percent INTEGER DEFAULT 60")
+        if as_cols and "whatsapp_group_link" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_link TEXT DEFAULT ''")
+        if as_cols and "whatsapp_group_title" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_title TEXT DEFAULT 'TET VIP Teachers Community'")
+        if as_cols and "whatsapp_group_enabled" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_enabled BOOLEAN DEFAULT 1")
 
         cursor.execute("PRAGMA table_info(enrollments)")
         e_cols = [row[1] for row in cursor.fetchall()]
@@ -95,6 +103,12 @@ def run_db_migrations():
                     conn.execute(text("ALTER TABLE admin_settings ADD COLUMN original_price INTEGER DEFAULT 2499"))
                 if "discount_percent" not in cols:
                     conn.execute(text("ALTER TABLE admin_settings ADD COLUMN discount_percent INTEGER DEFAULT 60"))
+                if "whatsapp_group_link" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_link VARCHAR(500) DEFAULT ''"))
+                if "whatsapp_group_title" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_title VARCHAR(255) DEFAULT 'TET VIP Teachers Community'"))
+                if "whatsapp_group_enabled" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_enabled BOOLEAN DEFAULT 1"))
                 conn.commit()
         if "enrollments" in tables:
             cols = [c["name"] for c in inspector.get_columns("enrollments")]
@@ -155,6 +169,11 @@ def seed_initial_data(db: Session):
     elif settings.pass_percentage != 80:
         settings.pass_percentage = 80
         db.commit()
+
+    try:
+        cleanup_enrollment_duplicates(db)
+    except Exception:
+        db.rollback()
 
     try:
         admin = db.query(models.User).filter(models.User.email == "admin@tet.com").first()
@@ -2455,12 +2474,16 @@ def update_admin_settings(new_settings: schemas.AdminSettingsSchema, db: Session
     if getattr(new_settings, "stage4_count_assertion", None) is not None: settings.stage4_count_assertion = new_settings.stage4_count_assertion
     if getattr(new_settings, "stage4_count_chronological", None) is not None: settings.stage4_count_chronological = new_settings.stage4_count_chronological
     if getattr(new_settings, "enable_material_download", None) is not None: settings.enable_material_download = new_settings.enable_material_download
+    if getattr(new_settings, "enable_notes_download", None) is not None: settings.enable_notes_download = new_settings.enable_notes_download
     if getattr(new_settings, "enable_quiz_download", None) is not None: settings.enable_quiz_download = new_settings.enable_quiz_download
     if getattr(new_settings, "razorpay_key_id", None) is not None: settings.razorpay_key_id = new_settings.razorpay_key_id
     if getattr(new_settings, "razorpay_key_secret", None) is not None: settings.razorpay_key_secret = new_settings.razorpay_key_secret
     if getattr(new_settings, "course_price", None) is not None: settings.course_price = new_settings.course_price
     if getattr(new_settings, "original_price", None) is not None: settings.original_price = new_settings.original_price
     if getattr(new_settings, "discount_percent", None) is not None: settings.discount_percent = new_settings.discount_percent
+    if getattr(new_settings, "whatsapp_group_link", None) is not None: settings.whatsapp_group_link = new_settings.whatsapp_group_link
+    if getattr(new_settings, "whatsapp_group_title", None) is not None: settings.whatsapp_group_title = new_settings.whatsapp_group_title
+    if getattr(new_settings, "whatsapp_group_enabled", None) is not None: settings.whatsapp_group_enabled = new_settings.whatsapp_group_enabled
 
     db.commit()
     db.refresh(settings)
@@ -2470,12 +2493,16 @@ def update_admin_settings(new_settings: schemas.AdminSettingsSchema, db: Session
 def get_public_settings(db: Session = Depends(get_db)):
     settings = db.query(models.AdminSettings).first()
     return schemas.PublicSettingsSchema(
-        enable_material_download=getattr(settings, "enable_material_download", True) if settings else True,
-        enable_quiz_download=getattr(settings, "enable_quiz_download", True) if settings else True,
+        enable_material_download=getattr(settings, "enable_material_download", False) if settings else False,
+        enable_notes_download=getattr(settings, "enable_notes_download", False) if settings else False,
+        enable_quiz_download=getattr(settings, "enable_quiz_download", False) if settings else False,
         razorpay_key_id=getattr(settings, "razorpay_key_id", "") if settings else "",
         course_price=getattr(settings, "course_price", 999) if settings else 999,
         original_price=getattr(settings, "original_price", 2499) if settings else 2499,
-        discount_percent=getattr(settings, "discount_percent", 60) if settings else 60
+        discount_percent=getattr(settings, "discount_percent", 60) if settings else 60,
+        whatsapp_group_link=getattr(settings, "whatsapp_group_link", "") if settings else "",
+        whatsapp_group_title=getattr(settings, "whatsapp_group_title", "TET VIP Teachers Community") if settings else "TET VIP Teachers Community",
+        whatsapp_group_enabled=getattr(settings, "whatsapp_group_enabled", True) if settings else True
     )
 
 # ================= COUPON HELPERS & AUTOMATION =================
@@ -3329,17 +3356,102 @@ def get_ai_live_news(db: Session = Depends(get_db)):
 
 # ================= ENROLLMENTS & SUBSCRIPTION ENDPOINTS =================
 
+def cleanup_enrollment_duplicates(db: Session):
+    try:
+        active_records = db.query(models.Enrollment.email, models.Enrollment.mobile)\
+                           .filter(models.Enrollment.status.in_(["active", "admin_free", "paid"])).all()
+        active_emails = {r.email.strip().lower() for r in active_records if r.email and r.email.strip()}
+        active_mobiles = {r.mobile.strip().replace(" ", "").replace("-", "").replace("+91", "") for r in active_records if r.mobile and r.mobile.strip()}
+
+        pending_query = db.query(models.Enrollment).filter(models.Enrollment.status == "pending").order_by(models.Enrollment.id.desc()).all()
+        to_delete_ids = []
+        seen_pending_keys = set()
+
+        for p in pending_query:
+            em = p.email.strip().lower() if p.email else ""
+            mb = p.mobile.strip().replace(" ", "").replace("-", "").replace("+91", "") if p.mobile else ""
+
+            if (em and em in active_emails) or (mb and mb in active_mobiles):
+                to_delete_ids.append(p.id)
+                continue
+
+            key_em = f"em:{em}" if em else None
+            key_mb = f"mb:{mb}" if mb else None
+
+            if (key_em and key_em in seen_pending_keys) or (key_mb and key_mb in seen_pending_keys):
+                to_delete_ids.append(p.id)
+            else:
+                if key_em: seen_pending_keys.add(key_em)
+                if key_mb: seen_pending_keys.add(key_mb)
+
+        # Also deduplicate redundant duplicate active rows (same payment_id)
+        active_query = db.query(models.Enrollment)\
+                         .filter(models.Enrollment.status.in_(["active", "admin_free", "paid"]))\
+                         .order_by(models.Enrollment.id.desc()).all()
+        seen_active_pids = set()
+        seen_active_emails = set()
+        for a in active_query:
+            pid = a.payment_id.strip() if a.payment_id else ""
+            em = a.email.strip().lower() if a.email else ""
+
+            is_dup = False
+            if pid and pid in seen_active_pids:
+                is_dup = True
+            elif em and em in seen_active_emails and a.payment_method == "admin_free":
+                is_dup = True
+
+            if is_dup:
+                to_delete_ids.append(a.id)
+            else:
+                if pid: seen_active_pids.add(pid)
+                if em: seen_active_emails.add(em)
+
+        if to_delete_ids:
+            chunk_size = 100
+            for i in range(0, len(to_delete_ids), chunk_size):
+                chunk = to_delete_ids[i:i + chunk_size]
+                db.query(models.Enrollment).filter(models.Enrollment.id.in_(chunk)).delete(synchronize_session=False)
+            db.commit()
+
+        return {
+            "ok": True,
+            "cleaned_count": len(to_delete_ids),
+            "message": f"Successfully cleaned {len(to_delete_ids)} duplicate & orphan enrollment records."
+        }
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "error": str(e)}
+
+@app.post("/api/admin/enrollments/cleanup-duplicates")
+def api_cleanup_enrollments(db: Session = Depends(get_db)):
+    return cleanup_enrollment_duplicates(db)
+
 @app.post("/api/enrollments/register")
 def register_enrollment_lead(data: schemas.EnrollmentCreate, db: Session = Depends(get_db)):
-    # Check if existing enrollment for this email
-    clean_email = data.email.strip().lower()
-    existing = db.query(models.Enrollment).filter(models.Enrollment.email == clean_email).first()
-    if existing and existing.status in ["active", "admin_free", "paid"]:
+    clean_email = (data.email or "").strip().lower()
+    clean_mobile = (data.mobile or "").strip().replace(" ", "").replace("-", "").replace("+91", "")
+
+    # 1. Check if user already has an active, paid, or admin_free enrollment (by email OR mobile)
+    existing_active = db.query(models.Enrollment).filter(
+        models.Enrollment.status.in_(["active", "admin_free", "paid"]),
+        or_(
+            models.Enrollment.email == clean_email,
+            (models.Enrollment.mobile != "") & (models.Enrollment.mobile == clean_mobile)
+        )
+    ).order_by(models.Enrollment.id.desc()).first()
+
+    if existing_active:
+        settings = db.query(models.AdminSettings).first()
+        whatsapp_link = (settings.whatsapp_group_link or "") if settings and settings.whatsapp_group_enabled else ""
+        whatsapp_title = (settings.whatsapp_group_title or "TET VIP Teachers Community") if settings else "TET VIP Teachers Community"
         return {
             "ok": True,
             "already_active": True,
             "message": "User is already active and enrolled!",
-            "enrollment_id": existing.id
+            "enrollment_id": existing_active.id,
+            "whatsapp_group_link": whatsapp_link,
+            "whatsapp_group_title": whatsapp_title,
+            "whatsapp_group_enabled": bool(settings.whatsapp_group_enabled) if settings else True
         }
 
     user = db.query(models.User).filter(models.User.email == clean_email).first()
@@ -3365,22 +3477,47 @@ def register_enrollment_lead(data: schemas.EnrollmentCreate, db: Session = Depen
     elif data.amount and data.amount > 0 and data.amount < base_price:
         amount = base_price
 
-    enrollment = models.Enrollment(
-        user_id=user.id if user else None,
-        name=data.name.strip(),
-        mobile=data.mobile.strip(),
-        email=clean_email,
-        designation=data.designation or "Aspirant",
-        course_name=data.course_name or "TET Combo (TET 1, TET 2 & Live Class)",
-        amount=amount,
-        coupon_code=applied_coupon_code,
-        discount_amount=discount_amount,
-        status="pending",
-        payment_method="razorpay"
-    )
-    db.add(enrollment)
-    db.commit()
-    db.refresh(enrollment)
+    # 2. Check if a pending enrollment already exists for this candidate - update it in place instead of creating duplicates
+    existing_pending = db.query(models.Enrollment).filter(
+        models.Enrollment.status == "pending",
+        or_(
+            models.Enrollment.email == clean_email,
+            (models.Enrollment.mobile != "") & (models.Enrollment.mobile == clean_mobile)
+        )
+    ).order_by(models.Enrollment.id.desc()).first()
+
+    if existing_pending:
+        existing_pending.name = data.name.strip()
+        existing_pending.mobile = clean_mobile
+        existing_pending.email = clean_email
+        if data.designation: existing_pending.designation = data.designation
+        existing_pending.course_name = data.course_name or existing_pending.course_name
+        existing_pending.amount = amount
+        existing_pending.coupon_code = applied_coupon_code
+        existing_pending.discount_amount = discount_amount
+        existing_pending.created_at = datetime.datetime.utcnow()
+        if user and not existing_pending.user_id:
+            existing_pending.user_id = user.id
+        db.commit()
+        db.refresh(existing_pending)
+        enrollment = existing_pending
+    else:
+        enrollment = models.Enrollment(
+            user_id=user.id if user else None,
+            name=data.name.strip(),
+            mobile=clean_mobile,
+            email=clean_email,
+            designation=data.designation or "Aspirant",
+            course_name=data.course_name or "TET Combo (TET 1, TET 2 & Live Class)",
+            amount=amount,
+            coupon_code=applied_coupon_code,
+            discount_amount=discount_amount,
+            status="pending",
+            payment_method="razorpay"
+        )
+        db.add(enrollment)
+        db.commit()
+        db.refresh(enrollment)
 
     razorpay_key = settings.razorpay_key_id if settings and settings.razorpay_key_id else ""
     return {
@@ -3420,17 +3557,49 @@ def verify_enrollment_payment(data: schemas.EnrollmentVerifyPayment, db: Session
 
     db.commit()
     db.refresh(enrollment)
+
+    # Automatically purge any other pending leads for this candidate so duplicates disappear
+    try:
+        clean_mob = (enrollment.mobile or "").strip().replace(" ", "").replace("-", "").replace("+91", "")
+        db.query(models.Enrollment).filter(
+            models.Enrollment.status == "pending",
+            models.Enrollment.id != enrollment.id,
+            or_(
+                models.Enrollment.email == enrollment.email.strip().lower(),
+                (models.Enrollment.mobile != "") & (models.Enrollment.mobile == clean_mob)
+            )
+        ).delete(synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    settings = db.query(models.AdminSettings).first()
+    whatsapp_link = (settings.whatsapp_group_link or "") if settings and settings.whatsapp_group_enabled else ""
+    whatsapp_title = (settings.whatsapp_group_title or "TET VIP Teachers Community") if settings else "TET VIP Teachers Community"
+
     return {
         "ok": True,
         "message": "Payment verified and complete course access activated!",
         "enrollment_id": enrollment.id,
-        "status": enrollment.status
+        "status": enrollment.status,
+        "whatsapp_group_link": whatsapp_link,
+        "whatsapp_group_title": whatsapp_title,
+        "whatsapp_group_enabled": bool(settings.whatsapp_group_enabled) if settings else True
     }
 
 @app.get("/api/enrollments/my-status")
 def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depends(get_db)):
+    settings = db.query(models.AdminSettings).first()
+    whatsapp_link = (settings.whatsapp_group_link or "") if settings and settings.whatsapp_group_enabled else ""
+    whatsapp_title = (settings.whatsapp_group_title or "TET VIP Teachers Community") if settings else "TET VIP Teachers Community"
+
     if not email:
-        return {"is_enrolled": False, "reason": "No email provided"}
+        return {
+            "is_enrolled": False, 
+            "reason": "No email provided",
+            "whatsapp_group_link": whatsapp_link,
+            "whatsapp_group_title": whatsapp_title
+        }
 
     email_clean = email.strip().lower()
 
@@ -3440,7 +3609,10 @@ def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depend
         return {
             "is_enrolled": True,
             "role": "admin",
-            "message": "Admin has full access to all modules."
+            "message": "Admin has full access to all modules.",
+            "whatsapp_group_link": whatsapp_link,
+            "whatsapp_group_title": whatsapp_title,
+            "whatsapp_group_enabled": bool(settings.whatsapp_group_enabled) if settings else True
         }
 
     # Check enrollment table for active status
@@ -3453,6 +3625,9 @@ def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depend
         return {
             "is_enrolled": True,
             "role": "student",
+            "whatsapp_group_link": whatsapp_link,
+            "whatsapp_group_title": whatsapp_title,
+            "whatsapp_group_enabled": bool(settings.whatsapp_group_enabled) if settings else True,
             "enrollment": {
                 "id": enrollment.id,
                 "name": enrollment.name,
@@ -3464,7 +3639,12 @@ def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depend
             }
         }
 
-    return {"is_enrolled": False, "role": "student"}
+    return {
+        "is_enrolled": False, 
+        "role": "student",
+        "whatsapp_group_link": whatsapp_link,
+        "whatsapp_group_title": whatsapp_title
+    }
 
 @app.get("/api/admin/enrollments", response_model=List[schemas.EnrollmentOut])
 def get_admin_enrollments(db: Session = Depends(get_db)):
@@ -3485,6 +3665,22 @@ def manual_free_enroll(data: schemas.EnrollmentManualCreate, db: Session = Depen
         if data.designation: existing.designation = data.designation
         db.commit()
         db.refresh(existing)
+        
+        # Clean any pending duplicates for this candidate
+        try:
+            clean_mob = (existing.mobile or "").strip().replace(" ", "").replace("-", "").replace("+91", "")
+            db.query(models.Enrollment).filter(
+                models.Enrollment.status == "pending",
+                models.Enrollment.id != existing.id,
+                or_(
+                    models.Enrollment.email == clean_email,
+                    (models.Enrollment.mobile != "") & (models.Enrollment.mobile == clean_mob)
+                )
+            ).delete(synchronize_session=False)
+            db.commit()
+        except Exception:
+            db.rollback()
+
         return existing
 
     new_enrollment = models.Enrollment(
@@ -3502,6 +3698,22 @@ def manual_free_enroll(data: schemas.EnrollmentManualCreate, db: Session = Depen
     db.add(new_enrollment)
     db.commit()
     db.refresh(new_enrollment)
+
+    # Clean any pending duplicates for this candidate
+    try:
+        clean_mob = (new_enrollment.mobile or "").strip().replace(" ", "").replace("-", "").replace("+91", "")
+        db.query(models.Enrollment).filter(
+            models.Enrollment.status == "pending",
+            models.Enrollment.id != new_enrollment.id,
+            or_(
+                models.Enrollment.email == clean_email,
+                (models.Enrollment.mobile != "") & (models.Enrollment.mobile == clean_mob)
+            )
+        ).delete(synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+
     return new_enrollment
 
 @app.put("/api/admin/enrollments/{enrollment_id}/status")
@@ -3511,6 +3723,22 @@ def update_enrollment_status(enrollment_id: int, status: str = Body(..., embed=T
         raise HTTPException(status_code=404, detail="Enrollment not found")
     enrollment.status = status
     db.commit()
+
+    if status == "active":
+        try:
+            clean_mob = (enrollment.mobile or "").strip().replace(" ", "").replace("-", "").replace("+91", "")
+            db.query(models.Enrollment).filter(
+                models.Enrollment.status == "pending",
+                models.Enrollment.id != enrollment.id,
+                or_(
+                    models.Enrollment.email == enrollment.email.strip().lower(),
+                    (models.Enrollment.mobile != "") & (models.Enrollment.mobile == clean_mob)
+                )
+            ).delete(synchronize_session=False)
+            db.commit()
+        except Exception:
+            db.rollback()
+
     return {"ok": True, "enrollment_id": enrollment.id, "status": enrollment.status}
 
 @app.delete("/api/admin/enrollments/{enrollment_id}")
@@ -3521,6 +3749,494 @@ def delete_enrollment(enrollment_id: int, db: Session = Depends(get_db)):
     db.delete(enrollment)
     db.commit()
     return {"ok": True, "message": "Enrollment deleted successfully"}
+
+# ----------------- RAZORPAY AUTOMATED SYNC & WEBHOOK ENDPOINTS -----------------
+
+@app.post("/api/enrollments/razorpay-webhook")
+async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
+    try:
+        body_bytes = await request.body()
+        payload = json.loads(body_bytes.decode("utf-8"))
+    except Exception as e:
+        return {"ok": False, "error": f"Invalid JSON payload: {str(e)}"}
+
+    event = payload.get("event")
+    payment = payload.get("payload", {}).get("payment", {}).get("entity", {})
+    if not payment and payload.get("entity") == "payment":
+        payment = payload
+
+    if not payment:
+        return {"ok": True, "message": "Ignored non-payment event"}
+
+    payment_status = payment.get("status")
+    if payment_status != "captured" and event not in ["payment.captured", "order.paid"]:
+        return {"ok": True, "message": f"Payment not captured ({payment_status})"}
+
+    pid = payment.get("id")
+    email = (payment.get("email") or "").strip().lower()
+    contact = (payment.get("contact") or "").replace("+91", "").strip()
+    order_id = payment.get("order_id")
+    amount = int(payment.get("amount", 100000) / 100)
+    acq = payment.get("acquirer_data") or {}
+    rrn = str(acq.get("rrn") or acq.get("upi_transaction_id") or "")
+
+    existing_active = db.query(models.Enrollment).filter(
+        ((models.Enrollment.payment_id == pid) | 
+         (models.Enrollment.email == email) | 
+         (models.Enrollment.mobile == contact)),
+        models.Enrollment.status.in_(["active", "admin_free", "paid"])
+    ).first()
+
+    if existing_active:
+        if not existing_active.payment_id:
+            existing_active.payment_id = pid
+            db.commit()
+        return {"ok": True, "message": "Already active"}
+
+    pending_enr = db.query(models.Enrollment).filter(
+        (models.Enrollment.email == email) | (models.Enrollment.mobile == contact)
+    ).order_by(models.Enrollment.id.desc()).first()
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+
+    if pending_enr:
+        pending_enr.status = "active"
+        pending_enr.payment_id = pid
+        pending_enr.order_id = order_id or pending_enr.order_id
+        pending_enr.payment_method = "razorpay"
+        pending_enr.amount = amount
+        if rrn:
+            pending_enr.notes = f"UPI RRN: {rrn}"
+        if user and not pending_enr.user_id:
+            pending_enr.user_id = user.id
+        db.commit()
+        return {"ok": True, "action": "activated", "enrollment_id": pending_enr.id}
+    else:
+        name = user.name if user else (payment.get("notes", {}).get("name") or email.split("@")[0])
+        new_enr = models.Enrollment(
+            user_id=user.id if user else None,
+            name=name,
+            email=email,
+            mobile=contact,
+            course_name="TET Combo (TET 1, TET 2 & Live Class)",
+            amount=amount,
+            status="active",
+            payment_id=pid,
+            order_id=order_id,
+            payment_method="razorpay",
+            notes=f"Auto-activated via Razorpay Webhook. UPI RRN: {rrn}" if rrn else "Auto-activated via Razorpay Webhook"
+        )
+        db.add(new_enr)
+        db.commit()
+        return {"ok": True, "action": "created", "enrollment_id": new_enr.id}
+
+@app.post("/api/admin/enrollments/sync-razorpay")
+def sync_razorpay_enrollments(db: Session = Depends(get_db)):
+    settings = db.query(models.AdminSettings).first()
+    if not settings or not settings.razorpay_key_id or not settings.razorpay_key_secret:
+        raise HTTPException(status_code=400, detail="Razorpay Key ID and Secret are not configured.")
+
+    key_id = settings.razorpay_key_id.strip()
+    key_secret = settings.razorpay_key_secret.strip()
+
+    import urllib.request
+    import base64
+    auth_str = base64.b64encode(f"{key_id}:{key_secret}".encode()).decode()
+
+    all_captured = []
+    skip = 0
+    count = 100
+
+    while True:
+        url = f"https://api.razorpay.com/v1/payments?count={count}&skip={skip}"
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", f"Basic {auth_str}")
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode())
+                items = data.get("items", [])
+                if not items:
+                    break
+                for p in items:
+                    if p.get("status") == "captured":
+                        all_captured.append(p)
+                skip += len(items)
+                if len(items) < count:
+                    break
+        except Exception as e:
+            print(f"[Razorpay Sync Error]: {e}")
+            break
+
+    activated_count = 0
+    created_count = 0
+
+    for p in all_captured:
+        pid = p.get("id")
+        p_email = (p.get("email") or "").strip().lower()
+        contact = (p.get("contact") or "").replace("+91", "").strip()
+        amount = int(p.get("amount", 100000) / 100)
+        acq = p.get("acquirer_data") or {}
+        rrn = str(acq.get("rrn") or acq.get("upi_transaction_id") or "")
+
+        active_enr = db.query(models.Enrollment).filter(
+            ((models.Enrollment.email == p_email) | (models.Enrollment.payment_id == pid) | (models.Enrollment.mobile == contact)),
+            models.Enrollment.status.in_(["active", "admin_free", "paid"])
+        ).first()
+
+        if active_enr:
+            continue
+
+        user = db.query(models.User).filter(models.User.email == p_email).first()
+
+        pending_enr = db.query(models.Enrollment).filter(
+            (models.Enrollment.email == p_email) | (models.Enrollment.mobile == contact)
+        ).order_by(models.Enrollment.id.desc()).first()
+
+        if pending_enr:
+            pending_enr.status = "active"
+            pending_enr.payment_id = pid
+            pending_enr.payment_method = "razorpay"
+            pending_enr.amount = amount
+            if rrn:
+                pending_enr.notes = f"UPI RRN: {rrn}"
+            if user and not pending_enr.user_id:
+                pending_enr.user_id = user.id
+            activated_count += 1
+        else:
+            name = user.name if user else (p.get("notes", {}).get("name") or p_email.split("@")[0])
+            new_enr = models.Enrollment(
+                user_id=user.id if user else None,
+                name=name,
+                email=p_email,
+                mobile=contact,
+                course_name="TET Combo (TET 1, TET 2 & Live Class)",
+                amount=amount,
+                status="active",
+                payment_id=pid,
+                payment_method="razorpay",
+                notes=f"Auto-reconciled from Razorpay. UPI RRN: {rrn}" if rrn else "Auto-reconciled from Razorpay"
+            )
+            db.add(new_enr)
+            created_count += 1
+
+    db.commit()
+    return {
+        "ok": True,
+        "total_captured_in_razorpay": len(all_captured),
+        "activated_count": activated_count,
+        "created_count": created_count,
+        "total_synced": activated_count + created_count,
+        "message": f"Sync complete: {activated_count + created_count} student(s) activated successfully!"
+    }
+
+@app.post("/api/enrollments/self-verify")
+def self_verify_enrollment_payment(data: schemas.EnrollmentSelfVerifyRequest, db: Session = Depends(get_db)):
+    clean_email = (data.email or "").strip().lower()
+    clean_mobile = (data.mobile or "").replace("+91", "").strip()
+    clean_rrn = (data.upi_rrn or "").strip()
+
+    if not clean_email and not clean_mobile and not clean_rrn:
+        raise HTTPException(status_code=400, detail="Please enter your email, mobile number, or UPI Reference No.")
+
+    existing_active = db.query(models.Enrollment).filter(
+        ((models.Enrollment.email == clean_email) | 
+         (models.Enrollment.mobile == clean_mobile)),
+        models.Enrollment.status.in_(["active", "admin_free", "paid"])
+    ).first()
+
+    if existing_active:
+        return {
+            "ok": True,
+            "already_active": True,
+            "message": "Your course access is already active!",
+            "enrollment_id": existing_active.id
+        }
+
+    settings = db.query(models.AdminSettings).first()
+    if not settings or not settings.razorpay_key_id or not settings.razorpay_key_secret:
+        raise HTTPException(status_code=500, detail="Payment gateway settings not configured.")
+
+    key_id = settings.razorpay_key_id.strip()
+    key_secret = settings.razorpay_key_secret.strip()
+
+    import urllib.request
+    import base64
+    auth_str = base64.b64encode(f"{key_id}:{key_secret}".encode()).decode()
+
+    skip = 0
+    matched_payment = None
+
+    while skip < 1000 and not matched_payment:
+        url = f"https://api.razorpay.com/v1/payments?count=100&skip={skip}"
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", f"Basic {auth_str}")
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                p_data = json.loads(resp.read().decode())
+                items = p_data.get("items", [])
+                if not items:
+                    break
+                for p in items:
+                    if p.get("status") == "captured":
+                        p_em = (p.get("email") or "").strip().lower()
+                        p_con = (p.get("contact") or "").replace("+91", "").strip()
+                        acq = p.get("acquirer_data") or {}
+                        rrn = str(acq.get("rrn") or acq.get("upi_transaction_id") or "")
+                        
+                        match_email = clean_email and (clean_email == p_em)
+                        match_phone = clean_mobile and (clean_mobile in p_con or p_con in clean_mobile)
+                        match_rrn = clean_rrn and (clean_rrn == rrn or clean_rrn in str(p.get("id", "")))
+
+                        if match_rrn or match_email or match_phone:
+                            matched_payment = p
+                            break
+                skip += len(items)
+                if len(items) < 100:
+                    break
+        except Exception as e:
+            print(f"[Self-verify Razorpay Error]: {e}")
+            break
+
+    if not matched_payment:
+        return {
+            "ok": False,
+            "message": "We could not find a completed payment with these details. If you paid recently, please enter the 12-digit UPI Reference Number (RRN) from your payment screenshot."
+        }
+
+    pid = matched_payment.get("id")
+    p_email = (matched_payment.get("email") or clean_email).strip().lower()
+    contact = (matched_payment.get("contact") or clean_mobile).replace("+91", "").strip()
+    amount = int(matched_payment.get("amount", 100000) / 100)
+    acq = matched_payment.get("acquirer_data") or {}
+    rrn = str(acq.get("rrn") or acq.get("upi_transaction_id") or clean_rrn)
+
+    user = db.query(models.User).filter(models.User.email == p_email).first()
+    pending_enr = db.query(models.Enrollment).filter(
+        (models.Enrollment.email == p_email) | (models.Enrollment.mobile == contact)
+    ).order_by(models.Enrollment.id.desc()).first()
+
+    if pending_enr:
+        pending_enr.status = "active"
+        pending_enr.payment_id = pid
+        pending_enr.payment_method = "razorpay"
+        pending_enr.amount = amount
+        if rrn:
+            pending_enr.notes = f"UPI RRN: {rrn}"
+        if user and not pending_enr.user_id:
+            pending_enr.user_id = user.id
+        db.commit()
+        db.refresh(pending_enr)
+        return {
+            "ok": True,
+            "message": "Payment verified successfully! All modules have been unlocked.",
+            "enrollment_id": pending_enr.id,
+            "status": "active"
+        }
+    else:
+        name = user.name if user else (matched_payment.get("notes", {}).get("name") or p_email.split("@")[0])
+        new_enr = models.Enrollment(
+            user_id=user.id if user else None,
+            name=name,
+            email=p_email,
+            mobile=contact,
+            course_name="TET Combo (TET 1, TET 2 & Live Class)",
+            amount=amount,
+            status="active",
+            payment_id=pid,
+            payment_method="razorpay",
+            notes=f"Self-verified. UPI RRN: {rrn}" if rrn else "Self-verified via Razorpay lookup"
+        )
+        db.add(new_enr)
+        db.commit()
+        db.refresh(new_enr)
+        return {
+            "ok": True,
+            "message": "Payment verified successfully! All modules have been unlocked.",
+            "enrollment_id": new_enr.id,
+            "status": "active"
+        }
+
+@app.post("/api/admin/enrollments/lookup-upi")
+def admin_lookup_upi_payment(data: schemas.AdminUpiLookupRequest, db: Session = Depends(get_db)):
+    q = (data.query or "").strip().lower()
+    if not q:
+        raise HTTPException(status_code=400, detail="Search query cannot be empty.")
+
+    settings = db.query(models.AdminSettings).first()
+    if not settings or not settings.razorpay_key_id or not settings.razorpay_key_secret:
+        raise HTTPException(status_code=500, detail="Razorpay gateway credentials not configured.")
+
+    key_id = settings.razorpay_key_id.strip()
+    key_secret = settings.razorpay_key_secret.strip()
+
+    import urllib.request
+    import base64
+    auth_str = base64.b64encode(f"{key_id}:{key_secret}".encode()).decode()
+
+    skip = 0
+    rzp_matches = []
+    clean_q_phone = q.replace("+91", "").replace("-", "").replace(" ", "")
+
+    while skip < 1000:
+        url = f"https://api.razorpay.com/v1/payments?count=100&skip={skip}"
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", f"Basic {auth_str}")
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                p_data = json.loads(resp.read().decode())
+                items = p_data.get("items", [])
+                if not items:
+                    break
+                for p in items:
+                    pid = str(p.get("id") or "").lower()
+                    p_em = str(p.get("email") or "").strip().lower()
+                    p_con = str(p.get("contact") or "").replace("+91", "").strip()
+                    acq = p.get("acquirer_data") or {}
+                    rrn = str(acq.get("rrn") or "").lower()
+                    upi_txn = str(acq.get("upi_transaction_id") or "").lower()
+
+                    matched = False
+                    if q in pid or pid in q: matched = True
+                    elif q in rrn or rrn in q: matched = True
+                    elif q in upi_txn or upi_txn in q: matched = True
+                    elif q in p_em: matched = True
+                    elif clean_q_phone and clean_q_phone in p_con: matched = True
+
+                    if matched:
+                        rzp_matches.append(p)
+                skip += len(items)
+                if len(items) < 100:
+                    break
+        except Exception as e:
+            print(f"[Admin UPI Lookup Error]: {e}")
+            break
+
+    results = []
+    for p in rzp_matches:
+        pid = p.get("id")
+        p_em = (p.get("email") or "").strip().lower()
+        p_con = (p.get("contact") or "").replace("+91", "").strip()
+        acq = p.get("acquirer_data") or {}
+        rrn = str(acq.get("rrn") or acq.get("upi_transaction_id") or "")
+        amount = int(p.get("amount", 100000) / 100)
+        p_status = p.get("status")
+
+        enr = db.query(models.Enrollment).filter(
+            (models.Enrollment.payment_id == pid) |
+            (models.Enrollment.email == p_em) |
+            (models.Enrollment.mobile == p_con)
+        ).order_by(models.Enrollment.id.desc()).first()
+
+        user = db.query(models.User).filter(models.User.email == p_em).first()
+
+        results.append({
+            "source": "razorpay",
+            "payment_id": pid,
+            "status": p_status,
+            "amount": amount,
+            "email": p_em,
+            "mobile": p_con,
+            "name": (enr.name if enr else (user.name if user else (p.get("notes", {}).get("name") or p_em.split("@")[0]))),
+            "upi_rrn": rrn,
+            "method": p.get("method") or "upi",
+            "created_at": datetime.datetime.fromtimestamp(p.get("created_at")).strftime("%d %b %Y, %I:%M %p") if p.get("created_at") else None,
+            "is_enrolled": enr.status in ["active", "admin_free", "paid"] if enr else False,
+            "enrollment_status": enr.status if enr else "not_registered",
+            "enrollment_id": enr.id if enr else None
+        })
+
+    if not results:
+        local_enrs = db.query(models.Enrollment).filter(
+            (models.Enrollment.email.ilike(f"%{q}%")) |
+            (models.Enrollment.mobile.ilike(f"%{clean_q_phone}%")) |
+            (models.Enrollment.payment_id.ilike(f"%{q}%")) |
+            (models.Enrollment.name.ilike(f"%{q}%"))
+        ).limit(10).all()
+
+        for e in local_enrs:
+            results.append({
+                "source": "local_db",
+                "payment_id": e.payment_id or "N/A",
+                "status": "db_record",
+                "amount": e.amount,
+                "email": e.email,
+                "mobile": e.mobile,
+                "name": e.name,
+                "upi_rrn": e.notes or "",
+                "method": e.payment_method or "upi",
+                "created_at": e.created_at.strftime("%d %b %Y, %I:%M %p") if e.created_at else None,
+                "is_enrolled": e.status in ["active", "admin_free", "paid"],
+                "enrollment_status": e.status,
+                "enrollment_id": e.id
+            })
+
+    return {
+        "ok": True,
+        "query": q,
+        "total_found": len(results),
+        "results": results
+    }
+
+@app.post("/api/admin/enrollments/approve-upi")
+def admin_approve_upi_payment(data: schemas.AdminUpiApproveRequest, db: Session = Depends(get_db)):
+    pid = (data.payment_id or "").strip()
+    clean_email = (data.email or "").strip().lower()
+    clean_mobile = (data.mobile or "").replace("+91", "").strip()
+
+    if not pid and not clean_email and not clean_mobile:
+        raise HTTPException(status_code=400, detail="Payment ID or Email or Mobile is required.")
+
+    enr = db.query(models.Enrollment).filter(
+        (models.Enrollment.payment_id == pid) |
+        (models.Enrollment.email == clean_email) |
+        (models.Enrollment.mobile == clean_mobile)
+    ).order_by(models.Enrollment.id.desc()).first()
+
+    user = db.query(models.User).filter(models.User.email == clean_email).first()
+
+    note_text = f"Approved by Admin via UPI/Razorpay lookup. UPI RRN: {data.upi_rrn or 'Verified'}"
+    if data.notes:
+        note_text += f" | {data.notes}"
+
+    if enr:
+        enr.status = "active"
+        if pid: enr.payment_id = pid
+        enr.payment_method = "razorpay"
+        if data.amount: enr.amount = data.amount
+        enr.notes = note_text
+        if user and not enr.user_id:
+            enr.user_id = user.id
+        db.commit()
+        db.refresh(enr)
+        return {
+            "ok": True,
+            "message": f"Successfully activated access for {enr.name} ({enr.email})!",
+            "enrollment_id": enr.id,
+            "status": enr.status
+        }
+    else:
+        new_enr = models.Enrollment(
+            user_id=user.id if user else None,
+            name=data.name or (user.name if user else clean_email.split("@")[0]),
+            email=clean_email,
+            mobile=clean_mobile,
+            course_name=data.course_name or "TET Combo (TET 1, TET 2 & Live Class)",
+            amount=data.amount or 1000,
+            status="active",
+            payment_id=pid or "manual_upi_approved",
+            payment_method="razorpay",
+            notes=note_text
+        )
+        db.add(new_enr)
+        db.commit()
+        db.refresh(new_enr)
+        return {
+            "ok": True,
+            "message": f"Created active enrollment and unlocked access for {new_enr.name} ({new_enr.email})!",
+            "enrollment_id": new_enr.id,
+            "status": new_enr.status
+        }
+
 
 # =========================================================================
 # --- INCOME TAX CALCULATION & STATEMENT API ENDPOINTS ---

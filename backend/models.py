@@ -107,12 +107,16 @@ class AdminSettings(Base):
     stage4_count_assertion = Column(Integer, default=5)
     stage4_count_chronological = Column(Integer, default=5)
     enable_material_download = Column(Boolean, default=True)
+    enable_notes_download = Column(Boolean, default=False)
     enable_quiz_download = Column(Boolean, default=True)
     razorpay_key_id = Column(String(255), default="")
     razorpay_key_secret = Column(String(255), default="")
     course_price = Column(Integer, default=999)
     original_price = Column(Integer, default=2499)
     discount_percent = Column(Integer, default=60)
+    whatsapp_group_link = Column(String(500), default="")
+    whatsapp_group_title = Column(String(255), default="TET VIP Teachers Community")
+    whatsapp_group_enabled = Column(Boolean, default=True)
 
 class Coupon(Base):
     __tablename__ = "coupons"

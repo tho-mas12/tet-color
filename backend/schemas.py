@@ -117,12 +117,16 @@ class AdminSettingsSchema(BaseModel):
     stage4_count_assertion: Optional[int] = 5
     stage4_count_chronological: Optional[int] = 5
     enable_material_download: Optional[bool] = True
+    enable_notes_download: Optional[bool] = False
     enable_quiz_download: Optional[bool] = True
     razorpay_key_id: Optional[str] = ""
     razorpay_key_secret: Optional[str] = ""
     course_price: Optional[int] = 999
     original_price: Optional[int] = 2499
     discount_percent: Optional[int] = 60
+    whatsapp_group_link: Optional[str] = ""
+    whatsapp_group_title: Optional[str] = "TET VIP Teachers Community"
+    whatsapp_group_enabled: Optional[bool] = True
 
 class AnnouncementCreate(BaseModel):
     title: str
@@ -309,11 +313,15 @@ class DashboardContainerOut(DashboardContainerBase):
 
 class PublicSettingsSchema(BaseModel):
     enable_material_download: bool = True
+    enable_notes_download: bool = False
     enable_quiz_download: bool = True
     razorpay_key_id: str = ""
     course_price: int = 999
     original_price: int = 2499
     discount_percent: int = 60
+    whatsapp_group_link: str = ""
+    whatsapp_group_title: str = "TET VIP Teachers Community"
+    whatsapp_group_enabled: bool = True
 
 class EnrollmentCreate(BaseModel):
     name: str
@@ -359,9 +367,23 @@ class EnrollmentOut(BaseModel):
     class Config:
         from_attributes = True
 
+class EnrollmentSelfVerifyRequest(BaseModel):
+    email: Optional[str] = None
+    mobile: Optional[str] = None
+    upi_rrn: Optional[str] = None
 
+class AdminUpiLookupRequest(BaseModel):
+    query: str
 
-
+class AdminUpiApproveRequest(BaseModel):
+    payment_id: str
+    email: Optional[str] = None
+    mobile: Optional[str] = None
+    name: Optional[str] = None
+    upi_rrn: Optional[str] = None
+    amount: Optional[int] = 1000
+    course_name: Optional[str] = "TET Combo (TET 1, TET 2 & Live Class)"
+    notes: Optional[str] = None
 
 
 # ================= COUPON SCHEMAS =================
