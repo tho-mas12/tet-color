@@ -130,8 +130,9 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       });
     }
 
+    let settings = null;
     try {
-      const settings = await fetchApi("/public-settings");
+      settings = await fetchApi("/public-settings");
       if (settings) {
         setPublicSettings(settings);
         if (!waLink && settings.whatsapp_group_link) waLink = settings.whatsapp_group_link;
@@ -140,12 +141,14 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       }
     } catch (e) {}
 
-    // Auto pop-out WhatsApp modal for enrolled users if not yet joined
-    const hasAnyWaGroup = (settings?.whatsapp_groups && settings.whatsapp_groups.some(g => g.enabled !== false && g.link)) || (waEnabled && waLink);
-    if (userEnrolled && hasAnyWaGroup) {
+    // Auto pop-out WhatsApp modal ONCE on first login
+    const waKey = `tet_wa_first_login_shown_${user?.id || user?.email || "candidate"}`;
+    const hasAnyWaGroup = (settings?.whatsapp_groups && settings.whatsapp_groups.some(g => g.enabled !== false && g.link)) || (waEnabled && waLink) || Boolean(settings?.whatsapp_group_link);
+    if (user && hasAnyWaGroup) {
       try {
-        const alreadyJoined = localStorage.getItem("tet_wa_joined");
-        if (!alreadyJoined) {
+        const alreadyShown = localStorage.getItem(waKey) || localStorage.getItem("tet_wa_joined");
+        if (!alreadyShown) {
+          localStorage.setItem(waKey, "true");
           setIsWhatsAppModalOpen(true);
         }
       } catch (e) {}
@@ -475,18 +478,18 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
   const renderWhiteIcon = (iconName) => {
     switch (iconName) {
-      case "GraduationCap": return <GraduationCap className="w-5 h-5 text-white" />;
-      case "BookOpen": return <BookOpen className="w-5 h-5 text-white" />;
-      case "Library": return <Library className="w-5 h-5 text-white" />;
-      case "Newspaper": return <Newspaper className="w-5 h-5 text-white" />;
-      case "BookCheck": return <BookCheck className="w-5 h-5 text-white" />;
-      case "Languages": return <Languages className="w-5 h-5 text-white" />;
-      case "Video": return <Video className="w-5 h-5 text-white" />;
-      case "Award": return <Award className="w-5 h-5 text-white" />;
-      case "Trophy": return <Trophy className="w-5 h-5 text-white" />;
-      case "Sparkles": return <Trophy className="w-5 h-5 text-white" />;
-      case "Calculator": return <Calculator className="w-5 h-5 text-white" />;
-      default: return <BookOpen className="w-5 h-5 text-white" />;
+      case "GraduationCap": return <GraduationCap className="w-4 h-4 text-white" />;
+      case "BookOpen": return <BookOpen className="w-4 h-4 text-white" />;
+      case "Library": return <Library className="w-4 h-4 text-white" />;
+      case "Newspaper": return <Newspaper className="w-4 h-4 text-white" />;
+      case "BookCheck": return <BookCheck className="w-4 h-4 text-white" />;
+      case "Languages": return <Languages className="w-4 h-4 text-white" />;
+      case "Video": return <Video className="w-4 h-4 text-white" />;
+      case "Award": return <Award className="w-4 h-4 text-white" />;
+      case "Trophy": return <Trophy className="w-4 h-4 text-white" />;
+      case "Sparkles": return <Trophy className="w-4 h-4 text-white" />;
+      case "Calculator": return <Calculator className="w-4 h-4 text-white" />;
+      default: return <BookOpen className="w-4 h-4 text-white" />;
     }
   };
 
@@ -554,26 +557,26 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
     }
   };
 
-  // Reusable component for the Embedded Daily Task Completion Status
+  // Reusable component for the Embedded Daily Task Completion Status (Compact)
   const renderDailyTaskPanel = (isTargetActive, paperCode) => {
     return (
-      <div className={`mt-3.5 p-4 rounded-2xl border transition-all ${
+      <div className={`mt-2 p-2.5 sm:p-3 rounded-xl border transition-all ${
         isTargetActive 
-          ? "bg-gradient-to-br from-blue-50/80 via-white to-slate-50 border-blue-200 shadow-xs" 
+          ? "bg-gradient-to-br from-blue-50/70 via-white to-slate-50 border-blue-200/90 shadow-2xs" 
           : "bg-slate-50/60 border-slate-200/70"
       }`}>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center space-x-1.5">
-            <CheckCircle2 className={`w-4 h-4 ${isTargetActive ? "text-[#0055ff]" : "text-slate-400"}`} />
-            <span className="text-xs font-black uppercase tracking-wider text-[#061b36]">
-              {t.dailyTaskTitle || "Daily Task Completion Status"}
+            <CheckCircle2 className={`w-3.5 h-3.5 ${isTargetActive ? "text-[#0055ff]" : "text-slate-400"}`} />
+            <span className="text-[11px] font-black uppercase tracking-wider text-[#061b36]">
+              {t.dailyTaskTitle || "Daily Task Status"}
             </span>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5">
             {isTargetActive ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-[#0055ff] text-white tracking-wide">
-                Active Selection
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-[#0055ff] text-white">
+                Active
               </span>
             ) : (
               <button
@@ -581,26 +584,26 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                   e.stopPropagation();
                   setSelectedTetPaper(paperCode);
                 }}
-                className="text-[11px] font-bold text-[#0055ff] hover:underline cursor-pointer"
+                className="text-[10px] font-bold text-[#0055ff] hover:underline cursor-pointer"
               >
-                Select this course →
+                Select →
               </button>
             )}
           </div>
         </div>
 
         {/* Progress Bar & percentage */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-600 font-bold">
-              {u.daily_tasks_done || 0} / {u.daily_tasks_total || 4} {t.tasksDone || "Tasks Done"}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-slate-600 font-semibold">
+              {u.daily_tasks_done || 0}/{u.daily_tasks_total || 4} {t.tasksDone || "Tasks Done"}
             </span>
             <span className="font-black text-[#0055ff]">
-              {u.progress_percent || 0}% Completed
+              {u.progress_percent || 0}%
             </span>
           </div>
 
-          <div className="w-full h-2.5 bg-slate-200 rounded-full p-0.5 overflow-hidden">
+          <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full bg-gradient-to-r from-[#061b36] via-[#092d62] to-[#0055ff] transition-all duration-700"
               style={{ width: `${Math.min(100, Math.max(8, u.progress_percent || 0))}%` }}
@@ -609,39 +612,27 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         </div>
 
         {/* 5 Stages Sequential Learning Progress Indicators */}
-        <div className="mt-3 pt-2.5 border-t border-slate-200/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 text-[11px]">
-          <div className="px-2 py-1 rounded-lg bg-blue-50 text-[#0055ff] border border-blue-200 flex items-center justify-center space-x-1 font-bold">
-            <BookOpen className="w-3 h-3 text-[#0055ff]" />
-            <span>1. Book PDF</span>
+        <div className="mt-2 pt-1.5 border-t border-slate-200/70 grid grid-cols-5 gap-1 text-[9px] sm:text-[10px]">
+          <div className="px-1 py-0.5 rounded bg-blue-50 text-[#0055ff] border border-blue-200 flex items-center justify-center space-x-0.5 font-bold">
+            <BookOpen className="w-2.5 h-2.5 text-[#0055ff] shrink-0" />
+            <span className="truncate">PDF</span>
           </div>
-          <div className="px-2 py-1 rounded-lg bg-sky-50 text-[#0284c7] border border-sky-200 flex items-center justify-center space-x-1 font-bold">
-            <FileCheck className="w-3 h-3 text-[#0284c7]" />
-            <span>2. Notes</span>
+          <div className="px-1 py-0.5 rounded bg-sky-50 text-[#0284c7] border border-sky-200 flex items-center justify-center space-x-0.5 font-bold">
+            <FileCheck className="w-2.5 h-2.5 text-[#0284c7] shrink-0" />
+            <span className="truncate">Notes</span>
           </div>
-          <div className="px-2 py-1 rounded-lg bg-emerald-50 text-[#00a651] border border-emerald-200 flex items-center justify-center space-x-1 font-bold">
-            <Video className="w-3 h-3 text-[#00a651]" />
-            <span>3. Video</span>
+          <div className="px-1 py-0.5 rounded bg-emerald-50 text-[#00a651] border border-emerald-200 flex items-center justify-center space-x-0.5 font-bold">
+            <Video className="w-2.5 h-2.5 text-[#00a651] shrink-0" />
+            <span className="truncate">Video</span>
           </div>
-          <div className="px-2 py-1 rounded-lg bg-orange-50 text-[#ff7a00] border border-orange-200 flex items-center justify-center space-x-1 font-bold">
-            <HelpCircle className="w-3 h-3 text-[#ff7a00]" />
-            <span>4. Practice</span>
+          <div className="px-1 py-0.5 rounded bg-orange-50 text-[#ff7a00] border border-orange-200 flex items-center justify-center space-x-0.5 font-bold">
+            <HelpCircle className="w-2.5 h-2.5 text-[#ff7a00] shrink-0" />
+            <span className="truncate">MCQ</span>
           </div>
-          <div className="px-2 py-1 rounded-lg bg-purple-50 text-[#8a00e6] border border-purple-200 flex items-center justify-center space-x-1 font-bold col-span-2 sm:col-span-1">
-            <Award className="w-3 h-3 text-[#8a00e6]" />
-            <span>5. Exam 80%</span>
+          <div className="px-1 py-0.5 rounded bg-purple-50 text-[#8a00e6] border border-purple-200 flex items-center justify-center space-x-0.5 font-bold">
+            <Award className="w-2.5 h-2.5 text-[#8a00e6] shrink-0" />
+            <span className="truncate">Exam</span>
           </div>
-        </div>
-
-        {/* Daily Streak indicator */}
-        <div className="mt-3 pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
-          <div className="flex items-center space-x-1.5 text-slate-600 font-semibold">
-            <Flame className="w-4 h-4 text-orange-500 fill-orange-500 animate-pulse" />
-            <span>{t.dailyStreakTitle || "Daily Streak"}:</span>
-            <span className="font-black text-[#061b36]">{u.streak_count || 0} {t.streakDays || "Days"}</span>
-          </div>
-          <span className="text-[11px] text-slate-500 font-medium">
-            {u.streak_count > 0 ? "🔥 Streak Active" : "Start your streak today!"}
-          </span>
         </div>
       </div>
     );
@@ -708,103 +699,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         </div>
       </div>
 
-      {/* ================= PAYMENT RECEIPT CARD FOR ENROLLED MEMBERS ================= */}
-      {isEnrolled && (
-        <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-white border border-blue-200/90 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in">
-          <div className="flex items-center space-x-3.5 sm:space-x-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#061b36] to-[#0055ff] text-white flex items-center justify-center font-black shadow-md shadow-blue-500/20 shrink-0">
-              <FileText className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  PAID VERIFIED ✓
-                </span>
-                <span className="text-[11px] font-bold text-slate-500">
-                  {enrollmentData?.payment_id ? `Txn: ${enrollmentData.payment_id}` : `Receipt #${enrollmentData?.id || "REC-1001"}`}
-                </span>
-              </div>
-              <h3 className="text-sm sm:text-base font-black text-[#061b36] mt-0.5">
-                {lang === "ta" ? "அதிகாரப்பூர்வ கட்டண ரசீது & வரி விலைப்பட்டியல்" : "Official Fee Payment Receipt & Tax Invoice"}
-              </h3>
-              <p className="text-xs text-slate-500 font-medium">
-                {enrollmentData?.course_name || "TNTET Paper 1 & 2 All-in-One Pass"} • ₹{enrollmentData?.amount || 1000} Paid via Razorpay
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
-            <button
-              onClick={() => setIsReceiptModalOpen(true)}
-              className="flex-1 md:flex-none px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-extrabold text-xs transition cursor-pointer flex items-center justify-center space-x-1.5 shadow-2xs"
-            >
-              <Eye className="w-4 h-4 text-slate-500" />
-              <span>{lang === "ta" ? "ரசீதைப் பார்க்க" : "View Receipt"}</span>
-            </button>
-            <button
-              onClick={() => {
-                if (enrollmentData) {
-                  generateReceiptPdf(enrollmentData);
-                } else {
-                  setIsReceiptModalOpen(true);
-                }
-              }}
-              className="flex-1 md:flex-none px-4 py-2.5 rounded-2xl bg-[#0055ff] hover:bg-blue-700 text-white font-extrabold text-xs transition cursor-pointer flex items-center justify-center space-x-1.5 shadow-xs shadow-blue-500/20 hover:scale-105 active:scale-95"
-            >
-              <Download className="w-4 h-4" />
-              <span>{lang === "ta" ? "PDF பதிவிறக்குக" : "Download PDF Receipt"}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ================= VIP WHATSAPP COMMUNITY BANNER FOR ENROLLED MEMBERS ================= */}
-      {isEnrolled && (publicSettings?.whatsapp_group_enabled || (publicSettings?.whatsapp_groups && publicSettings?.whatsapp_groups.length > 0)) && (
-        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 border-2 border-emerald-400 rounded-3xl p-4 sm:p-5 shadow-lg shadow-emerald-600/20 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in relative overflow-hidden">
-          <div className="flex items-center space-x-3.5 sm:space-x-4">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shrink-0 shadow-inner">
-              <svg className="w-7 h-7 sm:w-8 sm:h-8 fill-white" viewBox="0 0 24 24">
-                <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24h-.18zm4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.24-.75-.67-1.25-1.49-1.4-1.74-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.43.13-.15.17-.25.25-.42.08-.17.04-.32-.02-.45-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.72 4.31 3.81.6.26 1.07.42 1.44.53.61.19 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.22-.17-.47-.3z"/>
-              </svg>
-            </div>
-
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-900/60 border border-emerald-300/40 text-emerald-100 shadow-2xs">
-                  VIP COMMUNITY
-                </span>
-                <span className="text-[11px] text-emerald-100 font-bold">
-                  {publicSettings?.whatsapp_groups && publicSettings.whatsapp_groups.length > 1
-                    ? (lang === "ta" ? "3 அதிகாரப்பூர்வ வாட்ஸ்அப் குழுக்கள் (தாள் 1, கணிதம் & அறிவியல், சமூகம்)" : "3 Official WhatsApp Groups (Paper 1, Paper 2 M&S, Paper 2 Social)")
-                    : (publicSettings?.whatsapp_group_title || (lang === "ta" ? "TET VIP ஆசிரியர்கள் வாட்ஸ்அப் குழு" : "TET VIP Teachers Community"))}
-                </span>
-              </div>
-              <h3 className="text-sm sm:text-base font-black tracking-tight mt-0.5">
-                {lang === "ta" 
-                  ? "அங்கீகரிக்கப்பட்ட ஆசிரியர்களுக்கான அதிகாரப்பூர்வ வாட்ஸ்அப் குழுக்கள்" 
-                  : "Official Enrolled Teachers WhatsApp VIP Groups"}
-              </h3>
-              <p className="text-xs text-emerald-100 font-medium mt-0.5">
-                {lang === "ta" 
-                  ? "உங்கள் பாடப் பிரிவிற்கான வாட்ஸ்அப் குழுவில் (TET Paper 1, TET 2 MA & SC, TET 2 S.SC) இணைந்து நேரலை வகுப்புகள் மற்றும் சுருக்கக் குறிப்புகளைப் பெறவும்." 
-                  : "Join your track group (TET Paper 1, TET 2 MA & SC, TET 2 S.SC) to receive daily Google Meet links and study notes."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 w-full md:w-auto shrink-0 pt-2 md:pt-0">
-            <button
-              onClick={() => setIsWhatsAppModalOpen(true)}
-              className="w-full md:w-auto px-5 py-3 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-800 font-black text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
-            >
-              <svg className="w-4 h-4 fill-emerald-700" viewBox="0 0 24 24">
-                <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24h-.18zm4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.24-.75-.67-1.25-1.49-1.4-1.74-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.43.13-.15.17-.25.25-.42.08-.17.04-.32-.02-.45-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.72 4.31 3.81.6.26 1.07.42 1.44.53.61.19 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.22-.17-.47-.3z"/>
-              </svg>
-              <span>{lang === "ta" ? "குழுவில் இணையுங்கள் ↗" : "Join WhatsApp Group ↗"}</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ================= PLATFORM ANNOUNCEMENTS (MARQUEE TICKER) ================= */}
       {announcements && announcements.length > 0 && (
@@ -858,54 +753,54 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
             <span className="text-xs sm:text-sm text-slate-500 font-semibold">Class-wise tests with custom stages</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
             {dailyPractices.map((dp) => (
               <div
                 key={dp.id}
-                className="bg-white border-2 border-orange-200/80 hover:border-orange-400 rounded-3xl p-5 sm:p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                className="bg-white border border-orange-200/80 hover:border-orange-400 rounded-2xl p-3.5 sm:p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-3"
               >
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-50 text-[#ff7a00] border border-orange-200">
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-50 text-[#ff7a00] border border-orange-200">
                       Class {dp.class_num} • {dp.subject}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
                       {dp.term}
                     </span>
                   </div>
 
                   <div>
-                    <h3 className="text-base sm:text-lg font-black text-[#061b36] tracking-tight leading-snug">
+                    <h3 className="text-sm sm:text-base font-black text-[#061b36] tracking-tight leading-snug">
                       {dp.title}
                     </h3>
                     {dp.description && (
-                      <p className="text-xs text-slate-600 font-medium mt-1 line-clamp-2">
+                      <p className="text-xs text-slate-600 font-medium mt-0.5 line-clamp-2">
                         {dp.description}
                       </p>
                     )}
                   </div>
 
-                  <div className="pt-2 border-t border-slate-100">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  <div className="pt-1.5 border-t border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                       Included Stages:
                     </span>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1">
                       {(Array.isArray(dp.active_stages) ? dp.active_stages : (typeof dp.active_stages === "string" ? dp.active_stages.split(",").map(Number).filter(n => !isNaN(n)) : [1, 3, 4])).map((stg) => {
                         const stageConfigs = {
-                          1: { label: "Stage 1: Book PDF", icon: BookOpen, color: "text-[#0055ff] bg-blue-50 border-blue-200" },
-                          2: { label: "Stage 2: Short Notes", icon: FileCheck, color: "text-[#0284c7] bg-sky-50 border-sky-200" },
-                          3: { label: "Stage 3: Video Class", icon: Video, color: "text-[#00a651] bg-emerald-50 border-emerald-200" },
-                          4: { label: "Stage 4: Practice MCQs", icon: HelpCircle, color: "text-[#ff7a00] bg-orange-50 border-orange-200" },
-                          5: { label: "Stage 5: Online Test (80%)", icon: Award, color: "text-[#8a00e6] bg-purple-50 border-purple-200" }
+                          1: { label: "PDF", icon: BookOpen, color: "text-[#0055ff] bg-blue-50 border-blue-200" },
+                          2: { label: "Notes", icon: FileCheck, color: "text-[#0284c7] bg-sky-50 border-sky-200" },
+                          3: { label: "Video", icon: Video, color: "text-[#00a651] bg-emerald-50 border-emerald-200" },
+                          4: { label: "MCQ", icon: HelpCircle, color: "text-[#ff7a00] bg-orange-50 border-orange-200" },
+                          5: { label: "Online Test", icon: Award, color: "text-[#8a00e6] bg-purple-50 border-purple-200" }
                         };
                         const conf = stageConfigs[stg] || { label: `Stage ${stg}`, icon: CheckCircle2, color: "text-slate-700 bg-slate-50 border-slate-200" };
                         const StageIcon = conf.icon;
                         return (
                           <span
                             key={stg}
-                            className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center space-x-1 ${conf.color}`}
+                            className={`px-2 py-0.5 rounded-md border text-[10px] font-bold flex items-center space-x-1 ${conf.color}`}
                           >
-                            <StageIcon className="w-3 h-3" />
+                            <StageIcon className="w-2.5 h-2.5" />
                             <span>{conf.label}</span>
                           </span>
                         );
@@ -914,19 +809,19 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                  <div className="text-xs text-slate-500 font-semibold">
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-slate-500 font-semibold">
                     <span>{dp.quiz_questions_count || dp.test_questions_count || 20} Qs</span>
-                    <span className="mx-1.5">•</span>
+                    <span className="mx-1">•</span>
                     <span>{dp.time_limit_mins || 20} Mins</span>
                   </div>
 
                   <button
                     onClick={() => setSelectedDailyPracticeId(dp.id)}
-                    className="px-4 py-2.5 rounded-xl bg-[#ff7a00] hover:bg-orange-600 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer min-h-[40px]"
+                    className="px-3.5 py-1.5 rounded-xl bg-[#ff7a00] hover:bg-orange-600 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-1 cursor-pointer min-h-[34px]"
                   >
                     <span>Start Test</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -950,7 +845,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         </div>
 
         {/* Dynamic Responsive Container Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
           {containers.map((c) => {
             const key = c.container_key || c.category;
             const isTet1 = key === "tet_1";
@@ -974,7 +869,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
             return (
               <div
                 key={c.id || c.container_key}
-                className={`bg-white border-2 rounded-3xl overflow-hidden shadow-xs hover:shadow-lg transition-all flex flex-col justify-between relative ${
+                className={`bg-white border rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative ${
                   isLocked
                     ? "border-amber-300 hover:border-amber-400 bg-gradient-to-b from-white to-amber-50/20"
                     : hasLiveAlert 
@@ -983,14 +878,14 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                 }`}
               >
                 {/* Top Colorful Accent Ribbon Stripe */}
-                <div className={`h-2 w-full bg-gradient-to-r ${theme.ribbon}`} />
+                <div className={`h-1.5 w-full bg-gradient-to-r ${theme.ribbon}`} />
 
                 {/* Distinct Tinted Card Header */}
-                <div className={`${theme.headerBg} p-4 sm:p-5 border-b border-slate-100/90`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center space-x-3">
+                <div className={`${theme.headerBg} p-3 sm:p-3.5 border-b border-slate-100/90`}>
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-center space-x-2.5">
                       <div className="relative shrink-0">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center p-2.5 shadow-sm ${
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center p-2 shadow-xs ${
                           isLocked
                             ? "bg-gradient-to-br from-amber-600 to-orange-600 text-white shadow-amber-300"
                             : theme.iconBg
@@ -998,25 +893,25 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                           {renderWhiteIcon(c.icon_name)}
                         </div>
                         {isLocked && (
-                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-700 text-white flex items-center justify-center shadow-xs">
-                            <Lock className="w-2.5 h-2.5" />
+                          <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-700 text-white flex items-center justify-center shadow-xs">
+                            <Lock className="w-2 h-2" />
                           </div>
                         )}
                         {!isLocked && isFree && (
-                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white" title="Free Access">
-                            <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                          <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-white" title="Free Access">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                           </div>
                         )}
                       </div>
                       <div>
-                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider inline-block mb-1 shadow-2xs border ${theme.categoryBadge}`}>
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider inline-block mb-0.5 shadow-2xs border ${theme.categoryBadge}`}>
                           {theme.categoryLabel}
                         </span>
-                        <h2 className={`text-base sm:text-lg font-black tracking-tight leading-snug ${theme.titleColor}`}>
+                        <h2 className={`text-sm sm:text-base font-black tracking-tight leading-snug ${theme.titleColor}`}>
                           {c.title}
                         </h2>
                         {c.subtitle && (
-                          <span className="text-[11px] font-bold text-slate-600 block leading-tight mt-0.5">
+                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 block leading-tight mt-0.5">
                             {c.subtitle}
                           </span>
                         )}
@@ -1025,27 +920,27 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
                     {/* Badge */}
                     {isLocked ? (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1 shadow-xs shrink-0">
-                        <Lock className="w-3 h-3 text-amber-700" />
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1 shadow-xs shrink-0">
+                        <Lock className="w-2.5 h-2.5 text-amber-700" />
                         <span>LOCKED</span>
                       </span>
                     ) : LOCKED_KEYS.includes(key) && isEnrolled ? (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1 shadow-xs shrink-0">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1 shadow-xs shrink-0">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
                         <span>UNLOCKED</span>
                       </span>
                     ) : hasLiveAlert ? (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-rose-600 text-white flex items-center space-x-1 animate-pulse shadow-xs shrink-0">
-                        <Radio className="w-3 h-3 animate-ping" />
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-600 text-white flex items-center space-x-1 animate-pulse shadow-xs shrink-0">
+                        <Radio className="w-2.5 h-2.5 animate-ping" />
                         <span>LIVE NOW</span>
                       </span>
                     ) : isFree ? (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center space-x-1.5 shadow-xs shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center space-x-1 shadow-xs shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping inline-block" />
                         <span>100% FREE</span>
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
                         {c.badge_text || "Available"}
                       </span>
                     )}
@@ -1053,19 +948,19 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                 </div>
 
                 {/* Card Body & Actions */}
-                <div className="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
-                  <div className="space-y-3">
+                <div className="p-3 sm:p-3.5 space-y-2.5 flex-1 flex flex-col justify-between">
+                  <div className="space-y-2.5">
                     {/* Description */}
-                    <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed line-clamp-2">
                       {c.description}
                     </p>
 
                     {/* SPECIAL EMBEDDED NOTIFICATION FOR ONLINE CLASS */}
                     {isOnlineClass && (
-                      <div className="p-3 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200/80 space-y-1.5">
-                        <div className="flex items-center space-x-2">
-                          <span className={`w-2 h-2 rounded-full ${hasLiveAlert ? "bg-rose-500 animate-ping" : "bg-emerald-500"}`} />
-                          <span className="text-xs font-black uppercase tracking-wider text-rose-900">
+                      <div className="p-2.5 rounded-xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200/80 space-y-1">
+                        <div className="flex items-center space-x-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${hasLiveAlert ? "bg-rose-500 animate-ping" : "bg-emerald-500"}`} />
+                          <span className="text-[11px] font-black uppercase tracking-wider text-rose-900">
                             {hasLiveAlert ? "🔴 Live Class Notification" : "🔔 Live Meeting Portal"}
                           </span>
                         </div>
@@ -1074,12 +969,12 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                             <p className="text-xs font-black text-[#061b36] line-clamp-1">
                               {currentLiveMeeting.title}
                             </p>
-                            <p className="text-[11px] text-slate-600 font-semibold">
+                            <p className="text-[10px] text-slate-600 font-semibold">
                               Scheduled: {currentLiveMeeting.start_time || "Now Streaming"}
                             </p>
                           </div>
                         ) : (
-                          <p className="text-[11px] text-slate-500 font-medium">
+                          <p className="text-[10px] text-slate-500 font-medium">
                             No active live stream right now. Click below to view scheduled classes or join upcoming meetings.
                           </p>
                         )}
@@ -1092,9 +987,9 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
                     {/* SPECIAL NEWS PREVIEW WHEN NEWS CONTAINER */}
                     {key === "news" && (
-                      <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 space-y-1">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-sky-800 flex items-center space-x-1">
-                          <Newspaper className="w-3.5 h-3.5" />
+                      <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-sky-800 flex items-center space-x-1">
+                          <Newspaper className="w-3 h-3" />
                           <span>Daily Flash News Feed</span>
                         </span>
                         <p className="text-xs text-slate-600 font-medium">
@@ -1105,23 +1000,23 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                   </div>
 
                 {/* Container Action Button */}
-                <div className="pt-3 border-t border-slate-100">
+                <div className="pt-2.5 border-t border-slate-100">
                   {isLocked ? (
                     <button
                       onClick={() => setIsEnrollmentModalOpen(true)}
-                      className="w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 shadow-md flex items-center justify-center space-x-2 cursor-pointer group min-h-[44px] bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white"
+                      className="w-full py-2.5 px-3 rounded-xl font-black text-xs transition-all duration-200 shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer group min-h-[38px] bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white"
                     >
-                      <Lock className="w-4 h-4" />
+                      <Lock className="w-3.5 h-3.5" />
                       <span>UNLOCK (TET 1, 2 & LIVE) 🔒</span>
                     </button>
                   ) : isFree ? (
                     <button
                       onClick={() => handleContainerAction(c)}
-                      className="w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 shadow-md flex items-center justify-center space-x-2 cursor-pointer group min-h-[44px] bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-600 hover:from-emerald-700 hover:to-green-700 text-white border-2 border-emerald-400/90 shadow-emerald-600/30 animate-green-blink"
+                      className="w-full py-2.5 px-3 rounded-xl font-black text-xs transition-all duration-200 shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer group min-h-[38px] bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-600 hover:from-emerald-700 hover:to-green-700 text-white border border-emerald-400/90 shadow-emerald-600/30 animate-green-blink"
                     >
-                      <span className="relative flex h-2.5 w-2.5 mr-1">
+                      <span className="relative flex h-2 w-2 mr-1">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-200 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
                       </span>
                       <span>
                         {key === "news"
@@ -1140,12 +1035,12 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                           ? "OPEN TREAST (FREE) →"
                           : (c.button_text?.includes("FREE") ? c.button_text : `OPEN ${c.title.toUpperCase()} (FREE) →`)}
                       </span>
-                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                     </button>
                   ) : (
                     <button
                       onClick={() => handleContainerAction(c)}
-                      className={`w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm transition-all duration-200 shadow-2xs flex items-center justify-center space-x-2 cursor-pointer group min-h-[44px] ${
+                      className={`w-full py-2.5 px-3 rounded-xl font-black text-xs transition-all duration-200 shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer group min-h-[38px] ${
                         hasLiveAlert
                           ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200"
                           : "bg-slate-50 hover:bg-[#0055ff] text-[#061b36] hover:text-white border border-slate-200/90 hover:border-[#0055ff]"
@@ -1156,7 +1051,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                           ? "JOIN LIVE CLASS NOW ↗" 
                           : (c.button_text || `OPEN ${c.title} →`)}
                       </span>
-                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                     </button>
                   )}
                 </div>
@@ -1187,7 +1082,15 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       {/* ================= WHATSAPP VIP COMMUNITY POP-OUT MODAL ================= */}
       <WhatsAppJoinModal
         isOpen={isWhatsAppModalOpen}
-        onClose={() => setIsWhatsAppModalOpen(false)}
+        onClose={() => {
+          try {
+            const waKey = `tet_wa_first_login_shown_${user?.id || user?.email || "candidate"}`;
+            localStorage.setItem(waKey, "true");
+            localStorage.setItem("tet_wa_joined", "true");
+          } catch (e) {}
+          setIsWhatsAppModalOpen(false);
+        }}
+        user={user}
         whatsappGroups={publicSettings?.whatsapp_groups || []}
         whatsappGroupLink={publicSettings?.whatsapp_group_link}
         whatsappGroupTitle={publicSettings?.whatsapp_group_title}

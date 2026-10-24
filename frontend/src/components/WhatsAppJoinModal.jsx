@@ -4,6 +4,7 @@ import { X, CheckCircle2, Award, ExternalLink, Sparkles, ShieldCheck, BookOpen, 
 export default function WhatsAppJoinModal({
   isOpen,
   onClose,
+  user,
   whatsappGroups = [],
   whatsappGroupLink,
   whatsappGroupTitle,
@@ -38,6 +39,9 @@ export default function WhatsAppJoinModal({
   const handleJoin = (group) => {
     try {
       localStorage.setItem("tet_wa_joined", "true");
+      if (user) {
+        localStorage.setItem(`tet_wa_first_login_shown_${user?.id || user?.email || "candidate"}`, "true");
+      }
       setJoinedMap(prev => ({ ...prev, [group.id]: true }));
     } catch (e) {}
     const targetLink = group.link || whatsappGroupLink || "https://chat.whatsapp.com/";
