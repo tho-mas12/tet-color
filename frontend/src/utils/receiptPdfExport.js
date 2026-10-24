@@ -1,9 +1,9 @@
 /**
  * Professional TNTET Course Payment Receipt & Tax Invoice PDF Exporter
- * Generates an official, beautifully styled receipt fitting cleanly on 1 A4 page.
- * Includes student details, payment transaction ID, course details, verification badge,
- * and the required powered-by footer.
+ * Formatted to STRICTLY fit within 1 Single A4 Page (No overflow, no cut-offs)
+ * Features actual TN Teachers emblem logo, verified badge, and required powered-by footer.
  */
+import { RECEIPT_LOGO_BASE64 } from "./receiptLogo";
 
 function numberToWords(num) {
   const n = parseInt(num, 10);
@@ -66,15 +66,15 @@ export function generateReceiptPdf(enrollment) {
   const studentName = (enrollment.name || "Enrolled Student").toUpperCase();
   const studentEmail = enrollment.email || "candidate@tet.com";
   const studentMobile = enrollment.mobile || "—";
-  const designation = enrollment.designation || "TNTET Aspirant";
-  const courseName = enrollment.course_name || "TNTET Paper 1 & 2 All-in-One Comprehensive Pass";
+  const designation = enrollment.designation || "Private School Teacher / Aspirant";
+  const courseName = enrollment.course_name || "TET 1 and TET 2 Comprehensive Course Package";
   const amountNum = enrollment.amount !== undefined ? Number(enrollment.amount) : 1000;
   const paymentId = enrollment.payment_id || "pay_TroS46OjCj36Am";
   const orderId = enrollment.order_id || `order_TET${enrollment.id || 1001}`;
-  const paymentMethod = (enrollment.payment_method || "Online (Razorpay / UPI)").toUpperCase();
+  const paymentMethod = (enrollment.payment_method || "RAZORPAY").toUpperCase();
   const amountWords = numberToWords(amountNum);
 
-  const printWindow = window.open("", "_blank", "width=850,height=1000");
+  const printWindow = window.open("", "_blank", "width=820,height=960");
   if (!printWindow) {
     alert("Please allow pop-ups to open and print your payment receipt.");
     return;
@@ -90,7 +90,7 @@ export function generateReceiptPdf(enrollment) {
 
     @page {
       size: A4 portrait;
-      margin: 12mm 14mm 12mm 14mm;
+      margin: 8mm 12mm 8mm 12mm;
     }
 
     * {
@@ -101,72 +101,76 @@ export function generateReceiptPdf(enrollment) {
       print-color-adjust: exact !important;
     }
 
-    body {
+    html, body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #f8fafc;
       color: #0f172a;
+      height: 100%;
+    }
+
+    body {
       display: flex;
       justify-content: center;
-      padding: 20px 0;
+      padding: 12px 0;
     }
 
     .receipt-container {
       width: 100%;
-      max-width: 800px;
+      max-width: 186mm;
       background: #ffffff;
       border: 1px solid #cbd5e1;
-      border-radius: 16px;
-      padding: 32px 36px 28px 36px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      border-radius: 14px;
+      padding: 20px 24px 16px 24px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
       position: relative;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
 
     /* HEADER */
     .receipt-header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       border-bottom: 2px solid #e2e8f0;
-      padding-bottom: 20px;
-      gap: 20px;
+      padding-bottom: 12px;
+      gap: 16px;
     }
 
     .brand-section {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
     }
 
-    .brand-logo {
-      width: 56px;
-      height: 56px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #061b36 0%, #0055ff 100%);
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      font-size: 22px;
-      box-shadow: 0 4px 10px rgba(0, 85, 255, 0.25);
+    .brand-logo-img {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #0055ff;
+      box-shadow: 0 2px 8px rgba(0, 85, 255, 0.2);
+      flex-shrink: 0;
+      background: #ffffff;
     }
 
     .brand-text h1 {
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 900;
       color: #061b36;
-      letter-spacing: -0.3px;
+      letter-spacing: -0.2px;
+      line-height: 1.2;
     }
 
     .brand-text p {
-      font-size: 11px;
+      font-size: 10px;
       color: #64748b;
       margin-top: 2px;
       font-weight: 600;
     }
 
     .brand-text .portal-link {
-      font-size: 11px;
+      font-size: 10.5px;
       color: #0055ff;
       font-weight: 700;
     }
@@ -180,35 +184,36 @@ export function generateReceiptPdf(enrollment) {
       background: #eef2ff;
       border: 1px solid #c7d2fe;
       color: #3730a3;
-      padding: 4px 12px;
+      padding: 3px 10px;
       border-radius: 9999px;
-      font-size: 11px;
+      font-size: 9.5px;
       font-weight: 800;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       text-transform: uppercase;
     }
 
     .receipt-number {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 900;
       color: #0f172a;
-      margin-top: 6px;
+      margin-top: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
 
     .receipt-date {
-      font-size: 11px;
+      font-size: 10px;
       color: #64748b;
       font-weight: 600;
-      margin-top: 2px;
+      margin-top: 1px;
     }
 
     /* SUCCESS STATUS STRIP */
     .status-strip {
       background: #f0fdf4;
       border: 1px solid #bbf7d0;
-      border-radius: 10px;
-      padding: 10px 16px;
-      margin-top: 18px;
+      border-radius: 8px;
+      padding: 7px 12px;
+      margin-top: 11px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -217,35 +222,36 @@ export function generateReceiptPdf(enrollment) {
     .status-left {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
     }
 
     .status-check {
-      width: 20px;
-      height: 20px;
+      width: 17px;
+      height: 17px;
       background: #16a34a;
       color: #ffffff;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
+      font-size: 10.5px;
       font-weight: 900;
     }
 
     .status-text {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
       color: #15803d;
+      letter-spacing: 0.2px;
     }
 
     .payment-id-tag {
-      font-size: 11px;
+      font-size: 10px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       color: #1e293b;
       background: #dcfce7;
-      padding: 3px 8px;
-      border-radius: 6px;
+      padding: 2px 7px;
+      border-radius: 5px;
       font-weight: 700;
     }
 
@@ -253,33 +259,34 @@ export function generateReceiptPdf(enrollment) {
     .details-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-top: 18px;
+      gap: 12px;
+      margin-top: 11px;
     }
 
     .detail-card {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 14px 16px;
+      border-radius: 8px;
+      padding: 9px 12px;
     }
 
     .detail-card-title {
-      font-size: 11px;
+      font-size: 9.5px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: #64748b;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
       border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 6px;
+      padding-bottom: 4px;
     }
 
     .detail-row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 6px;
-      font-size: 12px;
+      margin-bottom: 4px;
+      font-size: 11px;
+      line-height: 1.3;
     }
 
     .detail-row:last-child {
@@ -301,20 +308,20 @@ export function generateReceiptPdf(enrollment) {
     .items-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 22px;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
+      margin-top: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
       overflow: hidden;
     }
 
     .items-table th {
       background: #061b36;
       color: #ffffff;
-      font-size: 11px;
+      font-size: 9.5px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 10px 14px;
+      padding: 7px 10px;
       text-align: left;
     }
 
@@ -323,35 +330,35 @@ export function generateReceiptPdf(enrollment) {
     }
 
     .items-table td {
-      padding: 14px 14px;
+      padding: 8px 10px;
       border-bottom: 1px solid #e2e8f0;
-      font-size: 12px;
+      font-size: 11px;
       vertical-align: top;
     }
 
     .item-title {
       font-weight: 800;
       color: #061b36;
-      font-size: 13px;
+      font-size: 12px;
     }
 
     .item-desc {
-      font-size: 11px;
+      font-size: 10px;
       color: #64748b;
-      margin-top: 3px;
-      line-height: 1.4;
+      margin-top: 2px;
+      line-height: 1.35;
     }
 
     .item-tags {
-      margin-top: 6px;
+      margin-top: 4px;
       display: flex;
-      gap: 6px;
+      gap: 5px;
     }
 
     .item-tag {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
-      padding: 2px 7px;
+      padding: 1px 6px;
       border-radius: 4px;
       background: #eff6ff;
       color: #1d4ed8;
@@ -363,104 +370,105 @@ export function generateReceiptPdf(enrollment) {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-top: 18px;
-      gap: 20px;
+      margin-top: 11px;
+      gap: 16px;
     }
 
     .words-box {
       flex: 1;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 12px 14px;
+      border-radius: 7px;
+      padding: 8px 11px;
     }
 
     .words-label {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 800;
       text-transform: uppercase;
       color: #64748b;
-      margin-bottom: 3px;
+      margin-bottom: 2px;
     }
 
     .words-text {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
       color: #061b36;
     }
 
     .totals-table-box {
-      width: 280px;
+      width: 240px;
     }
 
     .totals-row {
       display: flex;
       justify-content: space-between;
-      padding: 6px 0;
-      font-size: 12px;
+      padding: 3px 0;
+      font-size: 11px;
       color: #64748b;
       font-weight: 600;
     }
 
     .totals-row.grand-total {
-      border-top: 2px solid #061b36;
-      border-bottom: 2px solid #061b36;
-      padding: 8px 0;
-      margin-top: 4px;
-      font-size: 15px;
+      border-top: 1.5px solid #061b36;
+      border-bottom: 1.5px solid #061b36;
+      padding: 5px 0;
+      margin-top: 3px;
+      font-size: 13.5px;
       font-weight: 900;
       color: #061b36;
     }
 
     /* SIGNATURE & VERIFICATION */
     .verification-section {
-      margin-top: 24px;
-      padding-top: 16px;
+      margin-top: 12px;
+      padding-top: 9px;
       border-top: 1px dashed #cbd5e1;
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
-      gap: 20px;
+      align-items: center;
+      gap: 16px;
     }
 
     .verification-note {
       flex: 1;
-      font-size: 11px;
+      font-size: 9.5px;
       color: #64748b;
-      line-height: 1.5;
+      line-height: 1.4;
     }
 
     .verification-badge-box {
       text-align: right;
+      flex-shrink: 0;
     }
 
     .stamp-badge {
       display: inline-block;
-      border: 2px solid #16a34a;
+      border: 1.5px solid #16a34a;
+      background: #f0fdf4;
       color: #16a34a;
-      border-radius: 8px;
-      padding: 6px 14px;
+      border-radius: 6px;
+      padding: 4px 10px;
       font-weight: 900;
-      font-size: 11px;
-      letter-spacing: 0.5px;
+      font-size: 10px;
+      letter-spacing: 0.4px;
       text-transform: uppercase;
-      transform: rotate(-2deg);
     }
 
     .stamp-subtitle {
-      font-size: 10px;
+      font-size: 8.5px;
       color: #64748b;
-      margin-top: 4px;
+      margin-top: 2px;
       font-weight: 600;
     }
 
     /* MANDATORY FOOTER */
     .receipt-footer {
-      margin-top: 24px;
-      padding-top: 12px;
+      margin-top: 12px;
+      padding-top: 8px;
       border-top: 1px solid #e2e8f0;
       text-align: center;
-      font-size: 10.5px;
+      font-size: 9.5px;
       font-weight: 700;
       color: #475569;
       letter-spacing: 0.2px;
@@ -479,15 +487,15 @@ export function generateReceiptPdf(enrollment) {
       background: #0055ff;
       color: #ffffff;
       border: none;
-      padding: 10px 20px;
+      padding: 9px 18px;
       border-radius: 9999px;
       font-weight: 800;
-      font-size: 13px;
+      font-size: 12px;
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(0, 85, 255, 0.4);
+      box-shadow: 0 4px 12px rgba(0, 85, 255, 0.35);
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .btn-print:hover {
@@ -495,15 +503,19 @@ export function generateReceiptPdf(enrollment) {
     }
 
     @media print {
-      body {
-        background: #ffffff;
-        padding: 0;
+      html, body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        height: auto !important;
       }
       .receipt-container {
-        border: none;
-        box-shadow: none;
-        padding: 0;
-        max-width: 100%;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .print-controls {
         display: none !important;
@@ -521,10 +533,10 @@ export function generateReceiptPdf(enrollment) {
 
   <div class="receipt-container">
 
-    <!-- HEADER -->
+    <!-- HEADER WITH ACTUAL LOGO -->
     <div class="receipt-header">
       <div class="brand-section">
-        <div class="brand-logo">TN</div>
+        <img src="${RECEIPT_LOGO_BASE64}" alt="TN Teachers Logo" class="brand-logo-img" />
         <div class="brand-text">
           <h1>TN TEACHERS BENCHMARK PLATFORM</h1>
           <p>Online Teacher Eligibility Test (TNTET) Academic Portal</p>
@@ -597,10 +609,10 @@ export function generateReceiptPdf(enrollment) {
     <table class="items-table">
       <thead>
         <tr>
-          <th style="width: 40px;">#</th>
+          <th style="width: 35px;">#</th>
           <th>Service Description</th>
-          <th style="width: 110px;">Access Plan</th>
-          <th class="text-right" style="width: 120px;">Amount (INR)</th>
+          <th style="width: 105px;">Access Plan</th>
+          <th class="text-right" style="width: 110px;">Amount (INR)</th>
         </tr>
       </thead>
       <tbody>
@@ -609,7 +621,7 @@ export function generateReceiptPdf(enrollment) {
           <td>
             <div class="item-title">${courseName}</div>
             <div class="item-desc">
-              Comprehensive TNTET Paper 1 & 2 Course Package. Includes 5-stage sequential study workflow (PDF Books, Topic Notes, Video Lectures, Daily Practice MCQs, 80% Benchmark Qualifying Exams) and access to the VIP Teacher Community.
+              Comprehensive TNTET Course Package. Includes 5-stage sequential study workflow (PDF Books, Topic Notes, Video Lectures, Daily Practice MCQs, 80% Benchmark Qualifying Exams) and VIP Community Access.
             </div>
             <div class="item-tags">
               <span class="item-tag">Paper 1 (Class 1-8)</span>
@@ -618,10 +630,10 @@ export function generateReceiptPdf(enrollment) {
             </div>
           </td>
           <td>
-            <div style="font-weight: 700; color: #0f172a;">1-Year Access</div>
-            <div style="font-size: 10px; color: #16a34a; font-weight: 700;">Instant Digital</div>
+            <div style="font-weight: 700; color: #0f172a; font-size: 11px;">1-Year Access</div>
+            <div style="font-size: 9.5px; color: #16a34a; font-weight: 700;">Instant Digital</div>
           </td>
-          <td class="text-right" style="font-weight: 800; font-size: 14px; color: #061b36;">
+          <td class="text-right" style="font-weight: 800; font-size: 13.5px; color: #061b36;">
             ₹${amountNum.toLocaleString("en-IN")}.00
           </td>
         </tr>
@@ -654,7 +666,7 @@ export function generateReceiptPdf(enrollment) {
     <!-- VERIFICATION SECTION -->
     <div class="verification-section">
       <div class="verification-note">
-        <strong>Important Notice:</strong> This is a digitally verified receipt for candidate enrollment on <strong>tnteachers.in</strong>. Immediate access to all study materials and mock exams has been granted. Please retain this receipt for your records.
+        <strong>Important Notice:</strong> This is a digitally verified receipt for candidate enrollment on <strong>tnteachers.in</strong>. Immediate access to study materials and mock exams has been granted.
       </div>
 
       <div class="verification-badge-box">
@@ -674,17 +686,9 @@ export function generateReceiptPdf(enrollment) {
 
   <script>
     window.onload = function() {
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(function() {
-          setTimeout(function() {
-            window.print();
-          }, 300);
-        });
-      } else {
-        setTimeout(function() {
-          window.print();
-        }, 400);
-      }
+      setTimeout(function() {
+        window.print();
+      }, 250);
     };
   </script>
 </body>

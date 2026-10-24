@@ -45,9 +45,11 @@ export default function ReceiptModal({ enrollment, onClose, lang = "en" }) {
         {/* TOP BAR */}
         <div className="bg-[#061b36] text-white px-5 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#0055ff] flex items-center justify-center text-white font-black text-xs shadow-md">
-              TN
-            </div>
+            <img
+              src="/logo.jpg"
+              alt="TN Teachers Emblem"
+              className="w-9 h-9 rounded-full object-cover border-2 border-white/60 shadow-md shrink-0 bg-white"
+            />
             <div>
               <h3 className="text-sm font-black tracking-tight">
                 {isTa ? "கட்டண ரசீது / Tax Invoice" : "Fee Payment Receipt / Invoice"}
