@@ -43,6 +43,74 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
     } catch (e) {}
   }, [lessonId, activeStage]);
 
+  // Stage Page View-Only & Anti-Right-Click Protection
+  const [copyWarning, setCopyWarning] = useState(false);
+  const copyWarningTimeout = useRef(null);
+
+  const showProtectedNotice = () => {
+    setCopyWarning(true);
+    if (copyWarningTimeout.current) clearTimeout(copyWarningTimeout.current);
+    copyWarningTimeout.current = setTimeout(() => {
+      setCopyWarning(false);
+    }, 2500);
+  };
+
+  useEffect(() => {
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      showProtectedNotice();
+      return false;
+    };
+
+    const handleKeyDown = (e) => {
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      const key = e.key ? e.key.toLowerCase() : "";
+
+      // Block Ctrl/Cmd + C, X, U, S, P, A, F12, Ctrl+Shift+I/J/C
+      if (
+        (isCtrlOrCmd && ["c", "x", "u", "s", "p", "a"].includes(key)) ||
+        e.key === "F12" ||
+        (isCtrlOrCmd && e.shiftKey && ["i", "j", "c"].includes(key))
+      ) {
+        const isInput = e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA");
+        if (isInput && ["c", "x", "a"].includes(key)) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        showProtectedNotice();
+        return false;
+      }
+    };
+
+    const handleSelectStart = (e) => {
+      const isInput = e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA");
+      if (!isInput) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    const handleCopy = (e) => {
+      e.preventDefault();
+      showProtectedNotice();
+      return false;
+    };
+
+    document.addEventListener("contextmenu", handleContextMenu, { capture: true });
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+    document.addEventListener("selectstart", handleSelectStart, { capture: true });
+    document.addEventListener("copy", handleCopy, { capture: true });
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu, { capture: true });
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
+      document.removeEventListener("selectstart", handleSelectStart, { capture: true });
+      document.removeEventListener("copy", handleCopy, { capture: true });
+      if (copyWarningTimeout.current) clearTimeout(copyWarningTimeout.current);
+    };
+  }, [lang]);
+
   const [isVideoModal, setIsVideoModal] = useState(false);
 
   const [questionsData, setQuestionsData] = useState([]);
@@ -406,7 +474,24 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
   const canAccessStage5 = Boolean(questionsDone);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-4 sm:space-y-6 animate-fade-in text-[#071c38]">
+    <div 
+      className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-4 sm:space-y-6 animate-fade-in text-[#071c38] select-none stage-view-only-protected"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        showProtectedNotice();
+      }}
+      onCopy={(e) => {
+        e.preventDefault();
+        showProtectedNotice();
+      }}
+      onDragStart={(e) => e.preventDefault()}
+      style={{
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        MozUserSelect: "none",
+        msUserSelect: "none"
+      }}
+    >
       
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-6 shadow-xs">
@@ -1466,6 +1551,20 @@ export default function LessonStudyView({ lessonId, user, onBack, lang = "en", i
               title="Fullscreen Video Lesson"
               allowFullScreen
             />
+          </div>
+        </div>
+      )}
+
+      {/* View-Only Protected Notice Toast */}
+      {copyWarning && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce pointer-events-none">
+          <div className="px-5 py-3 rounded-2xl bg-[#061b36] text-white text-xs sm:text-sm font-bold shadow-2xl border border-sky-400/40 flex items-center space-x-2.5 backdrop-blur-md ring-2 ring-blue-500/30">
+            <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              {lang === "ta" 
+                ? "பாதுகாக்கப்பட்ட பாடப்பகுதி: வலது கிளிக் & நகலெடுத்தல் முடக்கப்பட்டுள்ளது (பார்வைக்கு மட்டும்)." 
+                : "Protected Content: Right-click & copying are disabled (View-Only Mode)."}
+            </span>
           </div>
         </div>
       )}

@@ -221,3 +221,25 @@ button, a, input, select, textarea {
   }
 }
 
+/* ================= STAGE PAGE: VIEW-ONLY & ANTI-COPY PROTECTION ================= */
+.stage-view-only-protected {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+.stage-view-only-protected img {
+  pointer-events: none !important;
+  -webkit-user-drag: none !important;
+  user-select: none !important;
+}
+
+@media print {
+  .stage-view-only-protected {
+    display: none !important;
+  }
+}
+
+

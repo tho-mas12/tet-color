@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   FileText,
@@ -11,7 +11,8 @@ import {
   AlertCircle,
   ExternalLink,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Lock
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { downloadQuizAsPdf } from "../utils/pdfExport";
@@ -30,6 +31,73 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
   const [timeLeft, setTimeLeft] = useState(0);
   const [examResult, setExamResult] = useState(null);
   const [canDownloadQuiz, setCanDownloadQuiz] = useState(true);
+
+  // Stage Page View-Only & Anti-Right-Click Protection
+  const [copyWarning, setCopyWarning] = useState(false);
+  const copyWarningTimeout = useRef(null);
+
+  const showProtectedNotice = () => {
+    setCopyWarning(true);
+    if (copyWarningTimeout.current) clearTimeout(copyWarningTimeout.current);
+    copyWarningTimeout.current = setTimeout(() => {
+      setCopyWarning(false);
+    }, 2500);
+  };
+
+  useEffect(() => {
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      showProtectedNotice();
+      return false;
+    };
+
+    const handleKeyDown = (e) => {
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      const key = e.key ? e.key.toLowerCase() : "";
+
+      if (
+        (isCtrlOrCmd && ["c", "x", "u", "s", "p", "a"].includes(key)) ||
+        e.key === "F12" ||
+        (isCtrlOrCmd && e.shiftKey && ["i", "j", "c"].includes(key))
+      ) {
+        const isInput = e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA");
+        if (isInput && ["c", "x", "a"].includes(key)) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        showProtectedNotice();
+        return false;
+      }
+    };
+
+    const handleSelectStart = (e) => {
+      const isInput = e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA");
+      if (!isInput) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    const handleCopy = (e) => {
+      e.preventDefault();
+      showProtectedNotice();
+      return false;
+    };
+
+    document.addEventListener("contextmenu", handleContextMenu, { capture: true });
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+    document.addEventListener("selectstart", handleSelectStart, { capture: true });
+    document.addEventListener("copy", handleCopy, { capture: true });
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu, { capture: true });
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
+      document.removeEventListener("selectstart", handleSelectStart, { capture: true });
+      document.removeEventListener("copy", handleCopy, { capture: true });
+      if (copyWarningTimeout.current) clearTimeout(copyWarningTimeout.current);
+    };
+  }, [lang]);
 
   useEffect(() => {
     fetchApi("/public-settings")
@@ -155,7 +223,24 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
   const questions = Array.isArray(data.questions) ? data.questions : [];
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#f8fafc] flex flex-col w-screen h-screen overflow-hidden animate-fade-in">
+    <div 
+      className="fixed inset-0 z-50 bg-[#f8fafc] flex flex-col w-screen h-screen overflow-hidden animate-fade-in select-none stage-view-only-protected"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        showProtectedNotice();
+      }}
+      onCopy={(e) => {
+        e.preventDefault();
+        showProtectedNotice();
+      }}
+      onDragStart={(e) => e.preventDefault()}
+      style={{
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        MozUserSelect: "none",
+        msUserSelect: "none"
+      }}
+    >
       
       {/* FULL-PAGE APPLICATION HEADER */}
       <header className="bg-gradient-to-r from-[#061b36] via-[#092d62] to-[#0055ff] text-white px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 shrink-0 shadow-md">
@@ -567,6 +652,21 @@ export default function DailyPracticeModal({ practiceId, onClose, user, lang = "
           )}
 
       </main>
+
+      {/* View-Only Protected Notice Toast */}
+      {copyWarning && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce pointer-events-none">
+          <div className="px-5 py-3 rounded-2xl bg-[#061b36] text-white text-xs sm:text-sm font-bold shadow-2xl border border-sky-400/40 flex items-center space-x-2.5 backdrop-blur-md ring-2 ring-blue-500/30">
+            <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              {lang === "ta" 
+                ? "பாதுகாக்கப்பட்ட தேர்வுப் பகுதி: வலது கிளிக் & நகலெடுத்தல் முடக்கப்பட்டுள்ளது (பார்வைக்கு மட்டும்)." 
+                : "Protected Practice Exam: Right-click & copying are disabled (View-Only Mode)."}
+            </span>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
