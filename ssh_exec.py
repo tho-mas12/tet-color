@@ -3,7 +3,7 @@ import sys
 
 HOST = "66.116.250.237"
 USER = "root"
-PASS = "}+:>0Qxc3HW^cb"
+PASS = "Tnteachers@2026"
 
 def run_remote(command):
     print(f"\n>>> Running: {command}")

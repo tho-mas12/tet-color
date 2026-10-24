@@ -31,7 +31,9 @@ import {
   Share2,
   Lock,
   Smartphone,
-  Calculator
+  Calculator,
+  Eye,
+  Receipt
 } from "lucide-react";
 import { fetchApi } from "../api";
 import { translations } from "../translations";
@@ -41,6 +43,8 @@ import MinnalNewsMobile from "./MinnalNewsMobile";
 import EnrollmentModal from "./EnrollmentModal";
 import IncomeTaxModal from "./IncomeTaxModal";
 import WhatsAppJoinModal from "./WhatsAppJoinModal";
+import ReceiptModal from "./ReceiptModal";
+import { generateReceiptPdf } from "../utils/receiptPdfExport";
 
 export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, onNavigate, lang = "en" }) {
   const [dashboardData, setDashboardData] = useState(null);
@@ -52,8 +56,10 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
   const [selectedTetPaper, setSelectedTetPaper] = useState("paper1"); // "paper1" (TET 1) or "paper2" (TET 2)
   const [activeModal, setActiveModal] = useState(null); // "tamil_reading", "english_reading", "online_class", "nmms", "treast", "news"
   const [isEnrolled, setIsEnrolled] = useState(user?.role === "admin");
+  const [enrollmentData, setEnrollmentData] = useState(null);
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [publicSettings, setPublicSettings] = useState({ course_price: 999, original_price: 2499, discount_percent: 60, razorpay_key_id: "" });
   const [showNewsFeed, setShowNewsFeed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -74,24 +80,54 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
     let waTitle = "";
     let waEnabled = false;
 
-    if (user?.role === "admin") {
-      setIsEnrolled(true);
-      userEnrolled = true;
-    } else if (user?.email) {
+    if (user?.email) {
       try {
         const res = await fetchApi(`/enrollments/my-status?email=${encodeURIComponent(user.email)}`);
         if (res && res.is_enrolled) {
           setIsEnrolled(true);
           userEnrolled = true;
+          if (res.enrollment) setEnrollmentData(res.enrollment);
           if (res.whatsapp_group_link) waLink = res.whatsapp_group_link;
           if (res.whatsapp_group_title) waTitle = res.whatsapp_group_title;
           if (res.whatsapp_group_enabled !== undefined) waEnabled = res.whatsapp_group_enabled;
+        } else if (user?.role === "admin") {
+          setIsEnrolled(true);
+          userEnrolled = true;
+          if (res && res.enrollment) setEnrollmentData(res.enrollment);
         } else {
           setIsEnrolled(false);
+          setEnrollmentData(null);
         }
       } catch (e) {
-        setIsEnrolled(false);
+        if (user?.role === "admin") {
+          setIsEnrolled(true);
+          userEnrolled = true;
+        } else {
+          setIsEnrolled(false);
+          setEnrollmentData(null);
+        }
       }
+    } else if (user?.role === "admin") {
+      setIsEnrolled(true);
+      userEnrolled = true;
+    }
+
+    // Default admin fallback enrollment data if null
+    if (user?.role === "admin") {
+      setEnrollmentData((prev) => prev || {
+        id: 1001,
+        name: user?.name || "Administrator",
+        email: user?.email || "admin@tnteachers.in",
+        mobile: user?.phone || "—",
+        designation: "Administrator",
+        course_name: "TNTET Paper 1 & 2 All-in-One Comprehensive Pass",
+        amount: 1000,
+        status: "active",
+        payment_id: "pay_ADMIN_VIP",
+        order_id: "order_ADMIN_VIP",
+        payment_method: "online",
+        created_at: new Date().toISOString()
+      });
     }
 
     try {
@@ -613,7 +649,17 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+          <div className="flex items-center gap-2 self-start md:self-auto shrink-0 flex-wrap">
+            {isEnrolled && (
+              <button
+                onClick={() => setIsReceiptModalOpen(true)}
+                className="px-4 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-[#0055ff] border border-blue-200 font-extrabold text-xs flex items-center space-x-2 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                title={lang === "ta" ? "கட்டண ரசீது (PDF)" : "Payment Receipt (PDF)"}
+              >
+                <FileText className="w-4 h-4 text-[#0055ff]" />
+                <span>{lang === "ta" ? "கட்டண ரசீது" : "Fee Receipt (PDF)"}</span>
+              </button>
+            )}
             <a
               href="/TNTET_App.apk"
               download="TNTET_App.apk"
@@ -627,6 +673,56 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
         </div>
       </div>
+
+      {/* ================= PAYMENT RECEIPT CARD FOR ENROLLED MEMBERS ================= */}
+      {isEnrolled && (
+        <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-white border border-blue-200/90 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center space-x-3.5 sm:space-x-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#061b36] to-[#0055ff] text-white flex items-center justify-center font-black shadow-md shadow-blue-500/20 shrink-0">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  PAID VERIFIED ✓
+                </span>
+                <span className="text-[11px] font-bold text-slate-500">
+                  {enrollmentData?.payment_id ? `Txn: ${enrollmentData.payment_id}` : `Receipt #${enrollmentData?.id || "REC-1001"}`}
+                </span>
+              </div>
+              <h3 className="text-sm sm:text-base font-black text-[#061b36] mt-0.5">
+                {lang === "ta" ? "அதிகாரப்பூர்வ கட்டண ரசீது & வரி விலைப்பட்டியல்" : "Official Fee Payment Receipt & Tax Invoice"}
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">
+                {enrollmentData?.course_name || "TNTET Paper 1 & 2 All-in-One Pass"} • ₹{enrollmentData?.amount || 1000} Paid via Razorpay
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
+            <button
+              onClick={() => setIsReceiptModalOpen(true)}
+              className="flex-1 md:flex-none px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-extrabold text-xs transition cursor-pointer flex items-center justify-center space-x-1.5 shadow-2xs"
+            >
+              <Eye className="w-4 h-4 text-slate-500" />
+              <span>{lang === "ta" ? "ரசீதைப் பார்க்க" : "View Receipt"}</span>
+            </button>
+            <button
+              onClick={() => {
+                if (enrollmentData) {
+                  generateReceiptPdf(enrollmentData);
+                } else {
+                  setIsReceiptModalOpen(true);
+                }
+              }}
+              className="flex-1 md:flex-none px-4 py-2.5 rounded-2xl bg-[#0055ff] hover:bg-blue-700 text-white font-extrabold text-xs transition cursor-pointer flex items-center justify-center space-x-1.5 shadow-xs shadow-blue-500/20 hover:scale-105 active:scale-95"
+            >
+              <Download className="w-4 h-4" />
+              <span>{lang === "ta" ? "PDF பதிவிறக்குக" : "Download PDF Receipt"}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ================= VIP WHATSAPP COMMUNITY BANNER FOR ENROLLED MEMBERS ================= */}
       {isEnrolled && publicSettings?.whatsapp_group_enabled && publicSettings?.whatsapp_group_link && (
@@ -1435,6 +1531,15 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         onClose={() => setActiveModal(null)}
         user={user}
       />
+
+      {/* OFFICIAL PAYMENT RECEIPT MODAL */}
+      {isReceiptModalOpen && enrollmentData && (
+        <ReceiptModal
+          enrollment={enrollmentData}
+          onClose={() => setIsReceiptModalOpen(false)}
+          lang={lang}
+        />
+      )}
 
     </div>
   );

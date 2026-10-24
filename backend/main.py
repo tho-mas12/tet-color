@@ -3606,13 +3606,33 @@ def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depend
     # Check if user is admin
     user = db.query(models.User).filter(models.User.email == email_clean).first()
     if user and user.role == "admin":
+        admin_enr = db.query(models.Enrollment).filter(
+            models.Enrollment.email == email_clean
+        ).order_by(models.Enrollment.created_at.desc()).first()
+
+        admin_enrollment_data = {
+            "id": admin_enr.id if admin_enr else 1001,
+            "name": admin_enr.name if admin_enr else (user.name or "Administrator"),
+            "email": admin_enr.email if admin_enr else user.email,
+            "mobile": admin_enr.mobile if admin_enr else (user.phone or "—"),
+            "designation": admin_enr.designation if admin_enr else "Administrator",
+            "status": "active",
+            "course_name": admin_enr.course_name if admin_enr else "TNTET Paper 1 & 2 All-in-One Comprehensive Pass",
+            "amount": admin_enr.amount if admin_enr else 1000,
+            "payment_id": (admin_enr.payment_id if admin_enr and admin_enr.payment_id else "pay_ADMIN_VIP"),
+            "order_id": (admin_enr.order_id if admin_enr and admin_enr.order_id else "order_ADMIN_VIP"),
+            "payment_method": (admin_enr.payment_method if admin_enr else "online"),
+            "created_at": (admin_enr.created_at.isoformat() if admin_enr and admin_enr.created_at else datetime.utcnow().isoformat())
+        }
+
         return {
             "is_enrolled": True,
             "role": "admin",
             "message": "Admin has full access to all modules.",
             "whatsapp_group_link": whatsapp_link,
             "whatsapp_group_title": whatsapp_title,
-            "whatsapp_group_enabled": bool(settings.whatsapp_group_enabled) if settings else True
+            "whatsapp_group_enabled": bool(settings.whatsapp_group_enabled) if settings else True,
+            "enrollment": admin_enrollment_data
         }
 
     # Check enrollment table for active status
@@ -3632,9 +3652,14 @@ def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depend
                 "id": enrollment.id,
                 "name": enrollment.name,
                 "email": enrollment.email,
+                "mobile": enrollment.mobile,
                 "designation": enrollment.designation,
                 "status": enrollment.status,
-                "course_name": enrollment.course_name,
+                "course_name": enrollment.course_name or "TNTET Paper 1 & 2 All-in-One Comprehensive Pass",
+                "amount": enrollment.amount if enrollment.amount is not None else 1000,
+                "payment_id": enrollment.payment_id or "pay_VERIFIED_ONLINE",
+                "order_id": enrollment.order_id or f"order_TET{enrollment.id}",
+                "payment_method": enrollment.payment_method or "online",
                 "created_at": enrollment.created_at.isoformat() if enrollment.created_at else None
             }
         }

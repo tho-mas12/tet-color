@@ -70,6 +70,7 @@ import { fetchApi, saveUploadedMaterialClient, saveUploadedLessonClient } from "
 import { translations } from "../translations";
 import Toast from "./Toast";
 import { downloadQuizAsPdf } from "../utils/pdfExport";
+import { generateReceiptPdf } from "../utils/receiptPdfExport";
 import AdminIncomeTaxSection from "./AdminIncomeTaxSection";
 
 const cleanQuestionText = (text, lessonTitle = "") => {
@@ -3778,6 +3779,17 @@ export default function AdminPage({ user, lang = "en" }) {
                                         <Edit3 className="w-3 h-3" />
                                       </button>
                                     </>
+                                  )}
+
+                                  {isActive && (
+                                    <button
+                                      onClick={() => generateReceiptPdf(e)}
+                                      title={`Generate & Print PDF Receipt for ${e.name}`}
+                                      className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0055ff] border border-blue-200 text-[10px] font-black transition cursor-pointer flex items-center space-x-1"
+                                    >
+                                      <FileText className="w-3 h-3" />
+                                      <span>Receipt</span>
+                                    </button>
                                   )}
 
                                   <button
