@@ -904,9 +904,11 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                         )}
                       </div>
                       <div>
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider inline-block mb-0.5 shadow-2xs border ${theme.categoryBadge}`}>
-                          {theme.categoryLabel}
-                        </span>
+                        {!(isTet1 || isTet2) && theme.categoryLabel && (
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider inline-block mb-0.5 shadow-2xs border ${theme.categoryBadge}`}>
+                            {theme.categoryLabel}
+                          </span>
+                        )}
                         <h2 className={`text-sm sm:text-base font-black tracking-tight leading-snug ${theme.titleColor}`}>
                           {c.title}
                         </h2>
@@ -1040,16 +1042,24 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                   ) : (
                     <button
                       onClick={() => handleContainerAction(c)}
-                      className={`w-full py-2.5 px-3 rounded-xl font-black text-xs transition-all duration-200 shadow-2xs flex items-center justify-center space-x-1.5 cursor-pointer group min-h-[38px] ${
+                      className={`w-full py-2.5 px-3 rounded-xl font-black text-xs transition-all duration-200 shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer group min-h-[38px] ${
                         hasLiveAlert
                           ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200"
-                          : "bg-slate-50 hover:bg-[#0055ff] text-[#061b36] hover:text-white border border-slate-200/90 hover:border-[#0055ff]"
+                          : isTet1
+                          ? "bg-gradient-to-r from-blue-600 via-sky-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm shadow-blue-500/30 border border-blue-400/40"
+                          : key === "tet_2_math" || key === "tet_2"
+                          ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-700 hover:from-purple-700 hover:to-violet-800 text-white shadow-sm shadow-purple-500/30 border border-purple-400/40"
+                          : key === "tet_2_social"
+                          ? "bg-gradient-to-r from-indigo-600 via-sky-600 to-teal-600 hover:from-indigo-700 hover:to-teal-700 text-white shadow-sm shadow-teal-500/30 border border-teal-400/40"
+                          : isOnlineClass
+                          ? "bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white shadow-sm shadow-rose-500/30 border border-rose-400/40"
+                          : `bg-gradient-to-r ${theme.ribbon} text-white hover:brightness-110 shadow-sm shadow-blue-500/20`
                       }`}
                     >
                       <span>
                         {hasLiveAlert 
                           ? "JOIN LIVE CLASS NOW ↗" 
-                          : (c.button_text || `OPEN ${c.title} →`)}
+                          : (c.button_text || `OPEN ${c.title.toUpperCase()} →`)}
                       </span>
                       <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                     </button>
