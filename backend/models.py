@@ -118,6 +118,19 @@ class AdminSettings(Base):
     whatsapp_group_title = Column(String(255), default="TET VIP Teachers Community")
     whatsapp_group_enabled = Column(Boolean, default=True)
 
+    # 3 Specialized WhatsApp Groups
+    whatsapp_grp_paper1_link = Column(String(500), default="")
+    whatsapp_grp_paper1_title = Column(String(255), default="TET Paper 1")
+    whatsapp_grp_paper1_enabled = Column(Boolean, default=True)
+
+    whatsapp_grp_paper2_math_link = Column(String(500), default="")
+    whatsapp_grp_paper2_math_title = Column(String(255), default="TET 2 MA & SC")
+    whatsapp_grp_paper2_math_enabled = Column(Boolean, default=True)
+
+    whatsapp_grp_paper2_soc_link = Column(String(500), default="")
+    whatsapp_grp_paper2_soc_title = Column(String(255), default="TET 2 S.SC")
+    whatsapp_grp_paper2_soc_enabled = Column(Boolean, default=True)
+
 class Coupon(Base):
     __tablename__ = "coupons"
 

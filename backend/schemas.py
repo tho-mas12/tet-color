@@ -127,6 +127,15 @@ class AdminSettingsSchema(BaseModel):
     whatsapp_group_link: Optional[str] = ""
     whatsapp_group_title: Optional[str] = "TET VIP Teachers Community"
     whatsapp_group_enabled: Optional[bool] = True
+    whatsapp_grp_paper1_link: Optional[str] = ""
+    whatsapp_grp_paper1_title: Optional[str] = "TET Paper 1"
+    whatsapp_grp_paper1_enabled: Optional[bool] = True
+    whatsapp_grp_paper2_math_link: Optional[str] = ""
+    whatsapp_grp_paper2_math_title: Optional[str] = "TET 2 MA & SC"
+    whatsapp_grp_paper2_math_enabled: Optional[bool] = True
+    whatsapp_grp_paper2_soc_link: Optional[str] = ""
+    whatsapp_grp_paper2_soc_title: Optional[str] = "TET 2 S.SC"
+    whatsapp_grp_paper2_soc_enabled: Optional[bool] = True
 
 class AnnouncementCreate(BaseModel):
     title: str
@@ -322,6 +331,16 @@ class PublicSettingsSchema(BaseModel):
     whatsapp_group_link: str = ""
     whatsapp_group_title: str = "TET VIP Teachers Community"
     whatsapp_group_enabled: bool = True
+    whatsapp_grp_paper1_link: str = ""
+    whatsapp_grp_paper1_title: str = "TET Paper 1"
+    whatsapp_grp_paper1_enabled: bool = True
+    whatsapp_grp_paper2_math_link: str = ""
+    whatsapp_grp_paper2_math_title: str = "TET 2 MA & SC"
+    whatsapp_grp_paper2_math_enabled: bool = True
+    whatsapp_grp_paper2_soc_link: str = ""
+    whatsapp_grp_paper2_soc_title: str = "TET 2 S.SC"
+    whatsapp_grp_paper2_soc_enabled: bool = True
+    whatsapp_groups: Optional[List[Any]] = []
 
 class EnrollmentCreate(BaseModel):
     name: str

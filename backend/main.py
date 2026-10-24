@@ -69,6 +69,24 @@ def run_sqlite_migrations():
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_title TEXT DEFAULT 'TET VIP Teachers Community'")
         if as_cols and "whatsapp_group_enabled" not in as_cols:
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_enabled BOOLEAN DEFAULT 1")
+        if as_cols and "whatsapp_grp_paper1_link" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper1_link TEXT DEFAULT ''")
+        if as_cols and "whatsapp_grp_paper1_title" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper1_title TEXT DEFAULT 'TET Paper 1'")
+        if as_cols and "whatsapp_grp_paper1_enabled" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper1_enabled BOOLEAN DEFAULT 1")
+        if as_cols and "whatsapp_grp_paper2_math_link" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_math_link TEXT DEFAULT ''")
+        if as_cols and "whatsapp_grp_paper2_math_title" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_math_title TEXT DEFAULT 'TET 2 MA & SC'")
+        if as_cols and "whatsapp_grp_paper2_math_enabled" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_math_enabled BOOLEAN DEFAULT 1")
+        if as_cols and "whatsapp_grp_paper2_soc_link" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_link TEXT DEFAULT ''")
+        if as_cols and "whatsapp_grp_paper2_soc_title" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_title TEXT DEFAULT 'TET 2 S.SC'")
+        if as_cols and "whatsapp_grp_paper2_soc_enabled" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_enabled BOOLEAN DEFAULT 1")
 
         cursor.execute("PRAGMA table_info(enrollments)")
         e_cols = [row[1] for row in cursor.fetchall()]
@@ -109,6 +127,24 @@ def run_db_migrations():
                     conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_title VARCHAR(255) DEFAULT 'TET VIP Teachers Community'"))
                 if "whatsapp_group_enabled" not in cols:
                     conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_group_enabled BOOLEAN DEFAULT 1"))
+                if "whatsapp_grp_paper1_link" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper1_link VARCHAR(500) DEFAULT ''"))
+                if "whatsapp_grp_paper1_title" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper1_title VARCHAR(255) DEFAULT 'TET Paper 1'"))
+                if "whatsapp_grp_paper1_enabled" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper1_enabled BOOLEAN DEFAULT 1"))
+                if "whatsapp_grp_paper2_math_link" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_math_link VARCHAR(500) DEFAULT ''"))
+                if "whatsapp_grp_paper2_math_title" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_math_title VARCHAR(255) DEFAULT 'TET 2 MA & SC'"))
+                if "whatsapp_grp_paper2_math_enabled" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_math_enabled BOOLEAN DEFAULT 1"))
+                if "whatsapp_grp_paper2_soc_link" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_link VARCHAR(500) DEFAULT ''"))
+                if "whatsapp_grp_paper2_soc_title" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_title VARCHAR(255) DEFAULT 'TET 2 S.SC'"))
+                if "whatsapp_grp_paper2_soc_enabled" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_enabled BOOLEAN DEFAULT 1"))
                 conn.commit()
         if "enrollments" in tables:
             cols = [c["name"] for c in inspector.get_columns("enrollments")]
@@ -2485,13 +2521,73 @@ def update_admin_settings(new_settings: schemas.AdminSettingsSchema, db: Session
     if getattr(new_settings, "whatsapp_group_title", None) is not None: settings.whatsapp_group_title = new_settings.whatsapp_group_title
     if getattr(new_settings, "whatsapp_group_enabled", None) is not None: settings.whatsapp_group_enabled = new_settings.whatsapp_group_enabled
 
+    # 3 Specialized WhatsApp Groups
+    if getattr(new_settings, "whatsapp_grp_paper1_link", None) is not None: settings.whatsapp_grp_paper1_link = new_settings.whatsapp_grp_paper1_link
+    if getattr(new_settings, "whatsapp_grp_paper1_title", None) is not None: settings.whatsapp_grp_paper1_title = new_settings.whatsapp_grp_paper1_title
+    if getattr(new_settings, "whatsapp_grp_paper1_enabled", None) is not None: settings.whatsapp_grp_paper1_enabled = new_settings.whatsapp_grp_paper1_enabled
+
+    if getattr(new_settings, "whatsapp_grp_paper2_math_link", None) is not None: settings.whatsapp_grp_paper2_math_link = new_settings.whatsapp_grp_paper2_math_link
+    if getattr(new_settings, "whatsapp_grp_paper2_math_title", None) is not None: settings.whatsapp_grp_paper2_math_title = new_settings.whatsapp_grp_paper2_math_title
+    if getattr(new_settings, "whatsapp_grp_paper2_math_enabled", None) is not None: settings.whatsapp_grp_paper2_math_enabled = new_settings.whatsapp_grp_paper2_math_enabled
+
+    if getattr(new_settings, "whatsapp_grp_paper2_soc_link", None) is not None: settings.whatsapp_grp_paper2_soc_link = new_settings.whatsapp_grp_paper2_soc_link
+    if getattr(new_settings, "whatsapp_grp_paper2_soc_title", None) is not None: settings.whatsapp_grp_paper2_soc_title = new_settings.whatsapp_grp_paper2_soc_title
+    if getattr(new_settings, "whatsapp_grp_paper2_soc_enabled", None) is not None: settings.whatsapp_grp_paper2_soc_enabled = new_settings.whatsapp_grp_paper2_soc_enabled
+
     db.commit()
     db.refresh(settings)
     return settings
 
+def build_whatsapp_groups_list(settings):
+    p1_link = (getattr(settings, "whatsapp_grp_paper1_link", "") or getattr(settings, "whatsapp_group_link", "")).strip() if settings else ""
+    p1_title = (getattr(settings, "whatsapp_grp_paper1_title", "TET Paper 1") or "TET Paper 1").strip() if settings else "TET Paper 1"
+    p1_enabled = getattr(settings, "whatsapp_grp_paper1_enabled", True) if (settings and getattr(settings, "whatsapp_grp_paper1_enabled", None) is not None) else True
+
+    p2_m_link = (getattr(settings, "whatsapp_grp_paper2_math_link", "") or "").strip() if settings else ""
+    p2_m_title = (getattr(settings, "whatsapp_grp_paper2_math_title", "TET 2 MA & SC") or "TET 2 MA & SC").strip() if settings else "TET 2 MA & SC"
+    p2_m_enabled = getattr(settings, "whatsapp_grp_paper2_math_enabled", True) if (settings and getattr(settings, "whatsapp_grp_paper2_math_enabled", None) is not None) else True
+
+    p2_s_link = (getattr(settings, "whatsapp_grp_paper2_soc_link", "") or "").strip() if settings else ""
+    p2_s_title = (getattr(settings, "whatsapp_grp_paper2_soc_title", "TET 2 S.SC") or "TET 2 S.SC").strip() if settings else "TET 2 S.SC"
+    p2_s_enabled = getattr(settings, "whatsapp_grp_paper2_soc_enabled", True) if (settings and getattr(settings, "whatsapp_grp_paper2_soc_enabled", None) is not None) else True
+
+    return [
+        {
+            "id": "paper1",
+            "title": p1_title,
+            "link": p1_link,
+            "enabled": bool(p1_enabled),
+            "category": "paper1",
+            "track": "Primary (Classes 1 - 5)",
+            "track_ta": "தொடக்கப் பள்ளி (தாள் 1)",
+            "badge_color": "blue"
+        },
+        {
+            "id": "paper2_math",
+            "title": p2_m_title,
+            "link": p2_m_link,
+            "enabled": bool(p2_m_enabled),
+            "category": "paper2_math",
+            "track": "Graduate: Maths & Science (Classes 6 - 12)",
+            "track_ta": "பட்டதாரி: கணிதம் & அறிவியல் (தாள் 2)",
+            "badge_color": "emerald"
+        },
+        {
+            "id": "paper2_soc",
+            "title": p2_s_title,
+            "link": p2_s_link,
+            "enabled": bool(p2_s_enabled),
+            "category": "paper2_soc",
+            "track": "Graduate: Social Science (Classes 6 - 12)",
+            "track_ta": "பட்டதாரி: சமூக அறிவியல் (தாள் 2)",
+            "badge_color": "purple"
+        }
+    ]
+
 @app.get("/api/public-settings", response_model=schemas.PublicSettingsSchema)
 def get_public_settings(db: Session = Depends(get_db)):
     settings = db.query(models.AdminSettings).first()
+    groups = build_whatsapp_groups_list(settings)
     return schemas.PublicSettingsSchema(
         enable_material_download=getattr(settings, "enable_material_download", False) if settings else False,
         enable_notes_download=getattr(settings, "enable_notes_download", False) if settings else False,
@@ -2502,7 +2598,17 @@ def get_public_settings(db: Session = Depends(get_db)):
         discount_percent=getattr(settings, "discount_percent", 60) if settings else 60,
         whatsapp_group_link=getattr(settings, "whatsapp_group_link", "") if settings else "",
         whatsapp_group_title=getattr(settings, "whatsapp_group_title", "TET VIP Teachers Community") if settings else "TET VIP Teachers Community",
-        whatsapp_group_enabled=getattr(settings, "whatsapp_group_enabled", True) if settings else True
+        whatsapp_group_enabled=getattr(settings, "whatsapp_group_enabled", True) if settings else True,
+        whatsapp_grp_paper1_link=getattr(settings, "whatsapp_grp_paper1_link", "") if settings else "",
+        whatsapp_grp_paper1_title=getattr(settings, "whatsapp_grp_paper1_title", "TET Paper 1") if settings else "TET Paper 1",
+        whatsapp_grp_paper1_enabled=getattr(settings, "whatsapp_grp_paper1_enabled", True) if settings else True,
+        whatsapp_grp_paper2_math_link=getattr(settings, "whatsapp_grp_paper2_math_link", "") if settings else "",
+        whatsapp_grp_paper2_math_title=getattr(settings, "whatsapp_grp_paper2_math_title", "TET 2 MA & SC") if settings else "TET 2 MA & SC",
+        whatsapp_grp_paper2_math_enabled=getattr(settings, "whatsapp_grp_paper2_math_enabled", True) if settings else True,
+        whatsapp_grp_paper2_soc_link=getattr(settings, "whatsapp_grp_paper2_soc_link", "") if settings else "",
+        whatsapp_grp_paper2_soc_title=getattr(settings, "whatsapp_grp_paper2_soc_title", "TET 2 S.SC") if settings else "TET 2 S.SC",
+        whatsapp_grp_paper2_soc_enabled=getattr(settings, "whatsapp_grp_paper2_soc_enabled", True) if settings else True,
+        whatsapp_groups=groups
     )
 
 # ================= COUPON HELPERS & AUTOMATION =================
@@ -3592,13 +3698,15 @@ def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depend
     settings = db.query(models.AdminSettings).first()
     whatsapp_link = (settings.whatsapp_group_link or "") if settings and settings.whatsapp_group_enabled else ""
     whatsapp_title = (settings.whatsapp_group_title or "TET VIP Teachers Community") if settings else "TET VIP Teachers Community"
+    whatsapp_groups = build_whatsapp_groups_list(settings)
 
     if not email:
         return {
             "is_enrolled": False, 
             "reason": "No email provided",
             "whatsapp_group_link": whatsapp_link,
-            "whatsapp_group_title": whatsapp_title
+            "whatsapp_group_title": whatsapp_title,
+            "whatsapp_groups": whatsapp_groups
         }
 
     email_clean = email.strip().lower()
@@ -3632,6 +3740,7 @@ def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depend
             "whatsapp_group_link": whatsapp_link,
             "whatsapp_group_title": whatsapp_title,
             "whatsapp_group_enabled": bool(settings.whatsapp_group_enabled) if settings else True,
+            "whatsapp_groups": whatsapp_groups,
             "enrollment": admin_enrollment_data
         }
 
@@ -3648,6 +3757,7 @@ def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depend
             "whatsapp_group_link": whatsapp_link,
             "whatsapp_group_title": whatsapp_title,
             "whatsapp_group_enabled": bool(settings.whatsapp_group_enabled) if settings else True,
+            "whatsapp_groups": whatsapp_groups,
             "enrollment": {
                 "id": enrollment.id,
                 "name": enrollment.name,
@@ -3668,7 +3778,8 @@ def get_user_enrollment_status(email: Optional[str] = None, db: Session = Depend
         "is_enrolled": False, 
         "role": "student",
         "whatsapp_group_link": whatsapp_link,
-        "whatsapp_group_title": whatsapp_title
+        "whatsapp_group_title": whatsapp_title,
+        "whatsapp_groups": whatsapp_groups
     }
 
 @app.get("/api/admin/enrollments", response_model=List[schemas.EnrollmentOut])

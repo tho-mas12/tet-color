@@ -141,7 +141,8 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
     } catch (e) {}
 
     // Auto pop-out WhatsApp modal for enrolled users if not yet joined
-    if (userEnrolled && waEnabled && waLink) {
+    const hasAnyWaGroup = (settings?.whatsapp_groups && settings.whatsapp_groups.some(g => g.enabled !== false && g.link)) || (waEnabled && waLink);
+    if (userEnrolled && hasAnyWaGroup) {
       try {
         const alreadyJoined = localStorage.getItem("tet_wa_joined");
         if (!alreadyJoined) {
@@ -725,7 +726,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       )}
 
       {/* ================= VIP WHATSAPP COMMUNITY BANNER FOR ENROLLED MEMBERS ================= */}
-      {isEnrolled && publicSettings?.whatsapp_group_enabled && publicSettings?.whatsapp_group_link && (
+      {isEnrolled && (publicSettings?.whatsapp_group_enabled || (publicSettings?.whatsapp_groups && publicSettings?.whatsapp_groups.length > 0)) && (
         <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 border-2 border-emerald-400 rounded-3xl p-4 sm:p-5 shadow-lg shadow-emerald-600/20 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in relative overflow-hidden">
           <div className="flex items-center space-x-3.5 sm:space-x-4">
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shrink-0 shadow-inner">
@@ -740,18 +741,20 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
                   VIP COMMUNITY
                 </span>
                 <span className="text-[11px] text-emerald-100 font-bold">
-                  {publicSettings?.whatsapp_group_title || (lang === "ta" ? "TET VIP ஆசிரியர்கள் வாட்ஸ்அப் குழு" : "TET VIP Teachers Community")}
+                  {publicSettings?.whatsapp_groups && publicSettings.whatsapp_groups.length > 1
+                    ? (lang === "ta" ? "3 அதிகாரப்பூர்வ வாட்ஸ்அப் குழுக்கள் (தாள் 1, கணிதம் & அறிவியல், சமூகம்)" : "3 Official WhatsApp Groups (Paper 1, Paper 2 M&S, Paper 2 Social)")
+                    : (publicSettings?.whatsapp_group_title || (lang === "ta" ? "TET VIP ஆசிரியர்கள் வாட்ஸ்அப் குழு" : "TET VIP Teachers Community"))}
                 </span>
               </div>
               <h3 className="text-sm sm:text-base font-black tracking-tight mt-0.5">
                 {lang === "ta" 
-                  ? "அங்கீகரிக்கப்பட்ட ஆசிரியர்களுக்கான அதிகாரப்பூர்வ வாட்ஸ்அப் குழு" 
-                  : "Official Enrolled Teachers WhatsApp VIP Group"}
+                  ? "அங்கீகரிக்கப்பட்ட ஆசிரியர்களுக்கான அதிகாரப்பூர்வ வாட்ஸ்அப் குழுக்கள்" 
+                  : "Official Enrolled Teachers WhatsApp VIP Groups"}
               </h3>
               <p className="text-xs text-emerald-100 font-medium mt-0.5">
                 {lang === "ta" 
-                  ? "தினசரி Google Meet நேரலை வகுப்பு இணைப்புகள், தேர்வு அறிவிப்புகள் மற்றும் சுருக்கக் குறிப்புகளை உடனுக்குடன் பெற குழுவில் இணையுங்கள்." 
-                  : "Daily live class links, test alerts & short notes are shared here. Join now to never miss a live session."}
+                  ? "உங்கள் பாடப் பிரிவிற்கான வாட்ஸ்அப் குழுவில் (TET Paper 1, TET 2 MA & SC, TET 2 S.SC) இணைந்து நேரலை வகுப்புகள் மற்றும் சுருக்கக் குறிப்புகளைப் பெறவும்." 
+                  : "Join your track group (TET Paper 1, TET 2 MA & SC, TET 2 S.SC) to receive daily Google Meet links and study notes."}
               </p>
             </div>
           </div>
@@ -1152,6 +1155,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       <WhatsAppJoinModal
         isOpen={isWhatsAppModalOpen}
         onClose={() => setIsWhatsAppModalOpen(false)}
+        whatsappGroups={publicSettings?.whatsapp_groups || []}
         whatsappGroupLink={publicSettings?.whatsapp_group_link}
         whatsappGroupTitle={publicSettings?.whatsapp_group_title}
         lang={lang}

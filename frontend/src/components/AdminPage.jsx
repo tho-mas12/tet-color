@@ -576,6 +576,19 @@ export default function AdminPage({ user, lang = "en" }) {
   const [whatsappGroupEnabled, setWhatsappGroupEnabled] = useState(true);
   const [savingWhatsAppGroup, setSavingWhatsAppGroup] = useState(false);
 
+  // 3 Specialized WhatsApp Groups (TET Paper 1, TET 2 MA & SC, TET 2 S.SC)
+  const [whatsappGrpPaper1Link, setWhatsappGrpPaper1Link] = useState("");
+  const [whatsappGrpPaper1Title, setWhatsappGrpPaper1Title] = useState("TET Paper 1");
+  const [whatsappGrpPaper1Enabled, setWhatsappGrpPaper1Enabled] = useState(true);
+
+  const [whatsappGrpPaper2MathLink, setWhatsappGrpPaper2MathLink] = useState("");
+  const [whatsappGrpPaper2MathTitle, setWhatsappGrpPaper2MathTitle] = useState("TET 2 MA & SC");
+  const [whatsappGrpPaper2MathEnabled, setWhatsappGrpPaper2MathEnabled] = useState(true);
+
+  const [whatsappGrpPaper2SocLink, setWhatsappGrpPaper2SocLink] = useState("");
+  const [whatsappGrpPaper2SocTitle, setWhatsappGrpPaper2SocTitle] = useState("TET 2 S.SC");
+  const [whatsappGrpPaper2SocEnabled, setWhatsappGrpPaper2SocEnabled] = useState(true);
+
   // Coupon System State
   const [couponsList, setCouponsList] = useState([]);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
@@ -1165,6 +1178,19 @@ export default function AdminPage({ user, lang = "en" }) {
       setWhatsappGroupLink(data.whatsapp_group_link || "");
       setWhatsappGroupTitle(data.whatsapp_group_title || "TET VIP Teachers Community");
       setWhatsappGroupEnabled(data.whatsapp_group_enabled !== undefined ? data.whatsapp_group_enabled : true);
+
+      // 3 Specialized WhatsApp Groups
+      setWhatsappGrpPaper1Link(data.whatsapp_grp_paper1_link !== undefined ? data.whatsapp_grp_paper1_link : (data.whatsapp_group_link || ""));
+      setWhatsappGrpPaper1Title(data.whatsapp_grp_paper1_title || "TET Paper 1");
+      setWhatsappGrpPaper1Enabled(data.whatsapp_grp_paper1_enabled !== undefined ? data.whatsapp_grp_paper1_enabled : true);
+
+      setWhatsappGrpPaper2MathLink(data.whatsapp_grp_paper2_math_link || "");
+      setWhatsappGrpPaper2MathTitle(data.whatsapp_grp_paper2_math_title || "TET 2 MA & SC");
+      setWhatsappGrpPaper2MathEnabled(data.whatsapp_grp_paper2_math_enabled !== undefined ? data.whatsapp_grp_paper2_math_enabled : true);
+
+      setWhatsappGrpPaper2SocLink(data.whatsapp_grp_paper2_soc_link || "");
+      setWhatsappGrpPaper2SocTitle(data.whatsapp_grp_paper2_soc_title || "TET 2 S.SC");
+      setWhatsappGrpPaper2SocEnabled(data.whatsapp_grp_paper2_soc_enabled !== undefined ? data.whatsapp_grp_paper2_soc_enabled : true);
     } catch (err) {
       console.error("Settings load error:", err);
     }
@@ -2048,7 +2074,16 @@ export default function AdminPage({ user, lang = "en" }) {
           discount_percent: Number(discountPercent || 60),
           whatsapp_group_link: whatsappGroupLink.trim(),
           whatsapp_group_title: whatsappGroupTitle.trim(),
-          whatsapp_group_enabled: Boolean(whatsappGroupEnabled)
+          whatsapp_group_enabled: Boolean(whatsappGroupEnabled),
+          whatsapp_grp_paper1_link: whatsappGrpPaper1Link.trim(),
+          whatsapp_grp_paper1_title: whatsappGrpPaper1Title.trim(),
+          whatsapp_grp_paper1_enabled: Boolean(whatsappGrpPaper1Enabled),
+          whatsapp_grp_paper2_math_link: whatsappGrpPaper2MathLink.trim(),
+          whatsapp_grp_paper2_math_title: whatsappGrpPaper2MathTitle.trim(),
+          whatsapp_grp_paper2_math_enabled: Boolean(whatsappGrpPaper2MathEnabled),
+          whatsapp_grp_paper2_soc_link: whatsappGrpPaper2SocLink.trim(),
+          whatsapp_grp_paper2_soc_title: whatsappGrpPaper2SocTitle.trim(),
+          whatsapp_grp_paper2_soc_enabled: Boolean(whatsappGrpPaper2SocEnabled)
         })
       });
       showToast("Admin, Downloads, Razorpay & WhatsApp Group Settings saved successfully!");
@@ -2090,12 +2125,21 @@ export default function AdminPage({ user, lang = "en" }) {
           course_price: Number(coursePrice || 999),
           original_price: Number(originalPrice || 2499),
           discount_percent: Number(discountPercent || 60),
-          whatsapp_group_link: whatsappGroupLink.trim(),
-          whatsapp_group_title: whatsappGroupTitle.trim(),
-          whatsapp_group_enabled: Boolean(whatsappGroupEnabled)
+          whatsapp_group_link: (whatsappGrpPaper1Link || whatsappGroupLink).trim(),
+          whatsapp_group_title: (whatsappGrpPaper1Title || whatsappGroupTitle).trim(),
+          whatsapp_group_enabled: Boolean(whatsappGroupEnabled),
+          whatsapp_grp_paper1_link: whatsappGrpPaper1Link.trim(),
+          whatsapp_grp_paper1_title: whatsappGrpPaper1Title.trim(),
+          whatsapp_grp_paper1_enabled: Boolean(whatsappGrpPaper1Enabled),
+          whatsapp_grp_paper2_math_link: whatsappGrpPaper2MathLink.trim(),
+          whatsapp_grp_paper2_math_title: whatsappGrpPaper2MathTitle.trim(),
+          whatsapp_grp_paper2_math_enabled: Boolean(whatsappGrpPaper2MathEnabled),
+          whatsapp_grp_paper2_soc_link: whatsappGrpPaper2SocLink.trim(),
+          whatsapp_grp_paper2_soc_title: whatsappGrpPaper2SocTitle.trim(),
+          whatsapp_grp_paper2_soc_enabled: Boolean(whatsappGrpPaper2SocEnabled)
         })
       });
-      showToast("WhatsApp Group Link updated successfully for all enrolled teachers!", "success");
+      showToast("All 3 WhatsApp Groups updated successfully for all enrolled teachers!", "success");
     } catch (err) {
       showToast(err.message || "Failed to update WhatsApp group link", "error");
     } finally {
@@ -6338,22 +6382,22 @@ export default function AdminPage({ user, lang = "en" }) {
                   </div>
                 </div>
 
-                {/* ================= WHATSAPP VIP GROUP & ENROLLMENT POPUP CONTROLLER ================= */}
-                <div className="p-5 rounded-2xl bg-emerald-50/70 border-2 border-emerald-300 space-y-4 shadow-xs">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200 pb-3">
+                {/* ================= 3 SPECIALIZED WHATSAPP GROUPS CONTROLLER ================= */}
+                <div className="p-5 rounded-3xl bg-emerald-50/70 border-2 border-emerald-300 space-y-4 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200 pb-3">
                     <div className="flex items-center space-x-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
-                        <MessageSquare className="w-4 h-4" />
+                      <div className="w-9 h-9 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                        <MessageSquare className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center space-x-2">
-                          <span>WhatsApp VIP Group & Pop-up Control</span>
+                        <h4 className="text-xs sm:text-sm font-black text-emerald-950 uppercase tracking-wider flex items-center space-x-2">
+                          <span>3 Specialized WhatsApp Groups Controller</span>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900">
-                            Limit: 1024 / Grp
+                            Simultaneous 3 Groups Active
                           </span>
                         </h4>
                         <p className="text-[11px] text-emerald-800 font-medium">
-                          Manage the WhatsApp group link shown in the payment celebration pop-up & student dashboard.
+                          Enable up to 3 specialized subject groups at a time: <strong>TET Paper 1</strong>, <strong>TET 2 MA & SC</strong>, and <strong>TET 2 S.SC</strong>.
                         </p>
                       </div>
                     </div>
@@ -6377,78 +6421,222 @@ export default function AdminPage({ user, lang = "en" }) {
                         onClick={handleQuickSaveWhatsAppLink}
                         className="px-4 py-1.5 rounded-xl bg-[#061b36] hover:bg-black text-white text-xs font-black shadow-xs cursor-pointer transition flex items-center space-x-1"
                       >
-                        <span>{savingWhatsAppGroup ? "Saving..." : "Update Link Now"}</span>
+                        <span>{savingWhatsAppGroup ? "Saving..." : "Update All 3 Groups Now"}</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Informational Guidance Callout */}
-                  <div className="p-3 rounded-xl bg-white border border-emerald-200 text-xs text-slate-700 leading-relaxed flex items-start space-x-2.5">
-                    <span className="text-base leading-none">💡</span>
-                    <div>
-                      <p className="font-bold text-[#061b36]">
-                        வாட்ஸ்அப் குழு உறுப்பினர் வரம்பு (1024 உறுப்பினர்கள்) மேலாண்மை:
-                      </p>
-                      <p className="text-[11px] text-slate-600 mt-0.5">
-                        வாட்ஸ்அப் குழுவில் 1024 நபர்கள் நிறைந்தவுடன், புதிய வாட்ஸ்அப் குழுவை உருவாக்கி அதன் அழைப்பு இணைப்பை (Invite Link) கீழே மாற்றி <b>"Update Link Now"</b> கொடுங்கள். புதிதாக பணம் செலுத்தும் அனைத்து ஆசிரியர்களுக்கும் உடனடியாக இந்த புதிய குழுவே காட்டப்படும்.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-                    <div>
-                      <label className="block text-xs font-bold text-emerald-950 mb-1">
-                        வாட்ஸ்அப் குழு இணைப்பு (WhatsApp Group Invite Link) *
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="url"
-                          placeholder="https://chat.whatsapp.com/L123abcXYZ456..."
-                          value={whatsappGroupLink}
-                          onChange={(e) => setWhatsappGroupLink(e.target.value)}
-                          className="w-full p-2.5 rounded-xl bg-white border border-emerald-300 text-emerald-950 font-semibold text-xs focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-400 font-mono"
-                        />
-                        {whatsappGroupLink && (
+                  {/* 3 Dedicated WhatsApp Group Cards */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 pt-1">
+                    
+                    {/* GROUP 1: TET Paper 1 */}
+                    <div className="p-4 rounded-2xl bg-white border-2 border-blue-200 shadow-2xs space-y-3 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-800 border border-blue-200">
+                            Primary Track (தாள் 1)
+                          </span>
                           <button
                             type="button"
-                            onClick={() => window.open(whatsappGroupLink, "_blank")}
-                            className="px-3 py-2.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold shrink-0 transition"
-                            title="Test Link in New Tab"
+                            onClick={() => setWhatsappGrpPaper1Enabled(!whatsappGrpPaper1Enabled)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-black cursor-pointer transition ${
+                              whatsappGrpPaper1Enabled ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"
+                            }`}
                           >
-                            <ExternalLink className="w-4 h-4" />
+                            {whatsappGrpPaper1Enabled ? "ACTIVE ✓" : "DISABLED ✕"}
                           </button>
-                        )}
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-black text-[#061b36] mb-1">
+                            Group Title / பெயர்
+                          </label>
+                          <input
+                            type="text"
+                            value={whatsappGrpPaper1Title}
+                            onChange={(e) => setWhatsappGrpPaper1Title(e.target.value)}
+                            placeholder="TET Paper 1"
+                            className="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-black text-[#061b36] mb-1">
+                            WhatsApp Invite Link *
+                          </label>
+                          <div className="flex items-center space-x-1.5">
+                            <input
+                              type="url"
+                              value={whatsappGrpPaper1Link}
+                              onChange={(e) => setWhatsappGrpPaper1Link(e.target.value)}
+                              placeholder="https://chat.whatsapp.com/..."
+                              className="w-full px-2.5 py-1.5 rounded-xl border border-blue-300 font-mono text-[11px] focus:outline-none focus:border-blue-600"
+                            />
+                            {whatsappGrpPaper1Link && (
+                              <button
+                                type="button"
+                                onClick={() => window.open(whatsappGrpPaper1Link, "_blank")}
+                                className="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 shrink-0"
+                                title="Test Link"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-slate-500">Status:</span>
+                        <span className={`font-black ${whatsappGrpPaper1Enabled && whatsappGrpPaper1Link ? "text-emerald-600" : "text-amber-600"}`}>
+                          {whatsappGrpPaper1Enabled && whatsappGrpPaper1Link ? "Live on Dashboard" : "Link Pending / Off"}
+                        </span>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-emerald-950 mb-1">
-                        குழுவின் பெயர் / தலைப்பு (Group Title / Batch Name)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. TET 2026 Batch 3 - விஐபி ஆசிரியர்கள் குழு"
-                        value={whatsappGroupTitle}
-                        onChange={(e) => setWhatsappGroupTitle(e.target.value)}
-                        className="w-full p-2.5 rounded-xl bg-white border border-emerald-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-400"
-                      />
+                    {/* GROUP 2: TET 2 MA & SC */}
+                    <div className="p-4 rounded-2xl bg-white border-2 border-emerald-200 shadow-2xs space-y-3 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Maths & Science (கணிதம் & அறிவியல்)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setWhatsappGrpPaper2MathEnabled(!whatsappGrpPaper2MathEnabled)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-black cursor-pointer transition ${
+                              whatsappGrpPaper2MathEnabled ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-600"
+                            }`}
+                          >
+                            {whatsappGrpPaper2MathEnabled ? "ACTIVE ✓" : "DISABLED ✕"}
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-black text-[#061b36] mb-1">
+                            Group Title / பெயர்
+                          </label>
+                          <input
+                            type="text"
+                            value={whatsappGrpPaper2MathTitle}
+                            onChange={(e) => setWhatsappGrpPaper2MathTitle(e.target.value)}
+                            placeholder="TET 2 MA & SC"
+                            className="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-black text-[#061b36] mb-1">
+                            WhatsApp Invite Link *
+                          </label>
+                          <div className="flex items-center space-x-1.5">
+                            <input
+                              type="url"
+                              value={whatsappGrpPaper2MathLink}
+                              onChange={(e) => setWhatsappGrpPaper2MathLink(e.target.value)}
+                              placeholder="https://chat.whatsapp.com/..."
+                              className="w-full px-2.5 py-1.5 rounded-xl border border-emerald-300 font-mono text-[11px] focus:outline-none focus:border-emerald-600"
+                            />
+                            {whatsappGrpPaper2MathLink && (
+                              <button
+                                type="button"
+                                onClick={() => window.open(whatsappGrpPaper2MathLink, "_blank")}
+                                className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 shrink-0"
+                                title="Test Link"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-slate-500">Status:</span>
+                        <span className={`font-black ${whatsappGrpPaper2MathEnabled && whatsappGrpPaper2MathLink ? "text-emerald-600" : "text-amber-600"}`}>
+                          {whatsappGrpPaper2MathEnabled && whatsappGrpPaper2MathLink ? "Live on Dashboard" : "Link Pending / Off"}
+                        </span>
+                      </div>
                     </div>
+
+                    {/* GROUP 3: TET 2 S.SC */}
+                    <div className="p-4 rounded-2xl bg-white border-2 border-purple-200 shadow-2xs space-y-3 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-100 text-purple-800 border border-purple-200">
+                            Social Science (சமூக அறிவியல்)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setWhatsappGrpPaper2SocEnabled(!whatsappGrpPaper2SocEnabled)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-black cursor-pointer transition ${
+                              whatsappGrpPaper2SocEnabled ? "bg-purple-600 text-white" : "bg-slate-200 text-slate-600"
+                            }`}
+                          >
+                            {whatsappGrpPaper2SocEnabled ? "ACTIVE ✓" : "DISABLED ✕"}
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-black text-[#061b36] mb-1">
+                            Group Title / பெயர்
+                          </label>
+                          <input
+                            type="text"
+                            value={whatsappGrpPaper2SocTitle}
+                            onChange={(e) => setWhatsappGrpPaper2SocTitle(e.target.value)}
+                            placeholder="TET 2 S.SC"
+                            className="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-black text-[#061b36] mb-1">
+                            WhatsApp Invite Link *
+                          </label>
+                          <div className="flex items-center space-x-1.5">
+                            <input
+                              type="url"
+                              value={whatsappGrpPaper2SocLink}
+                              onChange={(e) => setWhatsappGrpPaper2SocLink(e.target.value)}
+                              placeholder="https://chat.whatsapp.com/..."
+                              className="w-full px-2.5 py-1.5 rounded-xl border border-purple-300 font-mono text-[11px] focus:outline-none focus:border-purple-600"
+                            />
+                            {whatsappGrpPaper2SocLink && (
+                              <button
+                                type="button"
+                                onClick={() => window.open(whatsappGrpPaper2SocLink, "_blank")}
+                                className="p-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 shrink-0"
+                                title="Test Link"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-slate-500">Status:</span>
+                        <span className={`font-black ${whatsappGrpPaper2SocEnabled && whatsappGrpPaper2SocLink ? "text-emerald-600" : "text-amber-600"}`}>
+                          {whatsappGrpPaper2SocEnabled && whatsappGrpPaper2SocLink ? "Live on Dashboard" : "Link Pending / Off"}
+                        </span>
+                      </div>
+                    </div>
+
                   </div>
 
-                  {/* Real-time Link Preview */}
-                  <div className="p-3 rounded-xl bg-white border border-emerald-200/90 flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-slate-500 font-semibold">Active Preview for Enrolled Teachers:</span>
-                      <span className="font-black text-emerald-900">{whatsappGroupTitle || "TET VIP Teachers Community"}</span>
-                      {whatsappGroupLink ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-emerald-100 text-emerald-800 truncate max-w-xs">
-                          {whatsappGroupLink}
-                        </span>
-                      ) : (
-                        <span className="text-amber-600 text-[11px] font-bold">⚠️ No invite link configured yet</span>
-                      )}
+                  {/* Informational Guidance Callout */}
+                  <div className="p-3 rounded-2xl bg-white border border-emerald-200 text-xs text-slate-700 leading-relaxed flex items-start space-x-2.5">
+                    <span className="text-base leading-none">💡</span>
+                    <div>
+                      <p className="font-bold text-[#061b36]">
+                        ஒரே நேரத்தில் 3 வாட்ஸ்அப் குழுக்கள் இயங்கும் முறை:
+                      </p>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        இங்கே நீங்கள் 3 குழுக்களையும் ஒரே நேரத்தில் Active செய்து கொள்ளலாம். மாணவர்கள் பணம் செலுத்தியவுடன் அல்லது தங்கள் Dashboard-ல் நுழையும்போது, தாங்கள் விரும்பும் பாடப்பிரிவு குழுவில் (TET 1 / TET 2 MA & SC / TET 2 S.SC) நேரடியாக ஒரு கிளிக்கில் இணைந்து கொள்ள முடியும்.
+                      </p>
                     </div>
-                    <span className="text-[11px] text-emerald-700 font-medium">Auto-synced with post-payment celebration & student dashboard</span>
                   </div>
                 </div>
 

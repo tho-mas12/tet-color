@@ -100,8 +100,10 @@ export default function EnrollmentModal({
 
       if (res && res.already_active) {
         if (onEnrollmentSuccess) onEnrollmentSuccess();
-        if (res.whatsapp_group_link && res.whatsapp_group_enabled !== false) {
+        const hasGrp = (res.whatsapp_groups && res.whatsapp_groups.length > 0) || (res.whatsapp_group_link && res.whatsapp_group_enabled !== false);
+        if (hasGrp) {
           setActivatedWhatsApp({
+            groups: res.whatsapp_groups || [],
             link: res.whatsapp_group_link,
             title: res.whatsapp_group_title || "TET VIP Teachers Community"
           });
@@ -149,8 +151,10 @@ export default function EnrollmentModal({
               });
               if (onEnrollmentSuccess) onEnrollmentSuccess();
 
-              if (verifyRes && verifyRes.whatsapp_group_link && verifyRes.whatsapp_group_enabled !== false) {
+              const hasVerifyGrp = (verifyRes?.whatsapp_groups && verifyRes.whatsapp_groups.length > 0) || (verifyRes?.whatsapp_group_link && verifyRes?.whatsapp_group_enabled !== false);
+              if (hasVerifyGrp) {
                 setActivatedWhatsApp({
+                  groups: verifyRes.whatsapp_groups || [],
                   link: verifyRes.whatsapp_group_link,
                   title: verifyRes.whatsapp_group_title || "TET VIP Teachers Community"
                 });
@@ -283,20 +287,53 @@ export default function EnrollmentModal({
             </div>
 
             <div className="space-y-2 pt-1">
-              <button
-                onClick={() => {
-                  try {
-                    localStorage.setItem("tet_wa_joined", "true");
-                  } catch (e) {}
-                  window.open(activatedWhatsApp.link, "_blank", "noopener,noreferrer");
-                }}
-                className="w-full py-4 px-6 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-black text-sm sm:text-base flex items-center justify-center space-x-2.5 shadow-lg shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer animate-pulse"
-              >
-                <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24">
-                  <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24h-.18zm4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.24-.75-.67-1.25-1.49-1.4-1.74-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.43.13-.15.17-.25.25-.42.08-.17.04-.32-.02-.45-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.72 4.31 3.81.6.26 1.07.42 1.44.53.61.19 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.22-.17-.47-.3z"/>
-                </svg>
-                <span>{isTa ? "வாட்ஸ்அப் குழுவில் இப்போதே இணையுங்கள் ↗" : "Join VIP WhatsApp Group ↗"}</span>
-              </button>
+              {activatedWhatsApp.groups && activatedWhatsApp.groups.filter(g => g.enabled !== false && g.link).length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center mb-1">
+                    {isTa ? "உங்கள் பாடப்பிரிவு வாட்ஸ்அப் குழுவில் இணையவும்:" : "Choose your subject track to join WhatsApp:"}
+                  </p>
+                  {activatedWhatsApp.groups.filter(g => g.enabled !== false && g.link).map((grp, idx) => (
+                    <button
+                      key={grp.key || idx}
+                      onClick={() => {
+                        try {
+                          localStorage.setItem("tet_wa_joined", "true");
+                        } catch (e) {}
+                        window.open(grp.link, "_blank", "noopener,noreferrer");
+                      }}
+                      className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs sm:text-sm flex items-center justify-between shadow-md hover:scale-[1.01] transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-2.5 text-left">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping" />
+                        <div>
+                          <div className="font-black text-sm">{grp.title}</div>
+                          <div className="text-[10px] text-emerald-100 font-medium">
+                            {grp.badge || (grp.key === "paper1" ? "Classes 1-5" : grp.key === "paper2_math" ? "Math & Science" : "Social Science")}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[11px] bg-white/20 px-3 py-1.5 rounded-xl font-bold border border-white/20 shrink-0">
+                        Join ↗
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    try {
+                      localStorage.setItem("tet_wa_joined", "true");
+                    } catch (e) {}
+                    window.open(activatedWhatsApp.link || "https://chat.whatsapp.com/", "_blank", "noopener,noreferrer");
+                  }}
+                  className="w-full py-4 px-6 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-black text-sm sm:text-base flex items-center justify-center space-x-2.5 shadow-lg shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer animate-pulse"
+                >
+                  <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24">
+                    <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24h-.18zm4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.24-.75-.67-1.25-1.49-1.4-1.74-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.43.13-.15.17-.25.25-.42.08-.17.04-.32-.02-.45-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.72 4.31 3.81.6.26 1.07.42 1.44.53.61.19 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.22-.17-.47-.3z"/>
+                  </svg>
+                  <span>{isTa ? "வாட்ஸ்அப் குழுவில் இப்போதே இணையுங்கள் ↗" : "Join VIP WhatsApp Group ↗"}</span>
+                </button>
+              )}
 
               <button
                 onClick={() => {
