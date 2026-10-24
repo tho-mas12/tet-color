@@ -87,6 +87,26 @@ def run_sqlite_migrations():
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_title TEXT DEFAULT 'TET 2 S.SC'")
         if as_cols and "whatsapp_grp_paper2_soc_enabled" not in as_cols:
             cursor.execute("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_enabled BOOLEAN DEFAULT 1")
+        if as_cols and "popup_enabled" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_enabled BOOLEAN DEFAULT 0")
+        if as_cols and "popup_type" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_type TEXT DEFAULT 'image_text'")
+        if as_cols and "popup_title" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_title TEXT DEFAULT ''")
+        if as_cols and "popup_content" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_content TEXT DEFAULT ''")
+        if as_cols and "popup_image_url" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_image_url TEXT DEFAULT ''")
+        if as_cols and "popup_button_text" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_button_text TEXT DEFAULT ''")
+        if as_cols and "popup_button_link" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_button_link TEXT DEFAULT ''")
+        if as_cols and "popup_target" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_target TEXT DEFAULT 'all'")
+        if as_cols and "popup_frequency" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_frequency TEXT DEFAULT 'once_per_session'")
+        if as_cols and "popup_version" not in as_cols:
+            cursor.execute("ALTER TABLE admin_settings ADD COLUMN popup_version INTEGER DEFAULT 1")
 
         cursor.execute("PRAGMA table_info(enrollments)")
         e_cols = [row[1] for row in cursor.fetchall()]
@@ -145,6 +165,26 @@ def run_db_migrations():
                     conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_title VARCHAR(255) DEFAULT 'TET 2 S.SC'"))
                 if "whatsapp_grp_paper2_soc_enabled" not in cols:
                     conn.execute(text("ALTER TABLE admin_settings ADD COLUMN whatsapp_grp_paper2_soc_enabled BOOLEAN DEFAULT 1"))
+                if "popup_enabled" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_enabled BOOLEAN DEFAULT 0"))
+                if "popup_type" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_type VARCHAR(50) DEFAULT 'image_text'"))
+                if "popup_title" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_title VARCHAR(255) DEFAULT ''"))
+                if "popup_content" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_content TEXT DEFAULT ''"))
+                if "popup_image_url" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_image_url VARCHAR(500) DEFAULT ''"))
+                if "popup_button_text" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_button_text VARCHAR(100) DEFAULT ''"))
+                if "popup_button_link" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_button_link VARCHAR(500) DEFAULT ''"))
+                if "popup_target" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_target VARCHAR(50) DEFAULT 'all'"))
+                if "popup_frequency" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_frequency VARCHAR(50) DEFAULT 'once_per_session'"))
+                if "popup_version" not in cols:
+                    conn.execute(text("ALTER TABLE admin_settings ADD COLUMN popup_version INTEGER DEFAULT 1"))
                 conn.commit()
         if "enrollments" in tables:
             cols = [c["name"] for c in inspector.get_columns("enrollments")]
@@ -2599,6 +2639,18 @@ def update_admin_settings(new_settings: schemas.AdminSettingsSchema, db: Session
     if getattr(new_settings, "whatsapp_grp_paper2_soc_title", None) is not None: settings.whatsapp_grp_paper2_soc_title = new_settings.whatsapp_grp_paper2_soc_title
     if getattr(new_settings, "whatsapp_grp_paper2_soc_enabled", None) is not None: settings.whatsapp_grp_paper2_soc_enabled = new_settings.whatsapp_grp_paper2_soc_enabled
 
+    # Login Pop-up Modal Controls
+    if getattr(new_settings, "popup_enabled", None) is not None: settings.popup_enabled = new_settings.popup_enabled
+    if getattr(new_settings, "popup_type", None) is not None: settings.popup_type = new_settings.popup_type
+    if getattr(new_settings, "popup_title", None) is not None: settings.popup_title = new_settings.popup_title
+    if getattr(new_settings, "popup_content", None) is not None: settings.popup_content = new_settings.popup_content
+    if getattr(new_settings, "popup_image_url", None) is not None: settings.popup_image_url = new_settings.popup_image_url
+    if getattr(new_settings, "popup_button_text", None) is not None: settings.popup_button_text = new_settings.popup_button_text
+    if getattr(new_settings, "popup_button_link", None) is not None: settings.popup_button_link = new_settings.popup_button_link
+    if getattr(new_settings, "popup_target", None) is not None: settings.popup_target = new_settings.popup_target
+    if getattr(new_settings, "popup_frequency", None) is not None: settings.popup_frequency = new_settings.popup_frequency
+    if getattr(new_settings, "popup_version", None) is not None: settings.popup_version = new_settings.popup_version
+
     db.commit()
     db.refresh(settings)
     return settings
@@ -2673,7 +2725,17 @@ def get_public_settings(db: Session = Depends(get_db)):
         whatsapp_grp_paper2_soc_link=getattr(settings, "whatsapp_grp_paper2_soc_link", "") if settings else "",
         whatsapp_grp_paper2_soc_title=getattr(settings, "whatsapp_grp_paper2_soc_title", "TET 2 S.SC") if settings else "TET 2 S.SC",
         whatsapp_grp_paper2_soc_enabled=getattr(settings, "whatsapp_grp_paper2_soc_enabled", True) if settings else True,
-        whatsapp_groups=groups
+        whatsapp_groups=groups,
+        popup_enabled=getattr(settings, "popup_enabled", False) if settings else False,
+        popup_type=getattr(settings, "popup_type", "image_text") if settings else "image_text",
+        popup_title=getattr(settings, "popup_title", "") if settings else "",
+        popup_content=getattr(settings, "popup_content", "") if settings else "",
+        popup_image_url=getattr(settings, "popup_image_url", "") if settings else "",
+        popup_button_text=getattr(settings, "popup_button_text", "") if settings else "",
+        popup_button_link=getattr(settings, "popup_button_link", "") if settings else "",
+        popup_target=getattr(settings, "popup_target", "all") if settings else "all",
+        popup_frequency=getattr(settings, "popup_frequency", "once_per_session") if settings else "once_per_session",
+        popup_version=getattr(settings, "popup_version", 1) if settings else 1,
     )
 
 # ================= COUPON HELPERS & AUTOMATION =================

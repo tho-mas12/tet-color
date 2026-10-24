@@ -64,7 +64,8 @@ import {
   Sparkles,
   Percent,
   Calculator,
-  MessageSquare
+  MessageSquare,
+  Image as ImageIcon
 } from "lucide-react";
 import { fetchApi, saveUploadedMaterialClient, saveUploadedLessonClient } from "../api";
 import { translations } from "../translations";
@@ -72,6 +73,7 @@ import Toast from "./Toast";
 import { downloadQuizAsPdf } from "../utils/pdfExport";
 import { generateReceiptPdf } from "../utils/receiptPdfExport";
 import AdminIncomeTaxSection from "./AdminIncomeTaxSection";
+import LoginNoticeModal from "./LoginNoticeModal";
 
 const cleanQuestionText = (text, lessonTitle = "") => {
   if (!text) return "";
@@ -588,6 +590,21 @@ export default function AdminPage({ user, lang = "en" }) {
   const [whatsappGrpPaper2SocLink, setWhatsappGrpPaper2SocLink] = useState("");
   const [whatsappGrpPaper2SocTitle, setWhatsappGrpPaper2SocTitle] = useState("TET 2 S.SC");
   const [whatsappGrpPaper2SocEnabled, setWhatsappGrpPaper2SocEnabled] = useState(true);
+
+  // Login Notice Pop-up Modal State
+  const [popupEnabled, setPopupEnabled] = useState(false);
+  const [popupType, setPopupType] = useState("image_text"); // "image", "text", "image_text"
+  const [popupTitle, setPopupTitle] = useState("");
+  const [popupContent, setPopupContent] = useState("");
+  const [popupImageUrl, setPopupImageUrl] = useState("");
+  const [popupButtonText, setPopupButtonText] = useState("");
+  const [popupButtonLink, setPopupButtonLink] = useState("");
+  const [popupTarget, setPopupTarget] = useState("all"); // "all", "paid_only", "free_only"
+  const [popupFrequency, setPopupFrequency] = useState("once_per_session"); // "once_per_session", "always", "once_ever"
+  const [popupVersion, setPopupVersion] = useState(1);
+  const [uploadingPopupImg, setUploadingPopupImg] = useState(false);
+  const [savingPopupSettings, setSavingPopupSettings] = useState(false);
+  const [showPopupPreviewModal, setShowPopupPreviewModal] = useState(false);
 
   // Coupon System State
   const [couponsList, setCouponsList] = useState([]);
@@ -1191,6 +1208,18 @@ export default function AdminPage({ user, lang = "en" }) {
       setWhatsappGrpPaper2SocLink(data.whatsapp_grp_paper2_soc_link || "");
       setWhatsappGrpPaper2SocTitle(data.whatsapp_grp_paper2_soc_title || "TET 2 S.SC");
       setWhatsappGrpPaper2SocEnabled(data.whatsapp_grp_paper2_soc_enabled !== undefined ? data.whatsapp_grp_paper2_soc_enabled : true);
+
+      // Login Pop-up Modal Settings
+      setPopupEnabled(Boolean(data.popup_enabled));
+      setPopupType(data.popup_type || "image_text");
+      setPopupTitle(data.popup_title || "");
+      setPopupContent(data.popup_content || "");
+      setPopupImageUrl(data.popup_image_url || "");
+      setPopupButtonText(data.popup_button_text || "");
+      setPopupButtonLink(data.popup_button_link || "");
+      setPopupTarget(data.popup_target || "all");
+      setPopupFrequency(data.popup_frequency || "once_per_session");
+      setPopupVersion(data.popup_version || 1);
     } catch (err) {
       console.error("Settings load error:", err);
     }
@@ -2083,7 +2112,17 @@ export default function AdminPage({ user, lang = "en" }) {
           whatsapp_grp_paper2_math_enabled: Boolean(whatsappGrpPaper2MathEnabled),
           whatsapp_grp_paper2_soc_link: whatsappGrpPaper2SocLink.trim(),
           whatsapp_grp_paper2_soc_title: whatsappGrpPaper2SocTitle.trim(),
-          whatsapp_grp_paper2_soc_enabled: Boolean(whatsappGrpPaper2SocEnabled)
+          whatsapp_grp_paper2_soc_enabled: Boolean(whatsappGrpPaper2SocEnabled),
+          popup_enabled: Boolean(popupEnabled),
+          popup_type: popupType,
+          popup_title: popupTitle.trim(),
+          popup_content: popupContent.trim(),
+          popup_image_url: popupImageUrl.trim(),
+          popup_button_text: popupButtonText.trim(),
+          popup_button_link: popupButtonLink.trim(),
+          popup_target: popupTarget,
+          popup_frequency: popupFrequency,
+          popup_version: Number(popupVersion || 1)
         })
       });
       showToast("Admin, Downloads, Razorpay & WhatsApp Group Settings saved successfully!");
@@ -2091,6 +2130,91 @@ export default function AdminPage({ user, lang = "en" }) {
       showToast("Settings updated!");
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handlePopupImageUpload = async (file) => {
+    if (!file) return;
+    setUploadingPopupImg(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetchApi("/admin/upload-file", {
+        method: "POST",
+        body: formData
+      });
+      if (res && res.url) {
+        setPopupImageUrl(res.url);
+        showToast("Pop-up image uploaded successfully!", "success");
+      }
+    } catch (err) {
+      showToast(err.message || "Failed to upload image", "error");
+    } finally {
+      setUploadingPopupImg(false);
+    }
+  };
+
+  const handleSavePopupSettings = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setSavingPopupSettings(true);
+    try {
+      await fetchApi("/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          gemini_api_key: geminiApiKey,
+          practice_question_count: Number(practiceCount),
+          test_question_count: Number(testCount),
+          test_time_limit_mins: Number(timeLimit),
+          pass_percentage: Number(passPercent),
+          count_mcq: Number(countMcq || 0),
+          count_hots: Number(countHots || 0),
+          count_match: Number(countMatch || 0),
+          count_multi_stmt: Number(countMultiStmt || 0),
+          count_assertion: Number(countAssertion || 0),
+          count_chronological: Number(countChronological || 0),
+          stage4_count_mcq: Number(stage4CountMcq || 0),
+          stage4_count_hots: Number(stage4CountHots || 0),
+          stage4_count_match: Number(stage4CountMatch || 0),
+          stage4_count_multi_stmt: Number(stage4CountMultiStmt || 0),
+          stage4_count_assertion: Number(stage4CountAssertion || 0),
+          stage4_count_chronological: Number(stage4CountChronological || 0),
+          enable_material_download: Boolean(enableMaterialDownload),
+          enable_notes_download: Boolean(enableNotesDownload),
+          enable_quiz_download: Boolean(enableQuizDownload),
+          razorpay_key_id: razorpayKeyId.trim(),
+          razorpay_key_secret: razorpayKeySecret.trim(),
+          course_price: Number(coursePrice || 999),
+          original_price: Number(originalPrice || 2499),
+          discount_percent: Number(discountPercent || 60),
+          whatsapp_group_link: whatsappGroupLink.trim(),
+          whatsapp_group_title: whatsappGroupTitle.trim(),
+          whatsapp_group_enabled: Boolean(whatsappGroupEnabled),
+          whatsapp_grp_paper1_link: whatsappGrpPaper1Link.trim(),
+          whatsapp_grp_paper1_title: whatsappGrpPaper1Title.trim(),
+          whatsapp_grp_paper1_enabled: Boolean(whatsappGrpPaper1Enabled),
+          whatsapp_grp_paper2_math_link: whatsappGrpPaper2MathLink.trim(),
+          whatsapp_grp_paper2_math_title: whatsappGrpPaper2MathTitle.trim(),
+          whatsapp_grp_paper2_math_enabled: Boolean(whatsappGrpPaper2MathEnabled),
+          whatsapp_grp_paper2_soc_link: whatsappGrpPaper2SocLink.trim(),
+          whatsapp_grp_paper2_soc_title: whatsappGrpPaper2SocTitle.trim(),
+          whatsapp_grp_paper2_soc_enabled: Boolean(whatsappGrpPaper2SocEnabled),
+          popup_enabled: Boolean(popupEnabled),
+          popup_type: popupType,
+          popup_title: popupTitle.trim(),
+          popup_content: popupContent.trim(),
+          popup_image_url: popupImageUrl.trim(),
+          popup_button_text: popupButtonText.trim(),
+          popup_button_link: popupButtonLink.trim(),
+          popup_target: popupTarget,
+          popup_frequency: popupFrequency,
+          popup_version: Number(popupVersion || 1)
+        })
+      });
+      showToast(popupEnabled ? "Login Pop-up published & active!" : "Pop-up settings saved (Disabled).", "success");
+    } catch (err) {
+      showToast(err.message || "Failed to save popup settings.", "error");
+    } finally {
+      setSavingPopupSettings(false);
     }
   };
 
@@ -2604,6 +2728,7 @@ export default function AdminPage({ user, lang = "en" }) {
     { id: "daily_practice", label: "Daily Practice", icon: Clock, badge: Array.isArray(dailyPracticeList) ? dailyPracticeList.length : 0 },
     { id: "users", label: "Students", icon: Users, badge: Array.isArray(usersList) ? usersList.length : 0 },
     { id: "announcements", label: "Announcements", icon: Bell, badge: Array.isArray(announcementsList) ? announcementsList.length : 0 },
+    { id: "popup_manager", label: "Login Pop-up Modal", icon: MessageSquare, badge: popupEnabled ? "Active" : "Off" },
     { id: "settings", label: "Settings", icon: Settings, badge: null },
     { id: "tet_cards", label: "Dashboard Containers", icon: LayoutGrid, badge: Array.isArray(adminContainers) ? adminContainers.length : 0 },
     { id: "vps_status", label: "VPS & Server Status", icon: isVpsUnlocked ? Server : Lock, badge: isVpsUnlocked ? "Live" : "Key Req." }
@@ -7017,6 +7142,535 @@ export default function AdminPage({ user, lang = "en" }) {
             </div>
           )}
 
+          {/* ================= TAB: LOGIN POP-UP MODAL MANAGER ================= */}
+          {activeTab === "popup_manager" && (
+            <div className="space-y-6">
+              
+              {/* Header Card */}
+              <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-bold tracking-wide">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-300" />
+                      <span>User Portal Announcement System</span>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center space-x-3">
+                      <MessageSquare className="w-7 h-7 text-blue-400" />
+                      <span>Candidate Login Pop-up Modal</span>
+                    </h2>
+                    <p className="text-blue-200/80 text-xs sm:text-sm max-w-2xl leading-relaxed">
+                      Control the pop-up modal shown to learners when they sign in. Supports posters/images, rich text announcements, or combined notices with custom call-to-action buttons.
+                    </p>
+                  </div>
+
+                  {/* Master Enable/Disable Status Indicator */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPopupEnabled(!popupEnabled)}
+                      className={`px-5 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center space-x-2.5 transition-all shadow-lg cursor-pointer ${
+                        popupEnabled
+                          ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30 ring-2 ring-emerald-400/50"
+                          : "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                      }`}
+                    >
+                      <span className={`w-3 h-3 rounded-full ${popupEnabled ? "bg-white animate-ping" : "bg-slate-500"}`} />
+                      <span>{popupEnabled ? "Pop-up: Active & Enabled" : "Pop-up: Disabled"}</span>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setShowPopupPreviewModal(true)}
+                      className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition border border-white/15 cursor-pointer backdrop-blur-xs"
+                    >
+                      <Eye className="w-4 h-4 text-blue-300" />
+                      <span>Full Preview</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Controls Grid (Editor on left, Real-time Preview on right) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                {/* LEFT COLUMN: CONFIGURATION FORM */}
+                <form onSubmit={handleSavePopupSettings} className="lg:col-span-7 bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-7 shadow-xs space-y-6">
+                  
+                  {/* Section 1: Activation Switch Card */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-black text-slate-800 text-sm">Display Pop-up on User Login</span>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${popupEnabled ? "bg-emerald-100 text-emerald-700 border border-emerald-300" : "bg-slate-200 text-slate-600"}`}>
+                          {popupEnabled ? "ONLINE" : "OFFLINE"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        When enabled, candidates visiting the dashboard will see this modal immediately according to delivery settings.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={popupEnabled}
+                        onChange={(e) => setPopupEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-14 h-7 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+
+                  {/* Section 2: File / Content Type Selector */}
+                  <div className="space-y-2.5">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center space-x-1.5">
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Select Pop-up Content Type (File & Media)</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      
+                      {/* Image Only */}
+                      <button
+                        type="button"
+                        onClick={() => setPopupType("image")}
+                        className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col space-y-1.5 ${
+                          popupType === "image"
+                            ? "border-blue-600 bg-blue-50/70 shadow-xs ring-1 ring-blue-500/20"
+                            : "border-slate-200 hover:border-slate-300 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className={`p-2 rounded-xl ${popupType === "image" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                            <ImageIcon className="w-4 h-4" />
+                          </div>
+                          {popupType === "image" && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                        </div>
+                        <span className="font-black text-xs text-slate-800">Image Only</span>
+                        <span className="text-[11px] text-slate-500 leading-tight">Flyer, poster, schedule or announcement banner.</span>
+                      </button>
+
+                      {/* Text Only */}
+                      <button
+                        type="button"
+                        onClick={() => setPopupType("text")}
+                        className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col space-y-1.5 ${
+                          popupType === "text"
+                            ? "border-blue-600 bg-blue-50/70 shadow-xs ring-1 ring-blue-500/20"
+                            : "border-slate-200 hover:border-slate-300 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className={`p-2 rounded-xl ${popupType === "text" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                            <FileText className="w-4 h-4" />
+                          </div>
+                          {popupType === "text" && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                        </div>
+                        <span className="font-black text-xs text-slate-800">Text Only</span>
+                        <span className="text-[11px] text-slate-500 leading-tight">Pure text headline, instructions, or exam update.</span>
+                      </button>
+
+                      {/* Image + Text Combo */}
+                      <button
+                        type="button"
+                        onClick={() => setPopupType("image_text")}
+                        className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col space-y-1.5 ${
+                          popupType === "image_text"
+                            ? "border-blue-600 bg-blue-50/70 shadow-xs ring-1 ring-blue-500/20"
+                            : "border-slate-200 hover:border-slate-300 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className={`p-2 rounded-xl ${popupType === "image_text" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                            <Sparkles className="w-4 h-4" />
+                          </div>
+                          {popupType === "image_text" && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                        </div>
+                        <span className="font-black text-xs text-slate-800">Image + Text</span>
+                        <span className="text-[11px] text-slate-500 leading-tight">Banner image at top with text & button below.</span>
+                      </button>
+
+                    </div>
+                  </div>
+
+                  {/* Section 3: Image File Upload & URL (For "image" or "image_text" modes) */}
+                  {(popupType === "image" || popupType === "image_text") && (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/40 border border-blue-100 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black uppercase tracking-wider text-blue-900 flex items-center space-x-1.5">
+                          <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Pop-up Image / Flyer File</span>
+                        </label>
+                        {popupImageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setPopupImageUrl("")}
+                            className="text-xs font-bold text-red-600 hover:text-red-700 flex items-center space-x-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove Image</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* File Uploader Input & Drag Box */}
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <label className="w-full sm:w-auto flex-1 flex items-center justify-center px-4 py-3 border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-2xl bg-white cursor-pointer transition text-center group">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingPopupImg}
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                handlePopupImageUpload(e.target.files[0]);
+                              }
+                            }}
+                            className="sr-only"
+                          />
+                          <div className="flex items-center space-x-2 text-xs font-bold text-blue-700 group-hover:text-blue-800">
+                            {uploadingPopupImg ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
+                                <span>Uploading Image to Server...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-4 h-4 text-blue-600" />
+                                <span>Upload Image File (PNG, JPG, WebP)</span>
+                              </>
+                            )}
+                          </div>
+                        </label>
+                      </div>
+
+                      {/* Direct Image URL input */}
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-600">Or Paste Direct Image URL:</label>
+                        <input
+                          type="url"
+                          value={popupImageUrl}
+                          onChange={(e) => setPopupImageUrl(e.target.value)}
+                          placeholder="https://example.com/poster.jpg or /static_uploads/..."
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                        />
+                      </div>
+
+                      {/* Image Thumbnail Preview */}
+                      {popupImageUrl && (
+                        <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 max-h-48 flex items-center justify-center p-2">
+                          <img
+                            src={popupImageUrl}
+                            alt="Pop-up Banner Preview"
+                            className="max-h-44 object-contain rounded-lg"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Section 4: Title & Text Content (For "text" or "image_text" modes) */}
+                  {(popupType === "text" || popupType === "image_text") && (
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center justify-between">
+                          <span>Announcement Title / Heading</span>
+                          <span className="text-[11px] font-normal text-slate-400">Supports Tamil & English</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={popupTitle}
+                          onChange={(e) => setPopupTitle(e.target.value)}
+                          placeholder="e.g. முக்கிய அறிவிப்பு: நேரலை வகுப்பு இன்று மாலை 7:00 மணிக்கு!"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center justify-between">
+                          <span>Detailed Announcement Message</span>
+                          <span className="text-[11px] font-normal text-slate-400">Multi-line text</span>
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={popupContent}
+                          onChange={(e) => setPopupContent(e.target.value)}
+                          placeholder="Enter your message details here. Candidates will read this inside the pop-up modal upon login..."
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 5: Call to Action (CTA) Button (Optional) */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+                      <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Action Button (Optional CTA)</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-600">Button Label:</label>
+                        <input
+                          type="text"
+                          value={popupButtonText}
+                          onChange={(e) => setPopupButtonText(e.target.value)}
+                          placeholder="e.g. Join Class Now / Register"
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-600">Action Link URL:</label>
+                        <input
+                          type="url"
+                          value={popupButtonLink}
+                          onChange={(e) => setPopupButtonLink(e.target.value)}
+                          placeholder="https://meet.google.com/... or https://..."
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 6: Audience & Delivery Settings */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+                      <Users className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Audience & Display Frequency</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-600">Who Sees This Pop-up?</label>
+                        <select
+                          value={popupTarget}
+                          onChange={(e) => setPopupTarget(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white cursor-pointer"
+                        >
+                          <option value="all">👥 All Students (Free & Paid)</option>
+                          <option value="paid_only">⭐ Paid / Enrolled Members Only</option>
+                          <option value="free_only">🎯 Free / Unenrolled Candidates Only</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-600">How Often to Show?</label>
+                        <select
+                          value={popupFrequency}
+                          onChange={(e) => setPopupFrequency(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white cursor-pointer"
+                        >
+                          <option value="once_per_session">🔄 Once Per Browser Session (Recommended)</option>
+                          <option value="always">⚡ Always on Every Login / Visit</option>
+                          <option value="once_ever">🛑 Once Per User Lifetime</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Version bump to force re-show */}
+                    <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-slate-200/80">
+                      <div className="text-[11px] text-slate-500">
+                        <span className="font-bold text-slate-700">Notice Version:</span> v{popupVersion}
+                        <span className="ml-2 text-slate-400">(Bumping version forces popup to appear again for all users)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextV = (Number(popupVersion) || 1) + 1;
+                          setPopupVersion(nextV);
+                          showToast(`Notice version bumped to v${nextV}. Will show to all candidates again.`, "info");
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition cursor-pointer self-start sm:self-auto"
+                      >
+                        + Force Re-show to All (v{Number(popupVersion || 1) + 1})
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Section 7: Save & Publish Action Buttons */}
+                  <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setShowPopupPreviewModal(true)}
+                      className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition cursor-pointer"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>Test Modal (Full View)</span>
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={savingPopupSettings}
+                      className="px-6 py-3 rounded-xl bg-[#0055ff] hover:bg-blue-700 text-white font-black text-xs sm:text-sm shadow-md hover:shadow-lg transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {savingPopupSettings ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Saving & Publishing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Save & Publish Pop-up Settings</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                </form>
+
+                {/* RIGHT COLUMN: REAL-TIME INTERACTIVE PREVIEW */}
+                <div className="lg:col-span-5 space-y-4">
+                  <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                          Real-time Student View Preview
+                        </h4>
+                      </div>
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        popupEnabled ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"
+                      }`}>
+                        {popupEnabled ? "ACTIVE" : "OFFLINE"}
+                      </span>
+                    </div>
+
+                    {/* Miniature Pop-up Simulation */}
+                    <div className="bg-slate-900/60 p-4 rounded-2xl backdrop-blur-xs flex items-center justify-center min-h-[380px]">
+                      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 relative animate-scale-up">
+                        
+                        {/* Fake Close Button */}
+                        <div className="absolute top-2.5 right-2.5 z-20 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center text-[10px] font-bold shadow-md">
+                          ✕
+                        </div>
+
+                        {/* PREVIEW: IMAGE ONLY */}
+                        {popupType === "image" && (
+                          <div>
+                            {popupImageUrl ? (
+                              <img
+                                src={popupImageUrl}
+                                alt="Notice Preview"
+                                className="w-full h-auto max-h-72 object-contain bg-slate-100"
+                              />
+                            ) : (
+                              <div className="py-16 px-4 text-center bg-slate-100 text-slate-400 space-y-2">
+                                <ImageIcon className="w-10 h-10 mx-auto text-slate-300" />
+                                <p className="text-xs font-bold">No image uploaded yet</p>
+                                <p className="text-[11px] text-slate-400">Upload an image or enter a URL on the left.</p>
+                              </div>
+                            )}
+
+                            {popupButtonText && (
+                              <div className="p-3 bg-white border-t border-slate-100">
+                                <div className="w-full py-2 px-3 rounded-lg bg-[#0055ff] text-white text-xs font-black text-center flex items-center justify-center space-x-1.5 shadow-xs">
+                                  <span>{popupButtonText}</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* PREVIEW: TEXT ONLY */}
+                        {popupType === "text" && (
+                          <div className="p-5 space-y-4">
+                            <div className="flex items-center space-x-2 text-blue-600">
+                              <Bell className="w-4 h-4" />
+                              <span className="text-[10px] font-black uppercase tracking-wider">Announcement Notice</span>
+                            </div>
+
+                            <div className="space-y-2">
+                              <h5 className="text-base font-black text-slate-900 leading-snug">
+                                {popupTitle || "Your Announcement Title Here"}
+                              </h5>
+                              <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                                {popupContent || "Your detailed announcement text will be displayed here for students when they log into the dashboard."}
+                              </p>
+                            </div>
+
+                            <div className="pt-2 flex items-center space-x-2">
+                              {popupButtonText ? (
+                                <div className="flex-1 py-2 px-3 rounded-lg bg-[#0055ff] text-white text-xs font-black text-center flex items-center justify-center space-x-1.5 shadow-xs">
+                                  <span>{popupButtonText}</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </div>
+                              ) : (
+                                <div className="flex-1 py-2 px-3 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold text-center">
+                                  Dismiss
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* PREVIEW: IMAGE + TEXT */}
+                        {popupType === "image_text" && (
+                          <div>
+                            {popupImageUrl ? (
+                              <div className="w-full max-h-44 overflow-hidden relative bg-slate-100">
+                                <img
+                                  src={popupImageUrl}
+                                  alt="Notice Preview"
+                                  className="w-full h-auto object-cover max-h-44"
+                                />
+                              </div>
+                            ) : (
+                              <div className="py-8 px-4 text-center bg-slate-100 text-slate-400 space-y-1">
+                                <ImageIcon className="w-8 h-8 mx-auto text-slate-300" />
+                                <p className="text-xs font-bold">Image Header (Optional)</p>
+                              </div>
+                            )}
+
+                            <div className="p-4 space-y-3">
+                              <h5 className="text-sm font-black text-slate-900 leading-snug">
+                                {popupTitle || "Announcement Title"}
+                              </h5>
+                              <p className="text-xs text-slate-600 leading-relaxed line-clamp-4 whitespace-pre-line">
+                                {popupContent || "Detailed message description goes here."}
+                              </p>
+
+                              <div className="pt-1 flex items-center space-x-2">
+                                {popupButtonText ? (
+                                  <div className="flex-1 py-2 px-3 rounded-lg bg-[#0055ff] text-white text-xs font-black text-center flex items-center justify-center space-x-1.5 shadow-xs">
+                                    <span>{popupButtonText}</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </div>
+                                ) : (
+                                  <div className="flex-1 py-1.5 px-3 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold text-center">
+                                    Close
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 space-y-2">
+                      <p className="font-bold text-slate-800 flex items-center space-x-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Pop-up Delivery Summary</span>
+                      </p>
+                      <ul className="space-y-1 text-[11px] list-disc list-inside text-slate-500">
+                        <li>Status: <strong className={popupEnabled ? "text-emerald-700" : "text-red-600"}>{popupEnabled ? "Enabled (Live)" : "Disabled"}</strong></li>
+                        <li>Format: <strong className="capitalize">{popupType.replace("_", " + ")}</strong></li>
+                        <li>Target Audience: <strong className="capitalize">{popupTarget.replace("_", " ")}</strong></li>
+                        <li>Frequency: <strong className="capitalize">{popupFrequency.replace(/_/g, " ")}</strong></li>
+                      </ul>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
           {/* TAB 8: DASHBOARD CONTAINERS MANAGEMENT (CRUD) */}
           {activeTab === "tet_cards" && (
             <div className="bg-white border border-sky-100 rounded-3xl p-6 sm:p-7 shadow-xs space-y-6">
@@ -10292,6 +10946,24 @@ export default function AdminPage({ user, lang = "en" }) {
           lesson={sharingLesson}
           onClose={() => setSharingLesson(null)}
           showToast={showToast}
+        />
+      )}
+
+      {/* ================= MODAL: LOGIN NOTICE POP-UP FULL PREVIEW ================= */}
+      {showPopupPreviewModal && (
+        <LoginNoticeModal
+          isOpen={showPopupPreviewModal}
+          onClose={() => setShowPopupPreviewModal(false)}
+          popupSettings={{
+            popup_enabled: true,
+            popup_type: popupType,
+            popup_title: popupTitle || "Sample Announcement Notice",
+            popup_content: popupContent || "This is a preview of the candidate login announcement pop-up.",
+            popup_image_url: popupImageUrl,
+            popup_button_text: popupButtonText,
+            popup_button_link: popupButtonLink
+          }}
+          lang={lang}
         />
       )}
 

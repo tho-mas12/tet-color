@@ -131,6 +131,18 @@ class AdminSettings(Base):
     whatsapp_grp_paper2_soc_title = Column(String(255), default="TET 2 S.SC")
     whatsapp_grp_paper2_soc_enabled = Column(Boolean, default=True)
 
+    # Login Pop-up Modal Controls
+    popup_enabled = Column(Boolean, default=False)
+    popup_type = Column(String(50), default="image_text") # "image", "text", "image_text"
+    popup_title = Column(String(255), default="")
+    popup_content = Column(Text, default="")
+    popup_image_url = Column(String(500), default="")
+    popup_button_text = Column(String(100), default="")
+    popup_button_link = Column(String(500), default="")
+    popup_target = Column(String(50), default="all") # "all", "paid_only", "free_only"
+    popup_frequency = Column(String(50), default="once_per_session") # "once_per_session", "always", "once_ever"
+    popup_version = Column(Integer, default=1)
+
 class Coupon(Base):
     __tablename__ = "coupons"
 

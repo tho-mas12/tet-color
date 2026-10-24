@@ -136,6 +136,16 @@ class AdminSettingsSchema(BaseModel):
     whatsapp_grp_paper2_soc_link: Optional[str] = ""
     whatsapp_grp_paper2_soc_title: Optional[str] = "TET 2 S.SC"
     whatsapp_grp_paper2_soc_enabled: Optional[bool] = True
+    popup_enabled: Optional[bool] = False
+    popup_type: Optional[str] = "image_text"
+    popup_title: Optional[str] = ""
+    popup_content: Optional[str] = ""
+    popup_image_url: Optional[str] = ""
+    popup_button_text: Optional[str] = ""
+    popup_button_link: Optional[str] = ""
+    popup_target: Optional[str] = "all"
+    popup_frequency: Optional[str] = "once_per_session"
+    popup_version: Optional[int] = 1
 
 class AnnouncementCreate(BaseModel):
     title: str
@@ -341,6 +351,16 @@ class PublicSettingsSchema(BaseModel):
     whatsapp_grp_paper2_soc_title: str = "TET 2 S.SC"
     whatsapp_grp_paper2_soc_enabled: bool = True
     whatsapp_groups: Optional[List[Any]] = []
+    popup_enabled: bool = False
+    popup_type: str = "image_text"
+    popup_title: str = ""
+    popup_content: str = ""
+    popup_image_url: str = ""
+    popup_button_text: str = ""
+    popup_button_link: str = ""
+    popup_target: str = "all"
+    popup_frequency: str = "once_per_session"
+    popup_version: int = 1
 
 class EnrollmentCreate(BaseModel):
     name: str

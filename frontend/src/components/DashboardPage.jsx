@@ -44,6 +44,7 @@ import EnrollmentModal from "./EnrollmentModal";
 import IncomeTaxModal from "./IncomeTaxModal";
 import WhatsAppJoinModal from "./WhatsAppJoinModal";
 import ReceiptModal from "./ReceiptModal";
+import LoginNoticeModal from "./LoginNoticeModal";
 import { generateReceiptPdf } from "../utils/receiptPdfExport";
 
 export default function DashboardPage({ user, onNavigateToLearning, onNavigateToMaterials, onNavigate, lang = "en" }) {
@@ -60,6 +61,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isLoginNoticeOpen, setIsLoginNoticeOpen] = useState(false);
   const [publicSettings, setPublicSettings] = useState({ course_price: 999, original_price: 2499, discount_percent: 60, razorpay_key_id: "" });
   const [showNewsFeed, setShowNewsFeed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -150,6 +152,36 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         if (!alreadyShown) {
           localStorage.setItem(waKey, "true");
           setIsWhatsAppModalOpen(true);
+        }
+      } catch (e) {}
+    }
+
+    // Auto pop-out Admin Login Notice Modal (if enabled by Admin)
+    if (settings && settings.popup_enabled) {
+      try {
+        const target = settings.popup_target || "all";
+        const isPaid = Boolean(userEnrolled);
+        const matchesTarget = target === "all" || (target === "paid_only" && isPaid) || (target === "free_only" && !isPaid);
+        if (matchesTarget) {
+          const freq = settings.popup_frequency || "once_per_session";
+          const version = settings.popup_version || 1;
+          const userKey = user?.id || user?.email || "candidate";
+          let shouldShow = false;
+
+          if (freq === "always") {
+            shouldShow = true;
+          } else if (freq === "once_ever") {
+            const seen = localStorage.getItem(`tet_popup_seen_${userKey}_v${version}`);
+            if (!seen) shouldShow = true;
+          } else {
+            // once_per_session
+            const seen = sessionStorage.getItem(`tet_popup_seen_session_${userKey}_v${version}`);
+            if (!seen) shouldShow = true;
+          }
+
+          if (shouldShow) {
+            setIsLoginNoticeOpen(true);
+          }
         }
       } catch (e) {}
     }
@@ -1115,6 +1147,27 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
         whatsappGroupTitle={publicSettings?.whatsapp_group_title}
         lang={lang}
       />
+
+      {/* ================= ADMIN CONFIGURABLE LOGIN NOTICE MODAL ================= */}
+      <LoginNoticeModal
+        isOpen={isLoginNoticeOpen}
+        onClose={() => {
+          try {
+            const version = publicSettings?.popup_version || 1;
+            const userKey = user?.id || user?.email || "candidate";
+            const freq = publicSettings?.popup_frequency || "once_per_session";
+            if (freq === "once_ever") {
+              localStorage.setItem(`tet_popup_seen_${userKey}_v${version}`, "true");
+            } else {
+              sessionStorage.setItem(`tet_popup_seen_session_${userKey}_v${version}`, "true");
+            }
+          } catch (e) {}
+          setIsLoginNoticeOpen(false);
+        }}
+        popupSettings={publicSettings}
+        lang={lang}
+      />
+
 
       {/* ================= MODAL: TAMIL READING ================= */}
       {activeModal === "tamil_reading" && (
