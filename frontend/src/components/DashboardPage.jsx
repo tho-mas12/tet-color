@@ -141,10 +141,10 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       }
     } catch (e) {}
 
-    // Auto pop-out WhatsApp modal ONCE on first login
+    // Auto pop-out WhatsApp modal ONCE ONLY for who have paid (enrolled members)
     const waKey = `tet_wa_first_login_shown_${user?.id || user?.email || "candidate"}`;
     const hasAnyWaGroup = (settings?.whatsapp_groups && settings.whatsapp_groups.some(g => g.enabled !== false && g.link)) || (waEnabled && waLink) || Boolean(settings?.whatsapp_group_link);
-    if (user && hasAnyWaGroup) {
+    if (user && userEnrolled && hasAnyWaGroup) {
       try {
         const alreadyShown = localStorage.getItem(waKey) || localStorage.getItem("tet_wa_joined");
         if (!alreadyShown) {
@@ -1085,6 +1085,15 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
           lang={lang}
           onEnrollmentSuccess={() => {
             setIsEnrolled(true);
+            checkEnrollmentStatus();
+            try {
+              const waKey = `tet_wa_first_login_shown_${user?.id || user?.email || "candidate"}`;
+              const alreadyShown = localStorage.getItem(waKey) || localStorage.getItem("tet_wa_joined");
+              if (!alreadyShown) {
+                localStorage.setItem(waKey, "true");
+                setIsWhatsAppModalOpen(true);
+              }
+            } catch (e) {}
           }}
         />
       )}
