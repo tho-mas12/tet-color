@@ -95,13 +95,19 @@ function resolveRoute(pathname, search, currentUser) {
   }
 
   // 3. TET Course 2
-  if (cleanPath === "/course/tet-2" || cleanPath === "/tet-2" || cleanPath === "/tet2") {
+  if (
+    cleanPath === "/course/tet-2" || cleanPath === "/tet-2" || cleanPath === "/tet2" ||
+    cleanPath === "/course/tet-2-math" || cleanPath === "/tet-2-math" ||
+    cleanPath === "/course/tet-2-social" || cleanPath === "/tet-2-social"
+  ) {
+    const trackParam = params.get("track") || (cleanPath.includes("social") ? "social" : "math_sci");
     return {
       tab: "learning",
       tetPaper: "paper2",
+      tetTrack: trackParam,
       requiresAuth: true,
       targetClass: targetClass || 6,
-      title: "TET Paper 2 Preparation"
+      title: trackParam === "social" ? "TET Paper 2 (Social Science)" : "TET Paper 2 (Math & Science)"
     };
   }
 
@@ -310,6 +316,9 @@ export default function App() {
       // Update state
       if (route.tetPaper) {
         localStorage.setItem("tet_paper_choice", route.tetPaper);
+      }
+      if (route.tetTrack) {
+        localStorage.setItem("tet_track_choice", route.tetTrack);
       }
       if (route.targetClass) {
         localStorage.setItem("tet_selected_class", route.targetClass.toString());
@@ -548,9 +557,10 @@ export default function App() {
               {activeTab === "dashboard" && (
                 <DashboardPage
                   user={user}
-                  onNavigateToLearning={(paperChoice, targetClass) => {
+                  onNavigateToLearning={(paperChoice, targetClass, track) => {
                     const paper = paperChoice || "paper1";
-                    const path = `/course/${paper === "paper2" ? "tet-2" : "tet-1"}${targetClass ? `?class=${targetClass}` : ""}`;
+                    const trackParam = track ? `&track=${track}` : "";
+                    const path = `/course/${paper === "paper2" ? "tet-2" : "tet-1"}?class=${targetClass || (paper === "paper2" ? 6 : 1)}${trackParam}`;
                     navigateTo(path);
                   }}
                   onNavigateToMaterials={() => navigateTo("/materials")}

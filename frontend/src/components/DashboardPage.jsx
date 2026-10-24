@@ -216,16 +216,29 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       is_active: true
     },
     {
-      container_key: "tet_2",
-      title: "TET - 2",
-      subtitle: "Classes 6–12 | தாள் - 2",
+      container_key: "tet_2_math",
+      title: "TET 2 (Math & Sci)",
+      subtitle: "Classes 6–12 | தாள் - 2 (கணிதம் & அறிவியல்)",
       category: "tet",
-      description: "6 முதல் 12 ஆம் வகுப்பு வரை பாடவாரியான முழுமையான தேர்வு தயாரிப்பு & மாதிரி தேர்வுகள்",
+      description: "6 முதல் 12 ஆம் வகுப்பு வரை கணிதம் மற்றும் அறிவியல் பாடங்களுக்கான முழுமையான தயாரிப்பு",
       badge_text: "Classes 6-12",
-      button_text: "OPEN TET-2 →",
-      action_url: "tet_2",
+      button_text: "OPEN MATH & SCI →",
+      action_url: "tet_2_math",
       icon_name: "BookOpen",
       order_index: 2,
+      is_active: true
+    },
+    {
+      container_key: "tet_2_social",
+      title: "TET 2 (Social Science)",
+      subtitle: "Classes 6–12 | தாள் - 2 (சமூக அறிவியல்)",
+      category: "tet",
+      description: "6 முதல் 12 ஆம் வகுப்பு வரை சமூக அறிவியல் பாடத்திற்கான முழுமையான தேர்வு தயாரிப்பு & மாதிரி தேர்வுகள்",
+      badge_text: "Classes 6-12",
+      button_text: "OPEN SOCIAL SCIENCE →",
+      action_url: "tet_2_social",
+      icon_name: "BookOpen",
+      order_index: 3,
       is_active: true
     },
     {
@@ -238,7 +251,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       button_text: "OPEN BOOKS (FREE) →",
       action_url: "textbooks",
       icon_name: "Library",
-      order_index: 3,
+      order_index: 4,
       is_active: true
     },
     {
@@ -359,6 +372,15 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       categoryBadge: "bg-blue-600 text-white border-blue-700",
       categoryLabel: "📘 TET • தாள் 1 (வகுப்பு 1-8)",
     },
+    tet_2_math: {
+      ribbon: "from-purple-600 via-indigo-600 to-violet-700",
+      headerBg: "bg-gradient-to-r from-purple-100/90 via-indigo-50/70 to-violet-50/40",
+      border: "border-purple-300 hover:border-purple-500 shadow-purple-100",
+      iconBg: "bg-gradient-to-br from-purple-600 to-indigo-700 text-white shadow-md shadow-purple-500/30",
+      titleColor: "text-purple-950 font-black",
+      categoryBadge: "bg-purple-700 text-white border-purple-800",
+      categoryLabel: "🎓 TET • தாள் 2 (கணிதம் & அறிவியல்)",
+    },
     tet_2: {
       ribbon: "from-purple-600 via-indigo-600 to-violet-700",
       headerBg: "bg-gradient-to-r from-purple-100/90 via-indigo-50/70 to-violet-50/40",
@@ -366,7 +388,16 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
       iconBg: "bg-gradient-to-br from-purple-600 to-indigo-700 text-white shadow-md shadow-purple-500/30",
       titleColor: "text-purple-950 font-black",
       categoryBadge: "bg-purple-700 text-white border-purple-800",
-      categoryLabel: "🎓 TET • தாள் 2 (வகுப்பு 6-12)",
+      categoryLabel: "🎓 TET • தாள் 2 (கணிதம் & அறிவியல்)",
+    },
+    tet_2_social: {
+      ribbon: "from-indigo-600 via-sky-600 to-teal-700",
+      headerBg: "bg-gradient-to-r from-indigo-100/90 via-sky-50/70 to-teal-50/40",
+      border: "border-indigo-300 hover:border-indigo-500 shadow-indigo-100",
+      iconBg: "bg-gradient-to-br from-indigo-600 to-teal-700 text-white shadow-md shadow-indigo-500/30",
+      titleColor: "text-indigo-950 font-black",
+      categoryBadge: "bg-indigo-700 text-white border-indigo-800",
+      categoryLabel: "🌍 TET • தாள் 2 (சமூக அறிவியல்)",
     },
     textbooks: {
       ribbon: "from-emerald-600 via-teal-500 to-green-600",
@@ -478,7 +509,7 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
   const handleContainerAction = (c) => {
     const key = c.container_key || c.category;
-    const LOCKED_KEYS = ["tet_1", "tet_2", "online_class"];
+    const LOCKED_KEYS = ["tet_1", "tet_2", "tet_2_math", "tet_2_social", "online_class"];
 
     // Check if module is locked
     if (LOCKED_KEYS.includes(key) && !isEnrolled && user?.role !== "admin") {
@@ -488,8 +519,10 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
 
     if (key === "tet_1") {
       onNavigateToLearning("paper1", 1);
-    } else if (key === "tet_2") {
-      onNavigateToLearning("paper2", 6);
+    } else if (key === "tet_2_math" || key === "tet_2") {
+      onNavigateToLearning("paper2", 6, "math_sci");
+    } else if (key === "tet_2_social") {
+      onNavigateToLearning("paper2", 6, "social");
     } else if (key === "textbooks") {
       if (onNavigateToMaterials) onNavigateToMaterials();
     } else if (key === "news") {
@@ -921,10 +954,10 @@ export default function DashboardPage({ user, onNavigateToLearning, onNavigateTo
           {containers.map((c) => {
             const key = c.container_key || c.category;
             const isTet1 = key === "tet_1";
-            const isTet2 = key === "tet_2";
+            const isTet2 = key === "tet_2" || key === "tet_2_math" || key === "tet_2_social";
             const isOnlineClass = key === "online_class";
             const hasLiveAlert = isOnlineClass && Boolean(currentLiveMeeting);
-            const LOCKED_KEYS = ["tet_1", "tet_2", "online_class"];
+            const LOCKED_KEYS = ["tet_1", "tet_2", "tet_2_math", "tet_2_social", "online_class"];
             const isLocked = LOCKED_KEYS.includes(key) && !isEnrolled && user?.role !== "admin";
             const isFree = !LOCKED_KEYS.includes(key);
 

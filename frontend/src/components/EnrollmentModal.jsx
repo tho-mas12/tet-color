@@ -243,7 +243,11 @@ export default function EnrollmentModal({
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-emerald-800/60 border border-emerald-400/40 text-emerald-100 flex items-center space-x-1">
                 <CheckCircle2 className="w-3 h-3 text-emerald-300" />
-                <span>TET 2 (CLASSES 6-12) UNLOCKED</span>
+                <span>TET 2 MATH & SCI UNLOCKED</span>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-800/60 border border-emerald-400/40 text-emerald-100 flex items-center space-x-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-300" />
+                <span>TET 2 SOCIAL SCI UNLOCKED</span>
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-emerald-800/60 border border-emerald-400/40 text-emerald-100 flex items-center space-x-1">
                 <CheckCircle2 className="w-3 h-3 text-emerald-300" />

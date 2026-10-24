@@ -304,16 +304,29 @@ def seed_initial_data(db: Session):
                 is_active=True
             ),
             models.DashboardContainer(
-                container_key="tet_2",
-                title="TET - 2",
-                subtitle="Classes 6–12 | தாள் - 2",
+                container_key="tet_2_math",
+                title="TET 2 (Math & Sci)",
+                subtitle="Classes 6–12 | தாள் - 2 (கணிதம் & அறிவியல்)",
                 category="tet",
-                description="6 முதல் 12 ஆம் வகுப்பு வரை பாடவாரியான முழுமையான தேர்வு தயாரிப்பு & மாதிரி தேர்வுகள்",
+                description="6 முதல் 12 ஆம் வகுப்பு வரை கணிதம் & அறிவியல் பாடங்களுக்கான முழுமையான தேர்வு தயாரிப்பு",
                 badge_text="Classes 6-12",
-                button_text="OPEN TET-2 →",
-                action_url="tet_2",
+                button_text="OPEN MATH & SCI →",
+                action_url="tet_2_math",
                 icon_name="BookOpen",
                 order_index=2,
+                is_active=True
+            ),
+            models.DashboardContainer(
+                container_key="tet_2_social",
+                title="TET 2 (Social Science)",
+                subtitle="Classes 6–12 | தாள் - 2 (சமூக அறிவியல்)",
+                category="tet",
+                description="6 முதல் 12 ஆம் வகுப்பு வரை சமூக அறிவியல் பாடத்திற்கான முழுமையான தேர்வு தயாரிப்பு & மாதிரி தேர்வுகள்",
+                badge_text="Classes 6-12",
+                button_text="OPEN SOCIAL SCIENCE →",
+                action_url="tet_2_social",
+                icon_name="BookOpen",
+                order_index=3,
                 is_active=True
             ),
             models.DashboardContainer(
@@ -443,10 +456,62 @@ def seed_initial_data(db: Session):
         db.add(it_container)
         db.commit()
 
-    # Seed default income tax settings if not exists
-    if db.query(models.IncomeTaxSettings).count() == 0:
-        db.add(models.IncomeTaxSettings())
+    # Ensure TET 2 (Math & Sci) and TET 2 (Social Science) containers exist
+    try:
+        c_tet2_math = db.query(models.DashboardContainer).filter(
+            or_(models.DashboardContainer.container_key == "tet_2", models.DashboardContainer.container_key == "tet_2_math")
+        ).first()
+        if c_tet2_math:
+            c_tet2_math.container_key = "tet_2_math"
+            c_tet2_math.title = "TET 2 (Math & Sci)"
+            c_tet2_math.subtitle = "Classes 6–12 | தாள் - 2 (கணிதம் & அறிவியல்)"
+            c_tet2_math.description = "6 முதல் 12 ஆம் வகுப்பு வரை கணிதம் & அறிவியல் பாடங்களுக்கான முழுமையான தேர்வு தயாரிப்பு"
+            c_tet2_math.badge_text = "Classes 6-12"
+            c_tet2_math.button_text = "OPEN MATH & SCI →"
+            c_tet2_math.action_url = "tet_2_math"
+            c_tet2_math.order_index = 2
+            c_tet2_math.is_active = True
+            db.commit()
+
+        c_tet2_soc = db.query(models.DashboardContainer).filter(models.DashboardContainer.container_key == "tet_2_social").first()
+        if not c_tet2_soc:
+            c_tet2_soc = models.DashboardContainer(
+                container_key="tet_2_social",
+                title="TET 2 (Social Science)",
+                subtitle="Classes 6–12 | தாள் - 2 (சமூக அறிவியல்)",
+                category="tet",
+                description="6 முதல் 12 ஆம் வகுப்பு வரை சமூக அறிவியல் பாடத்திற்கான முழுமையான தேர்வு தயாரிப்பு & மாதிரி தேர்வுகள்",
+                badge_text="Classes 6-12",
+                button_text="OPEN SOCIAL SCIENCE →",
+                action_url="tet_2_social",
+                icon_name="BookOpen",
+                order_index=3,
+                is_active=True
+            )
+            db.add(c_tet2_soc)
+            db.commit()
+
+        # Update order indexes for existing containers to maintain clean order
+        order_map = {
+            "tet_1": 1,
+            "tet_2_math": 2,
+            "tet_2": 2,
+            "tet_2_social": 3,
+            "textbooks": 4,
+            "news": 5,
+            "tamil_reading": 6,
+            "english_reading": 7,
+            "online_class": 8,
+            "income_tax": 9,
+            "nmms": 10,
+            "treast": 11,
+        }
+        for c_item in db.query(models.DashboardContainer).all():
+            if c_item.container_key in order_map and c_item.order_index != order_map[c_item.container_key]:
+                c_item.order_index = order_map[c_item.container_key]
         db.commit()
+    except Exception as e:
+        db.rollback()
 
     # Live meetings should only be created when scheduled by an administrator.
     pass

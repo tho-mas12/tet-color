@@ -42,6 +42,17 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
     return localStorage.getItem("tet_paper_choice") || "paper1";
   });
 
+  const [tetTrack, setTetTrack] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tr = params.get("track");
+      if (tr === "social" || tr === "math_sci") return tr;
+    } catch (e) {}
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes("social")) return "social";
+    return localStorage.getItem("tet_track_choice") || "math_sci";
+  });
+
   const [selectedClass, setSelectedClass] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -177,22 +188,43 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
     104: { active: "bg-[#ff7a00] text-white border-[#ff7a00]", inactive: "bg-[#ff7a00]/10 text-[#ff7a00] border-[#ff7a00]/30 hover:bg-[#ff7a00]/20" },
   };
 
-  const baseSubjects = ["Tamil", "English", "Mathematics", "Science", "Social Science"];
-  const higherSubjects = [
+  // Dynamic Subjects based on paper & track
+  let baseSubjects = ["Tamil", "English", "Mathematics", "Science", "Social Science"];
+  let higherSubjects = [
     "Physics", "Chemistry", "Botany", "Zoology", 
     "Computer Science", "Commerce", "Economics", "Accountancy"
   ];
-  
+
+  if (tetPaper === "paper2") {
+    if (tetTrack === "social") {
+      // In TET 2 (Social Science): hide Maths and Science, keep remaining as it is
+      baseSubjects = ["Tamil", "English", "Social Science"];
+      higherSubjects = ["Commerce", "Economics", "Accountancy"];
+    } else {
+      // In TET 2 (Math & Sci): hide Social Science, keep remaining as it is
+      baseSubjects = ["Tamil", "English", "Mathematics", "Science"];
+      higherSubjects = ["Physics", "Chemistry", "Botany", "Zoology", "Computer Science"];
+    }
+  }
+
   const subjects = selectedClass <= 10 
     ? baseSubjects 
     : selectedClass <= 12
     ? ["Tamil", "English", ...higherSubjects]
     : [selectedSubject];
 
-  // Store paper choice & adjust selected class to stay within valid range and sync URL
+  // If currently selected subject is not in subjects, fallback gracefully
+  useEffect(() => {
+    if (selectedClass <= 12 && !subjects.includes(selectedSubject)) {
+      setSelectedSubject("Tamil");
+    }
+  }, [tetPaper, tetTrack, selectedClass, subjects, selectedSubject]);
+
+  // Store paper choice & track choice & adjust selected class to stay within valid range and sync URL
   useEffect(() => {
     if (activeLessonId) return; // CRITICAL: NEVER overwrite URL when viewing a lesson study!
     localStorage.setItem("tet_paper_choice", tetPaper);
+    localStorage.setItem("tet_track_choice", tetTrack);
     let validClass = selectedClass;
     if (selectedClass <= 12) {
       if (tetPaper === "paper1" && selectedClass > 8) {
@@ -206,9 +238,10 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
     localStorage.setItem("tet_selected_class", validClass.toString());
     try {
       const paperSlug = tetPaper === "paper2" ? "tet-2" : "tet-1";
-      window.history.replaceState(null, "", `/course/${paperSlug}?class=${validClass}`);
+      const trackParam = tetPaper === "paper2" ? `&track=${tetTrack}` : "";
+      window.history.replaceState(null, "", `/course/${paperSlug}?class=${validClass}${trackParam}`);
     } catch (e) {}
-  }, [tetPaper, selectedClass, activeLessonId]);
+  }, [tetPaper, tetTrack, selectedClass, activeLessonId]);
 
   useEffect(() => {
     loadUserStreak();
@@ -460,52 +493,83 @@ export default function LearningPage({ user, lang = "en", onShare, directLesson,
           <div className="space-y-1">
             <div className="flex items-center space-x-2 text-[#0055ff] font-bold text-xs uppercase tracking-wider">
               <GraduationCap className="w-4 h-4" />
-              <span>{tetPaper === "paper1" ? "TET-1 Candidate Portal" : "TET-2 Candidate Portal"}</span>
+              <span>
+                {tetPaper === "paper1"
+                  ? "TET-1 Candidate Portal (Classes 1–8)"
+                  : tetTrack === "social"
+                  ? "TET-2 Social Science Portal (Classes 6–12)"
+                  : "TET-2 Math & Science Portal (Classes 6–12)"}
+              </span>
             </div>
             <h1 className="text-xl sm:text-3xl font-black text-[#061b36] tracking-tight">
-              {t.learningTitle}
+              {tetPaper === "paper1"
+                ? (lang === "ta" ? "TET - 1 பாடத்திட்டம் (தாள் 1)" : "TET - 1 Primary Track Curriculum")
+                : tetTrack === "social"
+                ? (lang === "ta" ? "TET 2 சமூக அறிவியல் (தாள் 2)" : "TET 2 Social Science Curriculum")
+                : (lang === "ta" ? "TET 2 கணிதம் & அறிவியல் (தாள் 2)" : "TET 2 Math & Science Curriculum")}
             </h1>
             <p className="text-xs text-slate-500 max-w-2xl font-medium">
-              {t.learningSubtitle}
+              {tetPaper === "paper1"
+                ? (lang === "ta" ? "1 முதல் 8 ஆம் வகுப்பு வரையிலான பாடங்கள், குறிப்புகள் & மாதிரித் தேர்வுகள்" : "Classes 1 to 8 lesson modules, study material & tests")
+                : tetTrack === "social"
+                ? (lang === "ta" ? "6 முதல் 12 ஆம் வகுப்பு சமூக அறிவியல் பாடங்களுக்கான பிரத்யேகத் தயாரிப்பு" : "Classes 6 to 12 Social Science curriculum & practice materials")
+                : (lang === "ta" ? "6 முதல் 12 ஆம் வகுப்பு கணிதம் மற்றும் அறிவியல் பாடங்களுக்கான பிரத்யேகத் தயாரிப்பு" : "Classes 6 to 12 Mathematics and Science curriculum & practice materials")}
             </p>
           </div>
 
-          {/* TET-1 vs TET-2 Interactive Switcher & Inline Share Button */}
+          {/* 3-Track Interactive Switcher & Inline Share Button */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="flex items-center p-1 sm:p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80 flex-1 sm:w-auto shadow-2xs">
+            <div className="flex items-center p-1 sm:p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80 flex-1 sm:w-auto shadow-2xs gap-1">
               <button
                 onClick={() => {
                   setTetPaper("paper1");
                   setSelectedClass(1);
+                  localStorage.setItem("tet_paper_choice", "paper1");
                 }}
-                className={`flex-1 sm:flex-initial px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
                   tetPaper === "paper1"
                     ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
                     : "text-[#061b36] hover:bg-slate-200/70"
                 }`}
               >
-                <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                <span className="truncate">
-                  <span className="inline sm:hidden">TET-1 (1–8)</span>
-                  <span className="hidden sm:inline">TET-1 (Classes 1–8)</span>
-                </span>
+                <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">TET-1 (1–8)</span>
               </button>
+
               <button
                 onClick={() => {
                   setTetPaper("paper2");
-                  setSelectedClass(6);
+                  setTetTrack("math_sci");
+                  if (selectedClass < 6) setSelectedClass(6);
+                  localStorage.setItem("tet_paper_choice", "paper2");
+                  localStorage.setItem("tet_track_choice", "math_sci");
                 }}
-                className={`flex-1 sm:flex-initial px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
-                  tetPaper === "paper2"
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                  tetPaper === "paper2" && tetTrack !== "social"
                     ? "bg-[#0055ff] text-white shadow-sm ring-1 ring-[#0055ff]"
                     : "text-[#061b36] hover:bg-slate-200/70"
                 }`}
               >
-                <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                <span className="truncate">
-                  <span className="inline sm:hidden">TET-2 (6–12)</span>
-                  <span className="hidden sm:inline">TET-2 (Classes 6–12)</span>
-                </span>
+                <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">TET-2 Math & Sci</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setTetPaper("paper2");
+                  setTetTrack("social");
+                  if (selectedClass < 6) setSelectedClass(6);
+                  localStorage.setItem("tet_paper_choice", "paper2");
+                  localStorage.setItem("tet_track_choice", "social");
+                }}
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                  tetPaper === "paper2" && tetTrack === "social"
+                    ? "bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-600"
+                    : "text-[#061b36] hover:bg-slate-200/70"
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">TET-2 Social Sci</span>
               </button>
             </div>
 
