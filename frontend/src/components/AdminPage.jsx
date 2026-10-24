@@ -3047,7 +3047,10 @@ export default function AdminPage({ user, lang = "en" }) {
                 const allTimeActiveCount = allTimeUniqueActiveEmails.size;
                 const allTimeAdminFreeCount = enrollmentsList.filter(e => e.payment_method === "admin_free").length;
                 const allTimePaidCount = Math.max(0, allTimeActiveCount - allTimeAdminFreeCount);
-                const allTimeTotalRevenue = allTimePaidCount * 1000;
+                // Sum actual amounts from paid (non-free) active enrollments
+                const allTimeTotalRevenue = allTimeActive
+                  .filter(e => e.payment_method !== "admin_free")
+                  .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
                 // Date-matching checker (IST-aware: DB timestamps are UTC, compare in IST)
                 const isDateMatching = (created_at) => {
@@ -3078,7 +3081,10 @@ export default function AdminPage({ user, lang = "en" }) {
                 const dateActiveCount = dateUniqueActiveEmails.size;
                 const dateAdminFreeCount = dateFilteredList.filter(e => e.payment_method === "admin_free").length;
                 const datePaidCount = Math.max(0, dateActiveCount - dateAdminFreeCount);
-                const dateRevenue = datePaidCount * 1000;
+                // Sum actual amounts from date-filtered paid active enrollments
+                const dateRevenue = dateActiveList
+                  .filter(e => e.payment_method !== "admin_free")
+                  .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
                 const datePendingCount = dateFilteredList.filter(e => e.status === "pending").length;
                 const dateTotalAttempts = dateFilteredList.length;
 
